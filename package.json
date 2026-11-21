@@ -1,0 +1,19 @@
+{
+  "name": "ome-site",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.23.4"
+  },
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build && node scripts/check-site.mjs",
+    "preview": "astro preview",
+    "check": "node scripts/check-site.mjs"
+  },
+  "dependencies": {
+    "@astrojs/markdown-satteri": "^0.4.10",
+    "@astrojs/starlight": "^0.43.1",
+    "astro": "^7.4.13"
+  }
+}

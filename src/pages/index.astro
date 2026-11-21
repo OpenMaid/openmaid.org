@@ -1,0 +1,70 @@
+---
+// Home (site design §6): what OME is, its games and their support levels, where to get it and the games.
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import ome from 'virtual:ome';
+
+const releases = `${ome.repository}/releases/latest`;
+---
+
+<StarlightPage
+	frontmatter={{
+		title: 'Open Maid Engine',
+		template: 'splash',
+		head: [{ tag: 'title', content: 'Open Maid Engine' }],
+		hero: {
+			tagline: 'An open reimplementation of AGE, the engine of Eushully’s games, built for modding.',
+			actions: [
+				{ text: 'Read the modding guide', link: '/docs/', icon: 'right-arrow' },
+				{ text: 'Get OME', link: releases, icon: 'external', variant: 'minimal' },
+			],
+		},
+	}}
+>
+	<h2>What it is</h2>
+	<p>
+		Open Maid Engine (OME) runs Eushully’s games from your own copy of them. No game file is part of OME: you supply
+		an installed game, and OME reads it. It runs on Windows and Linux, and it is free software under the MIT License.
+	</p>
+	<p>
+		Modding comes first. A mod is a package that patches a game’s scripts, adds scenes and assets, translates the
+		game’s text, runs Lua beside its scripts or changes its data tables. Script mods also export to the original
+		engine; translations, Lua and data files run in OME.
+	</p>
+
+	<h2>The games</h2>
+	<p>
+		Each game has two support levels. Play says how well OME runs it, from P1 (OME reads the game) to P4 (verified
+		against the original to its ending). Modding says what a modder gets, from M1 (script mods) to M3 (a base mod for
+		Lua and data files). <a href="/docs/games/">The supported games</a> page explains each level.
+	</p>
+	<table class="ome-games">
+		<thead>
+			<tr><th>Game</th><th>Play</th><th>Modding</th><th>Modding guide</th><th>The game</th></tr>
+		</thead>
+		<tbody>
+			{
+				ome.games.map((game) => (
+					<tr>
+						<td>{game.title}</td>
+						<td>{game.play ?? '—'}</td>
+						<td>{game.modding ?? '—'}</td>
+						<td><a href={`/docs/games/${game.id}/`}>{game.id}</a></td>
+						<td>{game.site ? <a href={game.site}>The maker’s site</a> : '—'}</td>
+					</tr>
+				))
+			}
+		</tbody>
+	</table>
+
+	<h2>Get OME</h2>
+	<p>
+		OME’s releases are on <a href={releases}>GitHub</a>, with packages for Windows and Linux. Each carries a
+		launcher, which keeps a profile for each game you play, with its mods.
+	</p>
+
+	<h2>The game database</h2>
+	<p>
+		A page for each item, unit and skill of a game, mined from the game by OME: Kamidori Alchemy Meister first.
+		It is not built yet.
+	</p>
+</StarlightPage>

@@ -1,0 +1,9 @@
+/* The site's own styles, over Starlight's. */
+
+.ome-games {
+	width: 100%;
+}
+.ome-games td,
+.ome-games th {
+	vertical-align: top;
+}

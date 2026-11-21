@@ -1,0 +1,100 @@
+---
+// The age notice (site design §8.10): over every page until the visitor confirms, then remembered in the browser.
+//
+// The page's content is in the HTML underneath, so search and tooltips work. The notice is a dialog that the page
+// opens already shown: its button closes it through the form, which needs no script. With a script the dialog becomes
+// modal, so the page behind cannot be reached until the button confirms it, and the confirmation is remembered. The head
+// script (astro.config.mjs) marks a confirmed visitor before the first paint, so the notice never flashes for them.
+---
+
+<dialog id="ome-age-notice" open aria-labelledby="ome-age-notice-title">
+	<form method="dialog">
+		<h2 id="ome-age-notice-title">Adult titles</h2>
+		<p>
+			The games this site covers are adult titles. Their data, pictures and text include sexual content.
+		</p>
+		<p>Continue only if you are an adult where you live.</p>
+		<button value="confirm" autofocus>I am an adult: continue</button>
+	</form>
+</dialog>
+
+<script is:inline>
+	(() => {
+		const notice = document.getElementById('ome-age-notice');
+		if (document.documentElement.hasAttribute('data-ome-age-confirmed')) {
+			notice.remove();
+			return;
+		}
+		notice.close();
+		notice.showModal();
+		// Only the button confirms. Chrome closes a dialog on Escape before the visitor has touched the page, whatever a
+		// `cancel` handler does, so a notice closed any other way opens again.
+		notice.addEventListener('cancel', (event) => event.preventDefault());
+		notice.addEventListener('close', () => {
+			if (notice.returnValue !== 'confirm') {
+				notice.showModal();
+				return;
+			}
+			try {
+				localStorage.setItem('ome-age-confirmed', '1');
+			} catch {}
+			document.documentElement.setAttribute('data-ome-age-confirmed', '');
+			notice.remove();
+		});
+	})();
+</script>
+
+<style is:global>
+	:root[data-ome-age-confirmed] #ome-age-notice {
+		display: none;
+	}
+	:root:has(#ome-age-notice[open]) {
+		overflow: hidden;
+	}
+	#ome-age-notice[open] {
+		position: fixed;
+		inset: 0;
+		z-index: 1000;
+		display: grid;
+		place-items: center;
+		width: 100%;
+		max-width: none;
+		height: 100%;
+		max-height: none;
+		margin: 0;
+		padding: 1rem;
+		border: 0;
+		color: var(--sl-color-white);
+		background: rgb(0 0 0 / 0.85);
+		backdrop-filter: blur(16px);
+	}
+	#ome-age-notice::backdrop {
+		background: transparent;
+	}
+	#ome-age-notice form {
+		max-width: 32rem;
+		padding: 2rem;
+		border: 1px solid var(--sl-color-gray-5);
+		border-radius: 0.5rem;
+		background: var(--sl-color-black);
+		box-shadow: var(--sl-shadow-lg);
+	}
+	#ome-age-notice h2 {
+		margin: 0 0 1rem;
+		font-size: var(--sl-text-h3);
+	}
+	#ome-age-notice p {
+		margin: 0 0 1rem;
+	}
+	#ome-age-notice button {
+		margin-top: 0.5rem;
+		padding: 0.6rem 1.2rem;
+		border: 0;
+		border-radius: 999rem;
+		font: inherit;
+		font-weight: 600;
+		color: var(--sl-color-black);
+		background: var(--sl-color-text-accent);
+		cursor: pointer;
+	}
+</style>

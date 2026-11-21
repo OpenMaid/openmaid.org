@@ -3,5 +3,9 @@ node_modules/
 dist/
 .astro/
 
-# Game data from the OME exporter. It never enters this repository (docs/specs/2026-11-21-site-design.md, section 10).
+# Written by the build from OME's guides (site design §11).
+src/content/docs/
+
+# Game exports and the reference bundle, never committed (site design §10.1).
 data/
+bundle/
