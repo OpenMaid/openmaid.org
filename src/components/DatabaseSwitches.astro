@@ -1,0 +1,24 @@
+---
+// The database's two switches, remembered in the browser (site design §8.7, §8.11): modder mode shows each page's
+// modder panel, and "explicit pictures" shows them without the blur. The head script (astro.config.mjs) restores both
+// before the first paint as attributes on <html>, which the styles read.
+---
+
+<div class="ome-switches not-content" data-pagefind-ignore>
+	<label><input type="checkbox" data-ome-switch="ome-modder-mode" data-attribute="data-ome-modder" /> Modder mode</label>
+	<label><input type="checkbox" data-ome-switch="ome-show-explicit" data-attribute="data-ome-explicit" /> Show explicit pictures</label>
+</div>
+
+<script>
+	for (const input of document.querySelectorAll<HTMLInputElement>('input[data-ome-switch]')) {
+		const attribute = input.dataset.attribute!;
+		input.checked = document.documentElement.hasAttribute(attribute);
+		input.addEventListener('change', () => {
+			document.documentElement.toggleAttribute(attribute, input.checked);
+			try {
+				if (input.checked) localStorage.setItem(input.dataset.omeSwitch!, '1');
+				else localStorage.removeItem(input.dataset.omeSwitch!);
+			} catch {}
+		});
+	}
+</script>

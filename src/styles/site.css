@@ -7,3 +7,146 @@
 .ome-games th {
 	vertical-align: top;
 }
+
+/* The database (site design §8). */
+
+.ome-entity-line {
+	color: var(--sl-color-gray-3);
+	font-size: var(--sl-text-sm);
+}
+.ome-switches {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem 1.5rem;
+	font-size: var(--sl-text-sm);
+}
+.ome-switches label {
+	display: inline-flex;
+	gap: 0.4rem;
+	align-items: center;
+}
+
+.ome-pictures {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 1rem;
+	align-items: flex-end;
+}
+.ome-pictures figure {
+	margin: 0;
+	max-width: 100%;
+}
+.ome-pictures img {
+	max-width: 100%;
+	height: auto;
+}
+.ome-pictures figcaption {
+	font-size: var(--sl-text-xs);
+	color: var(--sl-color-gray-3);
+}
+
+/* An explicit picture's stand-in (§8.11): the build's tiny copy, shown large and blurred, with its label over it. */
+.ome-explicit {
+	position: relative;
+	display: inline-block;
+	overflow: hidden;
+	color: var(--sl-color-white);
+	text-decoration: none;
+	cursor: pointer;
+}
+.ome-explicit:not(.ome-revealed) img {
+	filter: blur(12px) saturate(0.6);
+	transform: scale(1.1);
+}
+.ome-explicit:not(.ome-revealed) span {
+	position: absolute;
+	inset: 0;
+	display: grid;
+	place-items: center;
+	padding: 0.5rem;
+	text-align: center;
+	font-weight: 600;
+	font-size: var(--sl-text-sm);
+	background: rgb(0 0 0 / 0.35);
+}
+.ome-explicit.ome-revealed span {
+	display: none;
+}
+
+.ome-infobox th {
+	width: 30%;
+	text-align: start;
+	vertical-align: top;
+}
+.ome-values {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+.ome-values li {
+	margin: 0;
+}
+.ome-list.ome-values {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+	gap: 0 1rem;
+}
+.ome-element {
+	color: var(--sl-color-gray-3);
+	margin-inline-end: 0.4rem;
+}
+.ome-element::after {
+	content: ':';
+}
+.ome-missing {
+	color: var(--sl-color-gray-3);
+}
+.ome-text p {
+	white-space: pre-wrap;
+}
+.ome-links {
+	columns: 16rem;
+}
+
+/* The modder panel (§8.7): in the page, shown only in modder mode. */
+.ome-modder {
+	display: none;
+	margin-top: 2rem;
+	padding: 1rem;
+	border: 1px dashed var(--sl-color-gray-4);
+	border-radius: 0.5rem;
+}
+:root[data-ome-modder] .ome-modder {
+	display: block;
+}
+.ome-cells {
+	display: block;
+	overflow-x: auto;
+}
+.ome-cells th,
+.ome-cells td {
+	font-size: var(--sl-text-xs);
+	white-space: nowrap;
+}
+.ome-zero {
+	color: var(--sl-color-gray-3);
+	font-size: var(--sl-text-sm);
+}
+
+/* Lists (§8.3). */
+.ome-filters {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.75rem 1.25rem;
+	align-items: end;
+	font-size: var(--sl-text-sm);
+}
+.ome-filters label {
+	display: grid;
+	gap: 0.2rem;
+}
+.ome-thumb img,
+.ome-thumb .ome-explicit {
+	width: auto;
+	height: 2.5rem;
+}

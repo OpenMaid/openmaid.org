@@ -1,0 +1,111 @@
+---
+// A kind's list (site design §8.3): every entity in a table, with a filter on each field the export marks filterable
+// and on the name. The rows are in the page, so it reads without scripts; a script filters them in the browser and
+// keeps the filters in the URL, so a filtered list can be linked. Lists are not in the search index.
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import Picture from '../../../components/Picture.astro';
+import { databaseSidebar, game, games } from '../../../lib/database.mjs';
+import { label } from '../../../lib/labels.mjs';
+
+export function getStaticPaths() {
+	return games().flatMap((data) => data.kinds.map((kind) => ({ params: { game: data.game, kind: kind.id } })));
+}
+
+const data = game(Astro.params.game!);
+const kind = data.kinds.find((k) => k.id === Astro.params.kind)!;
+const filters = kind.fields
+	.filter((field) => field.filter && !field.isArray)
+	.map((field) => {
+		const counts = new Map<number, number>();
+		for (const entity of kind.entities) {
+			const value = entity.values[field.name];
+			if (value !== null && value !== undefined) counts.set(value, (counts.get(value) ?? 0) + 1);
+		}
+		return { field, label: label(field.name), values: [...counts].sort((a, b) => a[0] - b[0]) };
+	});
+---
+
+<StarlightPage
+	frontmatter={{ title: `${kind.label.many} of ${data.title}`, pagefind: false, tableOfContents: false }}
+	sidebar={databaseSidebar(data)}
+>
+	<p>
+		{kind.entities.length} {kind.label.many.toLowerCase()}, from game data revision <code>{data.revision}</code>. A field
+		whose values stand for something in the game (a category, a race) shows them as the game stores them, as numbers.
+	</p>
+	<form class="ome-filters not-content" data-ome-filters>
+		<label>Name <input type="search" name="q" autocomplete="off" /></label>
+		{
+			filters.map((f) => (
+				<label>
+					{f.label}
+					<select name={f.field.name}>
+						<option value="">all</option>
+						{f.values.map(([value, count]) => (
+							<option value={String(value)}>
+								{value} ({count})
+							</option>
+						))}
+					</select>
+				</label>
+			))
+		}
+		<output data-ome-count>{kind.entities.length} shown</output>
+	</form>
+	<table class="ome-list">
+		<thead>
+			<tr>
+				<th></th><th>ID</th><th>Name</th>
+				{filters.map((f) => <th>{f.label}</th>)}
+			</tr>
+		</thead>
+		<tbody>
+			{
+				kind.entities.map((entity) => (
+					<tr
+						data-name={entity.title.toLowerCase()}
+						{...Object.fromEntries(filters.map((f) => [`data-f-${f.field.name}`, String(entity.values[f.field.name])]))}
+					>
+						<td class="ome-thumb">
+							{entity.thumbnail && <Picture data={data} picture={entity.thumbnail} alt="" />}
+						</td>
+						<td>{entity.id}</td>
+						<td>
+							<a href={entity.url}>{entity.title}</a>
+						</td>
+						{filters.map((f) => <td>{entity.values[f.field.name]}</td>)}
+					</tr>
+				))
+			}
+		</tbody>
+	</table>
+	<script is:inline src="/tooltips.js" defer></script>
+</StarlightPage>
+
+<script>
+	const form = document.querySelector<HTMLFormElement>('form[data-ome-filters]')!;
+	const rows = [...document.querySelectorAll<HTMLTableRowElement>('table.ome-list tbody tr')];
+	const count = form.querySelector('output[data-ome-count]')!;
+	const params = new URLSearchParams(location.search);
+	for (const control of form.querySelectorAll<HTMLInputElement | HTMLSelectElement>('input, select'))
+		if (params.has(control.name)) control.value = params.get(control.name)!;
+
+	const apply = () => {
+		const wanted = [...new FormData(form)].filter(([, value]) => value !== '') as [string, string][];
+		let shown = 0;
+		for (const row of rows) {
+			const match = wanted.every(([name, value]) =>
+				name === 'q' ? row.dataset.name!.includes(value.toLowerCase()) : row.getAttribute(`data-f-${name}`) === value,
+			);
+			row.hidden = !match;
+			if (match) shown++;
+		}
+		count.textContent = `${shown} shown`;
+		const url = new URL(location.href);
+		url.search = new URLSearchParams(wanted).toString();
+		history.replaceState(null, '', url);
+	};
+	form.addEventListener('input', apply);
+	form.addEventListener('submit', (event) => event.preventDefault());
+	apply();
+</script>

@@ -2,7 +2,9 @@
 //
 // - every link and asset a page names on the site resolves to a built file, and every anchor to an id on that page;
 // - the search index holds every page that marks its content for search (`data-pagefind-body`), and only those: the
-//   reference section and the ordinary pages share one index (site design §5).
+//   reference section and the ordinary pages share one index (site design §5);
+// - every entity of a game's database has its page, in the search index, and its picture: each kind's tooltip file
+//   (/<game>/tooltips/<kind>.json) lists every entity of the export (site design §10.2).
 //
 // It exits 1 on any failure, listing each.
 import fs from 'node:fs';
@@ -51,13 +53,32 @@ if (!fs.existsSync(fragments)) failures.push('the search index (pagefind/) is no
 else
 	for (const name of fs.readdirSync(fragments)) {
 		const text = zlib.gunzipSync(fs.readFileSync(path.join(fragments, name))).toString('utf8');
-		indexed.add(JSON.parse(text.slice(text.indexOf('{'))).url);
+		indexed.add(decodeURI(JSON.parse(text.slice(text.indexOf('{'))).url));   // Pagefind keeps a URL percent-encoded
 	}
 const searchable = [...pages].filter(([, page]) => page.searchable).map(([url]) => url);
 for (const url of searchable) if (!indexed.has(url)) failures.push(`${pages.get(url).file}: marked for search, not in the index`);
 for (const url of indexed) if (!searchable.includes(url)) failures.push(`the index holds ${url}, which no built page marked for search`);
 
-console.log(`check-site: ${pages.size} pages, ${links} links on the site, ${indexed.size} pages in the search index`);
+let entities = 0;
+for (const [url] of pages) {
+	const game = url.match(/^\/([^/]+)\/$/)?.[1];
+	const dir = game && path.join(dist, game, 'tooltips');
+	if (!dir || !fs.existsSync(dir)) continue;
+	for (const name of fs.readdirSync(dir)) {
+		const tooltips = JSON.parse(fs.readFileSync(path.join(dir, name), 'utf8'));
+		for (const [id, entity] of Object.entries(tooltips.entities)) {
+			entities++;
+			const where = `${game} ${name.replace(/\.json$/, '')} ${id}`;
+			if (!pages.has(entity.u)) failures.push(`${where}: its page ${entity.u} is not built`);
+			else if (!indexed.has(entity.u)) failures.push(`${where}: its page ${entity.u} is not in the search index`);
+			if (entity.p && !fs.existsSync(path.join(dist, decodeURI(entity.p)))) failures.push(`${where}: its picture ${entity.p} is not built`);
+		}
+	}
+}
+
+console.log(
+	`check-site: ${pages.size} pages, ${links} links on the site, ${indexed.size} pages in the search index, ${entities} entities`,
+);
 if (failures.length) {
 	for (const failure of failures) console.error(`  ${failure}`);
 	console.error(`check-site: ${failures.length} failure${failures.length === 1 ? '' : 's'}`);

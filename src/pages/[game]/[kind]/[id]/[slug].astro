@@ -1,0 +1,162 @@
+---
+// An entity page (site design §8.2): its name, pictures, kind and game revision; an infobox of its published fields;
+// its text; what refers to it; what the game's scripts do with it; and the modder panel. Search indexes its name and
+// text only, with the game and kind as filters (§8.4).
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import DatabaseSwitches from '../../../../components/DatabaseSwitches.astro';
+import ModderPanel from '../../../../components/ModderPanel.astro';
+import Picture from '../../../../components/Picture.astro';
+import { databaseSidebar, game, games } from '../../../../lib/database.mjs';
+import { label } from '../../../../lib/labels.mjs';
+import { infobox, referencedBy, texts } from '../../../../lib/values.mjs';
+
+export function getStaticPaths() {
+	return games().flatMap((data) =>
+		data.kinds.flatMap((kind) =>
+			kind.entities.map((entity) => ({
+				params: { game: data.game, kind: kind.id, id: String(entity.id), slug: entity.slug },
+				props: { kindId: kind.id, id: entity.id },
+			})),
+		),
+	);
+}
+
+const data = game(Astro.params.game!);
+const kind = data.kinds.find((k) => k.id === Astro.props.kindId)!;
+const entity = data.byKey.get(`${kind.id}:${Astro.props.id}`)!;
+const { rows, zero } = infobox(kind, entity);
+const text = texts(kind, entity);
+const incoming = referencedBy(data, entity);
+
+// One picture shown once, under every name it has (a unit's battle_1 and battle_2 are often the same file).
+const pictures = [...Map.groupBy(entity.pictures, (p: { file: string }) => p.file).values()].map((same) => ({
+	...same[0],
+	names: same.map((p: { name: string }) => label(p.name)).join(', '),
+}));
+
+const headings = [
+	{ depth: 2, slug: 'details', text: 'Details' },
+	...(text.length ? [{ depth: 2, slug: 'text', text: 'Text' }] : []),
+	...(incoming.length ? [{ depth: 2, slug: 'referenced-by', text: 'Referenced by' }] : []),
+	...(entity.relations.length ? [{ depth: 2, slug: 'found-in-scripts', text: 'Found in scripts' }] : []),
+];
+const version = data.manifest.game_version ? `, game version ${data.manifest.game_version}` : '';
+---
+
+<StarlightPage
+	frontmatter={{ title: entity.title, tableOfContents: { minHeadingLevel: 2, maxHeadingLevel: 2 } }}
+	sidebar={databaseSidebar(data)}
+	headings={headings}
+>
+	<span data-pagefind-filter={`game:${data.title}`}></span>
+	<span data-pagefind-filter={`kind:${kind.label.one}`}></span>
+	<p class="ome-entity-line" data-pagefind-ignore>
+		<a href={`/${data.game}/${kind.id}/`}>{kind.label.one}</a> {entity.id} of {data.title}, from game data revision
+		<code>{data.revision}</code>{version}.
+	</p>
+	<DatabaseSwitches />
+
+	{
+		pictures.length > 0 && (
+			<div class="ome-pictures not-content" data-pagefind-ignore>
+				{pictures.map((picture) => (
+					<figure>
+						<Picture data={data} picture={picture} alt={`${entity.title}: ${picture.names}`} />
+						<figcaption>{picture.names}</figcaption>
+					</figure>
+				))}
+			</div>
+		)
+	}
+
+	<h2 id="details" data-pagefind-ignore>Details</h2>
+	<table class="ome-infobox" data-pagefind-ignore>
+		<tbody>
+			{
+				rows.map((row) => (
+					<tr>
+						<th scope="row">{row.label}</th>
+						<td>
+							<ul class:list={['ome-values', { 'ome-list': row.list }]}>
+								{row.items.map((item) => (
+									<li>
+										{item.label && <span class="ome-element">{item.label}</span>}
+										{item.entity ? (
+											<a href={item.entity.url}>{item.entity.title}</a>
+										) : item.missing ? (
+											<span class="ome-missing">{item.missing} (no such entry)</span>
+										) : (
+											item.text
+										)}
+									</li>
+								))}
+							</ul>
+						</td>
+					</tr>
+				))
+			}
+		</tbody>
+	</table>
+	{zero.length > 0 && <p class="ome-zero" data-pagefind-ignore>At 0 or none: {zero.join(', ')}.</p>}
+
+	{
+		text.length > 0 && (
+			<>
+				<h2 id="text" data-pagefind-ignore>Text</h2>
+				{text.map((t) => (
+					<section class="ome-text" lang="ja">
+						<h3 data-pagefind-ignore>{t.label}</h3>
+						<p>
+							{t.lines.map((line, i) => (
+								<>
+									{i > 0 && <br />}
+									{line}
+								</>
+							))}
+						</p>
+					</section>
+				))}
+			</>
+		)
+	}
+
+	{
+		incoming.length > 0 && (
+			<div data-pagefind-ignore>
+				<h2 id="referenced-by">Referenced by</h2>
+				{incoming.map((group) => (
+					<>
+						<h3>{group.label}</h3>
+						<ul class="ome-links">
+							{group.entities.map((e) => (
+								<li>
+									<a href={e.url}>{e.title}</a>
+								</li>
+							))}
+						</ul>
+					</>
+				))}
+			</div>
+		)
+	}
+
+	{
+		entity.relations.length > 0 && (
+			<div data-pagefind-ignore>
+				<h2 id="found-in-scripts">Found in scripts</h2>
+				<p>Found by reading the game's scripts, not shown by the game as data.</p>
+				<ul>
+					{entity.relations.map((r: { relation: string; script: string; offset: number; count: number | null }) => (
+						<li>
+							{label(r.relation)}: <code>{r.script}</code>
+							{r.count !== null && ` (${r.count})`}
+						</li>
+					))}
+				</ul>
+			</div>
+		)
+	}
+
+	<ModderPanel kind={kind} entity={entity} />
+	<script is:inline src="/tooltips.js" defer></script>
+</StarlightPage>

@@ -5,6 +5,7 @@ declare module 'virtual:ome' {
 		commit: string;
 		repository: string;
 		games: { id: string; title: string; play: string | null; modding: string | null; site: string | null }[];
+		databases: { game: string; revision: string; dir: string; thumbnails: Record<string, string[]> }[];
 	};
 	export default ome;
 }

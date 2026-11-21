@@ -1,0 +1,46 @@
+---
+// Starlight's site title, with a link to each section beside it: the guides and each game's database (site design §1.1).
+import Default from '@astrojs/starlight/components/SiteTitle.astro';
+import ome from 'virtual:ome';
+
+const sections = [
+	{ label: 'Modding guide', href: '/docs/' },
+	...ome.databases.map(({ game }) => ({ label: ome.games.find((g) => g.id === game)?.title ?? game, href: `/${game}/` })),
+];
+const here = Astro.url.pathname;
+---
+
+<div class="ome-site-title">
+	<Default />
+	<nav aria-label="Sections" class="ome-sections">
+		{sections.map(({ label, href }) => <a href={href} aria-current={here.startsWith(href) ? 'true' : undefined}>{label}</a>)}
+	</nav>
+</div>
+
+<style>
+	.ome-site-title {
+		display: flex;
+		align-items: center;
+		gap: 1.5rem;
+		min-width: 0;
+	}
+	.ome-sections {
+		display: none;
+		gap: 1rem;
+		font-size: var(--sl-text-sm);
+		white-space: nowrap;
+	}
+	.ome-sections a {
+		color: var(--sl-color-gray-2);
+		text-decoration: none;
+	}
+	.ome-sections a:hover,
+	.ome-sections a[aria-current] {
+		color: var(--sl-color-white);
+	}
+	@media (min-width: 72rem) {
+		.ome-sections {
+			display: flex;
+		}
+	}
+</style>

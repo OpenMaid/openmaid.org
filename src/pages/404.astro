@@ -1,0 +1,24 @@
+---
+// The site's 404 page, in place of Starlight's (astro.config.mjs). An entity's address without its slug, or with a
+// wrong one (site design §4), is sent to the right page: the kind's tooltip file knows each entity's address.
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+---
+
+<StarlightPage frontmatter={{ title: 'Page not found', template: 'splash', pagefind: false }}>
+	<p>There is no page at this address. <a href="/">The home page</a> and the search above lead everywhere.</p>
+</StarlightPage>
+
+<script is:inline>
+	(() => {
+		const path = decodeURI(location.pathname);
+		const match = path.match(/^\/([a-z0-9_-]+)\/([a-z0-9_-]+)\/(\d+)(?:\/[^/]*)?\/?$/);
+		if (!match) return;
+		fetch(`/${match[1]}/tooltips/${match[2]}.json`)
+			.then((response) => (response.ok ? response.json() : null))
+			.then((tooltips) => {
+				const entity = tooltips?.entities?.[match[3]];
+				if (entity && entity.u !== path) location.replace(entity.u + location.search + location.hash);
+			})
+			.catch(() => {});
+	})();
+</script>

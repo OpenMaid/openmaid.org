@@ -10,7 +10,8 @@ The website of the Open Maid Engine (OME), on one domain:
 
 The design is `docs/specs/2026-11-21-site-design.md`, accepted on 2026-11-21. Its plan,
 `docs/plans/2026-11-21-site-plan.md`, keeps what each milestone built and where the build departs from the design.
-Built so far: milestone 1, the home page, the guides and search, on Astro and Starlight.
+Built so far: milestone 1, the home page, the guides and search, on Astro and Starlight; milestone 2, Kamidori's
+items, units and skills.
 
 ## Building
 
@@ -26,6 +27,12 @@ npm run preview  # serves dist/
 
 Each build copies OME's guides into `src/content/docs/docs/`, which git ignores, and fails on a guide link it cannot
 map. The favicon is OME's icon (`godot/assets/ome-icon.svg` in OME).
+
+The game database needs each game's export, which holds the game's data and so is never committed. Make it with
+OME (`Ome.Cli data-export --game <game>`, on a machine with the game installed) and copy the folder it writes to
+`data/<game>/`, so that `data/kamidori/` holds `<revision>.sqlite`, `pictures/` and `manifest.json`. The revision
+must be the one `site.config.mjs` lists. To build without the database, set `OME_SITE_GAMES` empty; to build some
+games only, list them (`OME_SITE_GAMES=kamidori`).
 
 ## What this repository holds, and what it does not
 

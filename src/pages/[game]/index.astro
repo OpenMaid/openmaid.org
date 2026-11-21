@@ -1,0 +1,31 @@
+---
+// A game's front page in the database (site design §4): what the data is, where it comes from, and its kinds.
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import { databaseSidebar, game, games } from '../../lib/database.mjs';
+
+export function getStaticPaths() {
+	return games().map((data) => ({ params: { game: data.game } }));
+}
+
+const data = game(Astro.params.game!);
+const version = data.manifest.game_version ? ` (game version ${data.manifest.game_version})` : '';
+---
+
+<StarlightPage frontmatter={{ title: data.title, tableOfContents: false }} sidebar={databaseSidebar(data)}>
+	<p>
+		The data of <span lang="ja">{data.info.title}</span>, read from the game by Open Maid Engine’s exporter: what the
+		game holds for each entry, with its own text and pictures. The story’s scenes are not here.
+	</p>
+	<ul>
+		{
+			data.kinds.map((kind) => (
+				<li>
+					<a href={`/${data.game}/${kind.id}/`}>{kind.label.many}</a>: {kind.entities.length}
+				</li>
+			))
+		}
+	</ul>
+	<p>
+		This is game data revision <code>{data.revision}</code>{version}. The text is the game’s own, in Japanese.
+	</p>
+</StarlightPage>

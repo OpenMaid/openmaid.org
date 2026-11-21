@@ -1,0 +1,50 @@
+---
+// One picture of an entity (site design §8.9). An explicit one (§8.11) is a blurred stand-in that the build made, with
+// a label; the page loads the picture only on a click, or at once while the "explicit pictures" switch is on. Without
+// scripts the stand-in links to the picture.
+import { pictureUrl, standInUrl } from '../lib/database.mjs';
+
+interface Props {
+	data: { game: string; revision: string };
+	picture: { file: string; explicit: boolean; width: number; height: number };
+	alt: string;
+	class?: string;
+}
+const { data, picture, alt, class: className } = Astro.props;
+const src = pictureUrl(data, picture);
+---
+
+{
+	picture.explicit ? (
+		<a class:list={['ome-explicit', className]} href={src} data-ome-picture={src} data-pagefind-ignore>
+			<img src={standInUrl(data, picture)} alt={`${alt} (explicit, hidden)`} width={picture.width} height={picture.height} />
+			<span>Explicit: click to show</span>
+		</a>
+	) : (
+		<img class={className} src={src} alt={alt} width={picture.width} height={picture.height} loading="lazy" />
+	)
+}
+
+<script>
+	// A click on an explicit picture's stand-in loads the picture in its place; while the "explicit pictures" switch is
+	// on (src/components/DatabaseSwitches.astro), every one on the page is shown.
+	const reveal = (link: HTMLAnchorElement) => {
+		const img = link.querySelector('img')!;
+		img.src = link.dataset.omePicture!;
+		img.alt = img.alt.replace(/ \(explicit, hidden\)$/, '');
+		link.classList.add('ome-revealed');
+		link.removeAttribute('href');
+	};
+	document.addEventListener('click', (event) => {
+		const link = (event.target as Element).closest?.<HTMLAnchorElement>('a.ome-explicit:not(.ome-revealed)');
+		if (!link) return;
+		event.preventDefault();
+		reveal(link);
+	});
+	const revealAll = () => {
+		if (document.documentElement.hasAttribute('data-ome-explicit'))
+			document.querySelectorAll<HTMLAnchorElement>('a.ome-explicit:not(.ome-revealed)').forEach(reveal);
+	};
+	revealAll();
+	new MutationObserver(revealAll).observe(document.documentElement, { attributes: true, attributeFilter: ['data-ome-explicit'] });
+</script>
