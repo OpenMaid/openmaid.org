@@ -1,0 +1,7 @@
+# Built output and dependencies
+node_modules/
+dist/
+.astro/
+
+# Game data from the OME exporter. It never enters this repository (docs/specs/2026-11-21-site-design.md, section 10).
+data/
