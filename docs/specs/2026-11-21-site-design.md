@@ -2,7 +2,8 @@
 
 **Date:** 2026-11-21
 **Status:** accepted by the user on 2026-11-21 ("Go ahead and approve it and get started"), after they decided its
-questions (§14). Nothing is built yet.
+questions (§14). Nothing is built yet. §8.11, the blur over explicit pictures, was added the same day at the user's
+request (§14, decision 7).
 **How it was decided:** the user's outline (`Site Ideas.md` at the workspace root, beside this repository), a
 research note on the stack written by another session on 2026-11-19 (kept here as
 `docs/research/2026-11-19-encyclopedia-tech-stack.md`), and the user's answers of 2026-11-21 (§3.1).
@@ -279,6 +280,21 @@ it decides its own notice.
 No page warns of spoilers (§3.1): what counts as late in a game cannot be told the same way for every kind and
 game.
 
+### 8.11 Explicit pictures
+
+Added on 2026-11-21 at the user's request, after the export's first run (§14, decision 7). The age notice covers the
+site; this separates out what is truly explicit.
+
+- **What is explicit is the export's to say.** A game's declarations name its explicit pictures by catalog name, and
+  the export marks each picture row `explicit` (in OME, `[export] explicit_pictures` in
+  `vm-map/entities-<game>.toml`; the export plan's §5). For Kamidori that is nudity: 14 battle pictures, on 29 units,
+  found by looking at every picture the export publishes. Suggestive but covered art is not marked.
+- **The page shows a blurred stand-in** with a label (explicit, click to show). The site's build makes the stand-in,
+  a small, heavily blurred copy, so the page does not load the picture itself until the click. A click shows that
+  picture; a switch remembered in the browser, beside modder mode's (§8.7), shows them all.
+- **Never shown unasked:** a tooltip (§8.5) and an embedding site get the stand-in, and no explicit picture is a
+  page's preview image for links shared elsewhere, or a list's thumbnail.
+
 ## 9. Comments, later
 
 What has to be right before comments exist:
@@ -396,3 +412,6 @@ The user answered this design's questions on 2026-11-21:
 5. **Kamidori's English game text:** published, tentatively, and taken down if asked (§8.6).
 6. **The GitHub repository:** the user sets it up later, for this repository to be pushed to. Nothing has been
    pushed.
+7. **Explicit pictures** (asked after the export's first run showed them): kept, and shown blurred until a click
+   (§8.11). "I think it's fine to keep them (Again, adult game witha site warning anyway) but something like that may
+   be nice to separate out truly explicit stuff".
