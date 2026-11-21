@@ -8,7 +8,7 @@ The website of the Open Maid Engine (OME), on one domain:
 - **The game database:** a page for each item, unit, skill, quest and the rest of a game's data, mined from the
   game by OME's exporter. Kamidori first.
 
-Nothing is built yet. The design is `docs/specs/2026-11-21-site-design.md`, a draft for review.
+The design is `docs/specs/2026-11-21-site-design.md`, accepted on 2026-11-21. Nothing is built yet.
 
 ## What this repository holds, and what it does not
 

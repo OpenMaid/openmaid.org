@@ -1,8 +1,8 @@
 # Site design
 
 **Date:** 2026-11-21
-**Status:** draft. The user decided its questions on 2026-11-21 (§14); not yet accepted as a whole. Nothing is
-built.
+**Status:** accepted by the user on 2026-11-21 ("Go ahead and approve it and get started"), after they decided its
+questions (§14). Nothing is built yet.
 **How it was decided:** the user's outline (`Site Ideas.md` at the workspace root, beside this repository), a
 research note on the stack written by another session on 2026-11-19 (kept here as
 `docs/research/2026-11-19-encyclopedia-tech-stack.md`), and the user's answers of 2026-11-21 (§3.1).
