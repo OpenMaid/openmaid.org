@@ -1,0 +1,149 @@
+---
+// One opcode (site design §7.2, §4): its name and what it does, its operands, what OME's port does with it, and each
+// build's facts side by side, from the bundle's opcodes.json (OME's vm-map/opcodes.toml).
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import Prose from '../../../../components/reference/Prose.astro';
+import { reference } from '../../../../lib/reference.mjs';
+import { href } from '../../../../lib/reference-model.mjs';
+
+export function getStaticPaths() {
+	return reference().opcodes.map((op) => ({ params: { op: op.op }, props: { op: op.op } }));
+}
+
+const model = reference();
+const op = model.opcodes.find((o) => o.op === Astro.props.op)!;
+const known = new Set(model.opcodes.map((o) => o.op));
+const opLink = (code: string) => (known.has(code) ? href.opcode(code) : null);
+// What each of OME's control facts means (OME's tools/opcode_flow.py).
+const LEAVES: Record<string, string> = {
+	falls: 'it returns to the next instruction',
+	jumps: 'it continues at another instruction of its frame',
+	calls: 'it runs another frame or a callback before it returns: a script, a wait’s callback, a menu’s script',
+	ends: 'it ends its frame, the scene or the run, itself or because a frame it ran did',
+	saves: 'it writes a numbered save of the game state',
+	loads: 'it replaces the game state from a save',
+	restores: 'it continues a load’s restore of the saved frames',
+};
+const access = (arg: { access?: string[] }) => (arg.access?.length ? arg.access.join(', ') : '—');
+
+const headings = [
+	{ depth: 2, slug: 'operands', text: 'Operands' },
+	{ depth: 2, slug: 'in-the-port', text: 'In the port' },
+	{ depth: 2, slug: 'by-build', text: 'By build' },
+	...(op.evidence.length ? [{ depth: 2, slug: 'evidence', text: 'Evidence' }] : []),
+	...(op.details ? [{ depth: 2, slug: 'details', text: 'Details' }] : []),
+];
+---
+
+<StarlightPage
+	frontmatter={{ title: `${op.op} ${op.name}`, tableOfContents: { minHeadingLevel: 2, maxHeadingLevel: 2 } }}
+	headings={headings}
+>
+	<p class="ome-entity-line">
+		<a href={href.opcodes()}>Opcode</a> {op.op} ({op.number}){op.category && <>, {op.category}</>}.{' '}
+		{op.status === 'catalog-only'
+			? 'Known only from the upstream AGE catalog: OME has not investigated it.'
+			: `Investigated by OME, with ${op.confidence ?? 'unstated'} confidence (from ${op.source}).`}
+	</p>
+	{op.summary ? <Prose text={op.summary} /> : <p><em>No summary yet.</em></p>}
+	{op.confirmBy && (
+		<p>
+			<strong>Still to confirm:</strong> <Prose text={op.confirmBy} inline />
+		</p>
+	)}
+
+	<h2 id="operands">Operands</h2>
+	{
+		op.args.length > 0 ? (
+			<table class="ome-ref">
+				<thead><tr><th>#</th><th>Role</th><th>Types seen</th><th>Access</th></tr></thead>
+				<tbody>
+					{op.args.map((arg) => (
+						<tr>
+							<td>{arg.i}</td>
+							<td>{arg.role || '—'}{arg.unchecked_index && <> (an index into {arg.unchecked_index.table}, {arg.unchecked_index.count} entries, not bounds-checked)</>}</td>
+							<td>{(arg.observed_types ?? []).map((t: string, i: number) => <>{i > 0 && ', '}<code>{t}</code></>)}</td>
+							<td>
+								{access(arg)}
+								{arg.access_by_abi && <> (by build: {Object.entries(arg.access_by_abi).map(([build, a], i) => <>{i > 0 && '; '}{build} {[a].flat().join(', ')}</>)})</>}
+							</td>
+						</tr>
+					))}
+				</tbody>
+			</table>
+		) : (
+			<p>{op.argc === 0 ? 'It takes no operands.' : `It takes ${op.argc} operand${op.argc === 1 ? '' : 's'}, not yet described.`}</p>
+		)
+	}
+	{op.argc != null && op.args.length > 0 && op.args.length !== op.argc && <p>The catalog gives it {op.argc} operands.</p>}
+	{
+		(op.dependsOn.length > 0 || op.dependents.length > 0) && (
+			<p>
+				{op.dependsOn.length > 0 && <>It works with {op.dependsOn.map((code: string, i: number) => <>{i > 0 && ', '}{opLink(code) ? <a href={opLink(code)}>{code}</a> : code}</>)}. </>}
+				{op.dependents.length > 0 && <>Named by {op.dependents.map((code: string, i: number) => <>{i > 0 && ', '}{opLink(code) ? <a href={opLink(code)}>{code}</a> : code}</>)} as one it works with.</>}
+			</p>
+		)
+	}
+
+	<h2 id="in-the-port">In the port</h2>
+	{
+		op.waits ? (
+			<>
+				<p>
+					OME’s port implements it. It {op.waits === 'never' ? 'never waits' : op.waits === 'always' ? 'waits on every path' : 'may wait'}:
+					a wait parks the engine until input, a sleep, a transition, a dialog or a movie ends. What it can do with
+					control besides waiting:
+				</p>
+				<ul>{(op.leaves ?? []).map((fact: string) => <li><code>{fact}</code>: {LEAVES[fact] ?? 'not described'}</li>)}</ul>
+				<p>OME derives these facts from the port’s handler (its <code>tools/opcode_flow.py</code>), and they over-approximate: a fact some path can reach is given.</p>
+			</>
+		) : (
+			<p>OME’s port does not implement it: the bundle records no control facts for it.</p>
+		)
+	}
+
+	<h2 id="by-build">By build</h2>
+	<p>Whether each build’s scripts use it, as OME’s survey of the game’s scripts saw them, and how many evidence items name the build.</p>
+	<table class="ome-ref">
+		<thead><tr><th>Build</th><th>Game</th><th>Used by its scripts</th><th>Evidence</th></tr></thead>
+		<tbody>
+			{op.builds.map((build) => (
+				<tr>
+					<td>{build.build} (<code>{build.revision}</code>)</td>
+					<td><a href={href.game(build.game)}>{build.title}</a></td>
+					<td>{build.used ? 'yes' : 'no'}</td>
+					<td>{build.evidence || '—'}</td>
+				</tr>
+			))}
+		</tbody>
+	</table>
+
+	{
+		op.evidence.length > 0 && (
+			<>
+				<h2 id="evidence">Evidence</h2>
+				<ul>
+					{op.evidence.map((item) => (
+						<li>
+							<strong>{item.method}</strong>
+							{item.engine_revisions?.length > 0 && <> on {item.engine_revisions.join(', ')}</>}
+							{item.confidence && <>, {item.confidence} confidence</>}
+							{item.artifact && <>; {item.artifact}</>}
+							{item.site && <> (<code>{item.site}</code>)</>}: <Prose text={item.text} inline />
+						</li>
+					))}
+				</ul>
+			</>
+		)
+	}
+
+	{
+		op.details && (
+			<>
+				<h2 id="details">Details</h2>
+				<p>OME’s notes on it, as the registry keeps them.</p>
+				<pre class="ome-details">{op.details}</pre>
+			</>
+		)
+	}
+</StarlightPage>

@@ -1,0 +1,55 @@
+---
+// One patch point of a game (site design §7.2): its script, its site in each revision of the script, what is true
+// there, and the base mod's events raised at it.
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import Prose from '../../../../components/reference/Prose.astro';
+import { reference, referenceGame } from '../../../../lib/reference.mjs';
+import { href, scriptName } from '../../../../lib/reference-model.mjs';
+
+export function getStaticPaths() {
+	return reference().games.flatMap((game) => game.points.map((point) => ({ params: { game: game.id, name: point.name } })));
+}
+
+const game = referenceGame(Astro.params.game!);
+const point = game.point(Astro.params.name!)!;
+const indexed = game.script(point.script);
+const events = game.eventsAt(point.name);
+const hex = (n: number) => `0x${n.toString(16)}`;
+---
+
+<StarlightPage frontmatter={{ title: point.name, tableOfContents: false }}>
+	<p class="ome-entity-line">
+		<a href={href.points(game.id)}>Patch point</a> of <a href={href.game(game.id)}>{game.title}</a>, in the script{' '}
+		{indexed ? <a href={href.script(game.id, point.script)}><code>{scriptName(point.script)}</code></a> : <code>{scriptName(point.script)}</code>}.
+	</p>
+	<Prose text={point.description} />
+	<p>
+		The point is one instruction, named the same in every revision of the script that has it. Its site, a dword offset
+		into the script, in each revision OME knows:
+	</p>
+	<table class="ome-ref">
+		<thead><tr><th>Script revision (fingerprint)</th><th>Site</th></tr></thead>
+		<tbody>
+			{point.at.map((at: { fingerprint: string; site: number }) => (
+				<tr>
+					<td>
+						<code title={at.fingerprint}>{at.fingerprint.replace(/^sha256:/, '').slice(0, 12)}</code>
+						{indexed?.fingerprint === at.fingerprint && <> (the script as OME’s index has it)</>}
+					</td>
+					<td><code>{hex(at.site)}</code></td>
+				</tr>
+			))}
+		</tbody>
+	</table>
+	<p>
+		{events.length > 0 ? (
+			<>
+				The base mod raises{' '}
+				{events.map((event, i) => <>{i > 0 && ', '}<a href={href.event(game.id, event.name)}><code>{event.name}</code></a></>)} here.{' '}
+			</>
+		) : (
+			<>The base mod raises no event here. </>
+		)}
+		The <a href="/docs/patching/">patching</a> and <a href="/docs/lua/">Lua</a> guides explain how a mod uses a point.
+	</p>
+</StarlightPage>

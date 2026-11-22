@@ -1,0 +1,190 @@
+---
+// One game script (site design §7.2, OME's export design §8.2): what it does and its arguments where OME's notes say,
+// the base script a layer writes over, what calls it and what it calls, the globals it reads and writes, the patch
+// points in it and its waits, from the bundle's scripts.json (OME's script index merged with its notes).
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import Prose from '../../../../components/reference/Prose.astro';
+import { reference, referenceGame } from '../../../../lib/reference.mjs';
+import { href, scriptName } from '../../../../lib/reference-model.mjs';
+
+export function getStaticPaths() {
+	return reference().games.flatMap((game) =>
+		Object.keys(game.scripts ?? {}).map((key) => ({ params: { game: game.id, name: scriptName(key) }, props: { key } })),
+	);
+}
+
+const model = reference();
+const game = referenceGame(Astro.params.game!);
+const key = Astro.props.key as string;
+const script = game.script(key)!;
+const note = script.note ?? (script.layer_of ? game.script(script.layer_of)?.note : null) ?? null;
+const noteOfBase = !script.note && note;
+const opByName = new Map(model.opcodes.map((op) => [op.name, op.op]));
+const hex = (n: number) => `0x${n.toString(16)}`;
+const counted = (map: Record<string, number> | undefined) => Object.entries(map ?? {}).sort(([a], [b]) => a.localeCompare(b));
+const calls = counted(script.calls);
+const preloads = counted(script.preloads);
+const callers = [...(script.called_by ?? [])].sort();
+const globals = Object.entries(script.globals ?? {}) as [string, [number, number, number]][];
+globals.sort(([a, x], [b, y]) => y[0] + y[1] + y[2] - (x[0] + x[1] + x[2]) || a.localeCompare(b));
+const points = Object.entries(script.patch_points ?? {}) as [string, string][];
+const waits = counted(script.waits);
+const unnamed = script.unnamed as [number, number, number] | undefined;
+const layers = Object.entries(game.scripts ?? {})
+	.filter(([, other]) => (other as { layer_of?: string }).layer_of === key)
+	.map(([other]) => other)
+	.sort();
+const scriptLink = (name: string) => (game.script(name) ? href.script(game.id, name) : null);
+const argumentsOf = Object.entries(note?.arguments ?? {}) as [string, string][];
+
+const headings = [
+	{ depth: 2, slug: 'calls', text: 'Calls' },
+	...(globals.length || unnamed ? [{ depth: 2, slug: 'globals', text: 'Globals' }] : []),
+	...(points.length ? [{ depth: 2, slug: 'patch-points', text: 'Patch points' }] : []),
+	...(waits.length ? [{ depth: 2, slug: 'waits', text: 'Waits' }] : []),
+];
+---
+
+<StarlightPage
+	frontmatter={{ title: scriptName(key), tableOfContents: { minHeadingLevel: 2, maxHeadingLevel: 2 } }}
+	headings={headings}
+>
+	<p class="ome-entity-line">
+		<a href={href.scripts(game.id)}>Script</a> <code>{key}</code> of <a href={href.game(game.id)}>{game.title}</a>: id{' '}
+		<code>{hex(script.id)}</code>, {script.instructions} instructions, fingerprint{' '}
+		<code title={script.fingerprint}>{script.fingerprint.replace(/^sha256:/, '').slice(0, 12)}</code>.
+	</p>
+	{
+		script.layer_of && (
+			<p>
+				A layer: the game mounts it over{' '}
+				{scriptLink(script.layer_of) ? <a href={scriptLink(script.layer_of)}><code>{scriptName(script.layer_of)}</code></a> : <code>{scriptName(script.layer_of)}</code>}
+				, the base script it writes over.
+			</p>
+		)
+	}
+	{
+		layers.length > 0 && (
+			<p>
+				Layers over it: {layers.map((name, i) => <>{i > 0 && ', '}<a href={href.script(game.id, name)}><code>{scriptName(name)}</code></a></>)}.
+			</p>
+		)
+	}
+	{
+		note ? (
+			<>
+				{noteOfBase && <p>What its base script does, from OME’s notes on it:</p>}
+				<Prose text={note.summary} />
+				<p class="ome-entity-line">Source: <Prose text={note.source} inline /></p>
+				{argumentsOf.length > 0 && (
+					<>
+						<p>Its caller sets these globals before the call:</p>
+						<table class="ome-ref">
+							<thead><tr><th>Global</th><th>What it holds</th></tr></thead>
+							<tbody>
+								{argumentsOf.map(([name, meaning]) => (
+									<tr>
+										<td>{game.global(name) ? <a href={href.global(game.id, name)}><code>{name}</code></a> : <code>{name}</code>}</td>
+										<td><Prose text={meaning} inline /></td>
+									</tr>
+								))}
+							</tbody>
+						</table>
+					</>
+				)}
+			</>
+		) : (
+			<p>OME has no note on what it does yet; what follows is from its script index.</p>
+		)
+	}
+
+	<h2 id="calls">Calls</h2>
+	<p>
+		{callers.length > 0 ? (
+			<>Called by {callers.map((name, i) => <>{i > 0 && ', '}{scriptLink(name) ? <a href={scriptLink(name)}><code>{scriptName(name)}</code></a> : <code>{scriptName(name)}</code>}</>)}.</>
+		) : (
+			<>No script calls it by a constant id.</>
+		)}
+	</p>
+	<p>
+		{calls.length > 0 ? (
+			<>
+				It calls{' '}
+				{calls.map(([name, sites], i) => (
+					<>
+						{i > 0 && ', '}
+						{scriptLink(name) ? <a href={scriptLink(name)}><code>{scriptName(name)}</code></a> : <code>{name}</code>}
+						{sites > 1 && <> ({sites} sites)</>}
+					</>
+				))}
+				.
+			</>
+		) : (
+			<>It calls no script by a constant id.</>
+		)}
+		{script.computed_calls > 0 && <> It also has {script.computed_calls} call{script.computed_calls === 1 ? '' : 's'} whose script is computed when it runs.</>}
+	</p>
+	{
+		preloads.length > 0 && (
+			<p>
+				It preloads{' '}
+				{preloads.map(([name], i) => <>{i > 0 && ', '}{scriptLink(name) ? <a href={scriptLink(name)}><code>{scriptName(name)}</code></a> : <code>{name}</code>}</>)}{' '}
+				into a script slot.
+			</p>
+		)
+	}
+
+	{
+		(globals.length > 0 || unnamed) && (
+			<>
+				<h2 id="globals">Globals</h2>
+				<p>
+					The named globals its instructions read, write or index (take as an array’s base), with how many operands do each.
+					{unnamed && unnamed.some((n) => n > 0) && <> Cells no global names yet take {unnamed[0]} reads, {unnamed[1]} writes and {unnamed[2]} indexes more.</>}
+				</p>
+				{globals.length > 0 && (
+					<table class="ome-ref">
+						<thead><tr><th>Global</th><th>Reads</th><th>Writes</th><th>Indexes</th></tr></thead>
+						<tbody>
+							{globals.map(([name, [reads, writes, indexes]]) => (
+								<tr>
+									<td>{game.global(name) ? <a href={href.global(game.id, name)}><code>{name}</code></a> : <code>{name}</code>}</td>
+									<td>{reads}</td>
+									<td>{writes}</td>
+									<td>{indexes}</td>
+								</tr>
+							))}
+						</tbody>
+					</table>
+				)}
+			</>
+		)
+	}
+
+	{
+		points.length > 0 && (
+			<>
+				<h2 id="patch-points">Patch points</h2>
+				<ul>
+					{points.map(([name, site]) => (
+						<li>{game.point(name) ? <a href={href.point(game.id, name)}><code>{name}</code></a> : <code>{name}</code>}, at <code>{site}</code></li>
+					))}
+				</ul>
+			</>
+		)
+	}
+
+	{
+		waits.length > 0 && (
+			<>
+				<h2 id="waits">Waits</h2>
+				<p>Its instructions that can wait (for input, a sleep, a transition, a dialog or a movie), by opcode:</p>
+				<ul>
+					{waits.map(([name, sites]) => (
+						<li>{opByName.has(name) ? <a href={href.opcode(opByName.get(name)!)}><code>{name}</code></a> : <code>{name}</code>}: {sites}</li>
+					))}
+				</ul>
+			</>
+		)
+	}
+</StarlightPage>

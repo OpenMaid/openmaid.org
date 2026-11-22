@@ -1,0 +1,37 @@
+---
+// Every opcode of OME's registry (site design §7.2): its name, what it does, and which builds' scripts use it.
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import Prose from '../../../../components/reference/Prose.astro';
+import { reference } from '../../../../lib/reference.mjs';
+import { href } from '../../../../lib/reference-model.mjs';
+
+const model = reference();
+const implemented = model.opcodes.filter((op) => op.waits).length;
+const investigated = model.opcodes.filter((op) => op.status !== 'catalog-only').length;
+---
+
+<StarlightPage frontmatter={{ title: 'Opcodes', tableOfContents: false }}>
+	<p>
+		The {model.opcodes.length} opcodes of AGE’s script language as OME’s registry knows them: {investigated} investigated
+		by OME, the rest known only from the upstream AGE catalog. OME’s port implements {implemented}. A mark under a build
+		says that build’s scripts use the opcode.
+	</p>
+	<table class="ome-ref">
+		<thead>
+			<tr>
+				<th>Opcode</th><th>Name</th><th>What it does</th>
+				{model.builds.map((build) => <th title={`${build.title}, ${build.revision}`}>{build.build}</th>)}
+			</tr>
+		</thead>
+		<tbody>
+			{model.opcodes.map((op) => (
+				<tr>
+					<td><a href={href.opcode(op.op)}><code>{op.op}</code></a></td>
+					<td>{op.name}</td>
+					<td><Prose text={op.summary} inline /></td>
+					{op.builds.map((build) => <td>{build.used ? '✓' : ''}</td>)}
+				</tr>
+			))}
+		</tbody>
+	</table>
+</StarlightPage>

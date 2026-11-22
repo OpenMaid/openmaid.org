@@ -8,6 +8,8 @@ import Picture from '../../../components/Picture.astro';
 import DatabaseSwitches from '../../../components/DatabaseSwitches.astro';
 import { databaseSidebar, game, games } from '../../../lib/database.mjs';
 import { label } from '../../../lib/labels.mjs';
+import { referenceGame } from '../../../lib/reference.mjs';
+import { href } from '../../../lib/reference-model.mjs';
 
 export function getStaticPaths() {
 	return games().flatMap((data) => data.kinds.map((kind) => ({ params: { game: data.game, kind: kind.id } })));
@@ -15,6 +17,8 @@ export function getStaticPaths() {
 
 const data = game(Astro.params.game!);
 const kind = data.kinds.find((k) => k.id === Astro.params.kind)!;
+const reference = referenceGame(data.game);
+const tableLink = (name: string) => (reference.table(name) ? href.table(data.game, name) : null);
 const filters = kind.fields
 	.filter((field) => field.filter && !field.isArray)
 	.map((field) => {
@@ -88,8 +92,8 @@ const filters = kind.fields
 				<h2 id="scripts">Scripts that use the table</h2>
 				<p>
 					Each script of the game whose instructions read, write or index (take as an array's base) a cell of the table{' '}
-					<code>{kind.table}</code>
-					{kind.loaded.length > 0 && <> or of the tables its loaders build ({kind.loaded.map((t, i) => <>{i > 0 && ', '}<code>{t.table}</code></>)})</>},
+					<a href={tableLink(kind.table)}><code>{kind.table}</code></a>
+					{kind.loaded.length > 0 && <> or of the tables its loaders build ({kind.loaded.map((t, i) => <>{i > 0 && ', '}<a href={tableLink(t.table)}><code>{t.table}</code></a></>)})</>},
 					with how many of its operands do each, from OME's script index. A scene that reads a record through an index
 					counts as indexing the table.
 				</p>
@@ -98,7 +102,7 @@ const filters = kind.fields
 					<tbody>
 						{kind.scriptUse.map((use) => (
 							<tr>
-								<td><code>{use.script}</code></td>
+								<td>{reference.script(use.script) ? <a href={href.script(data.game, use.script)}><code>{use.script}</code></a> : <code>{use.script}</code>}</td>
 								<td>{use.reads}</td>
 								<td>{use.writes}</td>
 								<td>{use.addresses}</td>

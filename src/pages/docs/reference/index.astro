@@ -1,0 +1,41 @@
+---
+// The reference's front page (site design §7): what it holds and which OME it is built from.
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import ome from 'virtual:ome';
+import { reference } from '../../../lib/reference.mjs';
+import { href } from '../../../lib/reference-model.mjs';
+
+const model = reference();
+const commit = `${ome.repository}/tree/${model.commit}`;
+---
+
+<StarlightPage frontmatter={{ title: 'Reference', tableOfContents: false }}>
+	<p>
+		What OME knows of AGE and of each game, from its registries: the opcodes of the script language, and for each game
+		its globals, record tables, patch points, base mod events and scripts. The guides explain how a mod uses them; these
+		pages say what each one is.
+	</p>
+	<p>
+		Built from OME’s reference bundle <code>{model.version}</code>, at commit{' '}
+		<a href={commit}><code>{model.commit.slice(0, 12)}</code></a>.
+	</p>
+	<ul>
+		<li><a href={href.opcodes()}>Opcodes</a>: {model.opcodes.length}, with each build’s facts side by side.</li>
+	</ul>
+	<table class="ome-ref">
+		<thead><tr><th>Game</th><th>Engine build</th><th>Globals</th><th>Record tables</th><th>Patch points</th><th>Events</th><th>Scripts</th></tr></thead>
+		<tbody>
+			{model.games.map((game) => (
+				<tr>
+					<td><a href={href.game(game.id)}>{game.title}</a></td>
+					<td>{game.engineBuild}</td>
+					<td><a href={href.globals(game.id)}>{game.globals.length}</a></td>
+					<td><a href={href.tables(game.id)}>{game.tables.length}</a></td>
+					<td><a href={href.points(game.id)}>{game.points.length}</a></td>
+					<td><a href={href.events(game.id)}>{game.events.length}</a></td>
+					<td>{game.scripts ? <a href={href.scripts(game.id)}>{Object.keys(game.scripts).length}</a> : '—'}</td>
+				</tr>
+			))}
+		</tbody>
+	</table>
+</StarlightPage>

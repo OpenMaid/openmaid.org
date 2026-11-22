@@ -1,0 +1,34 @@
+---
+// Text from OME's registries as the reference pages show it: a paragraph at each blank line, its wrapped lines joined,
+// and `code` in backticks. The text holds no markup of its own, so it is escaped like any other value.
+interface Props {
+	text: string | null | undefined;
+	// One run of text, for a table cell: no paragraphs.
+	inline?: boolean;
+}
+
+const { text, inline = false } = Astro.props;
+const pieces = (paragraph: string) => {
+	const parts = paragraph.split('`');
+	// An odd count of backticks is not code: show the text as it is.
+	if (parts.length % 2 === 0) return [{ code: false, part: paragraph }];
+	return parts.map((part, i) => ({ code: i % 2 === 1, part })).filter((piece) => piece.part !== '');
+};
+const paragraphs = (text ?? '')
+	.trim()
+	.split(/\n\s*\n/)
+	.map((paragraph) => paragraph.replace(/\s*\n\s*/g, ' ').trim())
+	.filter(Boolean)
+	.map(pieces);
+---
+
+{
+	inline
+		? paragraphs.map((parts, i) => (
+				<>
+					{i > 0 && ' '}
+					{parts.map((piece) => (piece.code ? <code>{piece.part}</code> : piece.part))}
+				</>
+			))
+		: paragraphs.map((parts) => <p>{parts.map((piece) => (piece.code ? <code>{piece.part}</code> : piece.part))}</p>)
+}

@@ -5,13 +5,25 @@ import { defineConfig } from 'astro/config';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import config from './site.config.mjs';
-import { guideLinks } from './src/lib/guide-links.mjs';
-import { games, openCheckout, syncGuides } from './src/lib/ome.mjs';
+import { locateBundle, openBundle } from './src/lib/bundle.mjs';
+import { guideLinkKey, guideLinks, referenceTargets } from './src/lib/guide-links.mjs';
+import { games, syncGuides } from './src/lib/ome.mjs';
+import { referenceSidebar } from './src/lib/reference-model.mjs';
 
-// The guides are copied in before Astro reads its content, so every build and dev server starts from the checkout.
+// The reference bundle is the one source of what the site shows of OME (site plan §6.1). The guides are copied from it
+// before Astro reads its content, so every build and dev server starts from it.
 const here = path.dirname(fileURLToPath(import.meta.url));
-const checkout = openCheckout(path.resolve(here, config.ome.checkout));
-const guides = syncGuides(checkout, new URL('./src/content/docs/docs/', import.meta.url));
+const located = locateBundle({ siteRoot: here, bundleDir: path.join(here, 'bundle'), checkout: config.ome.checkout });
+const bundle = openBundle(located.zip);
+console.log(`[ome] reference bundle ${bundle.version} (${bundle.commit.slice(0, 12)}${bundle.dirty ? ', with changes' : ''}) from ${located.checkout ?? located.zip}`);
+const linkSource = { commit: bundle.commit, checkout: located.checkout, references: referenceTargets(bundle.json('games.json').games) };
+const guideNames = bundle.names.filter((name) => name.startsWith('docs/modding/'));
+const guides = syncGuides(
+	bundle,
+	new URL('./src/content/docs/docs/', import.meta.url),
+	guideLinkKey(linkSource, guideNames, config.ome.repository),
+);
+const omeGames = games(bundle);
 
 // The games whose database the build makes (site.config.mjs `games`, or OME_SITE_GAMES).
 const listed = process.env.OME_SITE_GAMES?.split(',').map((game) => game.trim()).filter(Boolean) ?? Object.keys(config.games);
@@ -20,11 +32,12 @@ const databases = listed.map((game) => ({ game, dir: path.join(here, 'data', gam
 
 // What the pages read of OME and the exports, as the module `virtual:ome` (typed in src/env.d.ts).
 const ome = {
-	version: checkout.version,
-	commit: checkout.commit,
+	version: bundle.version,
+	commit: bundle.commit,
 	repository: config.ome.repository,
-	games: games(checkout),
+	games: omeGames,
 	databases,
+	bundle: located.zip,
 };
 
 // Before the first paint: marks a visitor who confirmed the age notice (src/components/AgeNotice.astro), and restores
@@ -41,7 +54,11 @@ const headScript = `try{${remembered
 export default defineConfig({
 	site: config.site,
 	markdown: {
-		processor: satteri({ mdastPlugins: [guideLinks(checkout, guides, config.ome.repository)] }),
+		processor: satteri({
+			mdastPlugins: [
+				guideLinks(linkSource, guides, config.ome.repository),
+			],
+		}),
 	},
 	vite: {
 		plugins: [
@@ -55,7 +72,7 @@ export default defineConfig({
 	integrations: [
 		starlight({
 			title: 'Open Maid Engine',
-			sidebar: guides.sidebar,
+			sidebar: [...guides.sidebar, referenceSidebar(omeGames)],
 			social: [{ icon: 'github', label: 'GitHub', href: config.ome.repository }],
 			head: [{ tag: 'script', content: headScript }],
 			components: {

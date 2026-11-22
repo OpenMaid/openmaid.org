@@ -37,3 +37,18 @@ export function databaseSidebar(data) {
 		},
 	];
 }
+
+/**
+ * The database's lists built from a record table (site design §7.2): the kinds whose table it is, and the kinds whose
+ * loaders build it (a stage's enemies, listed on each stage's page). None when the build has no database of the game.
+ */
+export function kindsOfTable(gameId, table) {
+	if (!ome.databases.some((database) => database.game === gameId)) return [];
+	const data = game(gameId);
+	return data.kinds.flatMap((kind) => [
+		...(kind.table === table ? [{ link: `/${data.game}/${kind.id}/`, label: kind.label.many, loaded: null }] : []),
+		...kind.loaded
+			.filter((loaded) => loaded.table === table)
+			.map((loaded) => ({ link: `/${data.game}/${kind.id}/`, label: kind.label.many, loaded: loaded.label.many })),
+	]);
+}

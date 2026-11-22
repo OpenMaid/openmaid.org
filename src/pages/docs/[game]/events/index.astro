@@ -1,0 +1,33 @@
+---
+// A game's base mod events (site design §7.2).
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import Prose from '../../../../components/reference/Prose.astro';
+import { reference, referenceGame } from '../../../../lib/reference.mjs';
+import { href } from '../../../../lib/reference-model.mjs';
+
+export function getStaticPaths() {
+	return reference().games.map((game) => ({ params: { game: game.id } }));
+}
+
+const game = referenceGame(Astro.params.game!);
+---
+
+<StarlightPage frontmatter={{ title: `${game.title} events`, tableOfContents: false }}>
+	<p>
+		The events <a href={href.game(game.id)}>{game.title}</a>’s base mod <code>{game.baseMod.id}</code> declares:{' '}
+		{game.events.length}. Each is raised at patch points of the game’s scripts, with fields a Lua handler reads by name,
+		so a mod needs no address or offset.
+	</p>
+	<table class="ome-ref">
+		<thead><tr><th>Event</th><th>Raised at</th><th>What it is</th></tr></thead>
+		<tbody>
+			{game.events.map((event) => (
+				<tr>
+					<td><a href={href.event(game.id, event.name)}><code>{event.name}</code></a></td>
+					<td>{event.points.length ? event.points.map((name: string, i: number) => <>{i > 0 && ', '}{game.point(name) ? <a href={href.point(game.id, name)}><code>{name}</code></a> : <code>{name}</code>}</>) : 'its own Lua'}</td>
+					<td><Prose text={event.description} inline /></td>
+				</tr>
+			))}
+		</tbody>
+	</table>
+</StarlightPage>

@@ -164,3 +164,33 @@
 	width: auto;
 	height: 2.5rem;
 }
+
+/* The reference pages (site design §7.2). */
+
+/* OME's notes keep their own line breaks, so they scroll rather than wrap a second time. */
+.ome-details {
+	white-space: pre;
+	overflow-x: auto;
+	font-size: var(--sl-text-xs);
+}
+.ome-ref {
+	display: block;
+	overflow-x: auto;
+}
+.ome-ref th,
+.ome-ref td {
+	font-size: var(--sl-text-sm);
+	vertical-align: top;
+}
+.ome-ref td {
+	overflow-wrap: anywhere;
+}
+.ome-ref td:first-child,
+.ome-ref td.ome-nowrap {
+	white-space: nowrap;
+	overflow-wrap: normal;
+}
+.ome-sub {
+	display: block;
+	font-size: var(--sl-text-xs);
+}

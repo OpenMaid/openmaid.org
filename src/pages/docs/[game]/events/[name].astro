@@ -1,0 +1,61 @@
+---
+// One event of a game's base mod (site design §7.2): where it is raised, what is true then, and its fields, with what
+// a handler may do with each.
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import Names from '../../../../components/reference/Names.astro';
+import Prose from '../../../../components/reference/Prose.astro';
+import { reference, referenceGame } from '../../../../lib/reference.mjs';
+import { href } from '../../../../lib/reference-model.mjs';
+
+export function getStaticPaths() {
+	return reference().games.flatMap((game) => game.events.map((event) => ({ params: { game: game.id, name: event.name } })));
+}
+
+const game = referenceGame(Astro.params.game!);
+const event = game.event(Astro.params.name!)!;
+const pointLink = (name: string) => (game.point(name) ? href.point(game.id, name) : null);
+---
+
+<StarlightPage frontmatter={{ title: event.name, tableOfContents: false }}>
+	<p class="ome-entity-line">
+		<a href={href.events(game.id)}>Event</a> of <a href={href.game(game.id)}>{game.title}</a>’s base mod{' '}
+		<code>{game.baseMod.id}</code>, declared in its <code>events/{event.file}</code>.
+	</p>
+	<Prose text={event.description} />
+	<p>
+		{event.points.length > 0 ? (
+			<>
+				It is raised before the instruction of{' '}
+				{event.points.map((name: string, i: number) => (
+					<>
+						{i > 0 && (i === event.points.length - 1 ? ' and ' : ', ')}
+						{pointLink(name) ? <a href={pointLink(name)}><code>{name}</code></a> : <code>{name}</code>}
+					</>
+				))}
+				.
+			</>
+		) : (
+			<>The base mod raises it from its own Lua.</>
+		)}{' '}
+		A Lua mod subscribes to it by name (the <a href="/docs/lua/">Lua</a> guide).
+	</p>
+	{
+		event.fields.length > 0 ? (
+			<table class="ome-ref">
+				<thead><tr><th>Field</th><th>Cell</th><th>Type</th><th>A handler may</th></tr></thead>
+				<tbody>
+					{event.fields.map((field: { name: string; at?: string; type: string; access?: string }) => (
+						<tr>
+							<td><code>ctx.{field.name}</code></td>
+							<td>{field.at ? <Names text={field.at} game={game} /> : '—'}</td>
+							<td><code>{field.type}</code></td>
+							<td>{field.access === 'rw' ? 'read and write it' : 'read it'}</td>
+						</tr>
+					))}
+				</tbody>
+			</table>
+		) : (
+			<p>It has no fields.</p>
+		)
+	}
+</StarlightPage>

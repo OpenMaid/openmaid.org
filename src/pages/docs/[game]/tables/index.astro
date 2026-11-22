@@ -1,0 +1,33 @@
+---
+// A game's record tables (site design §7.2), and its scopes.
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import { reference, referenceGame } from '../../../../lib/reference.mjs';
+import { href } from '../../../../lib/reference-model.mjs';
+
+export function getStaticPaths() {
+	return reference().games.map((game) => ({ params: { game: game.id } }));
+}
+
+const game = referenceGame(Astro.params.game!);
+---
+
+<StarlightPage frontmatter={{ title: `${game.title} record tables`, tableOfContents: false }}>
+	<p>
+		The record tables OME’s registry names in <a href={href.game(game.id)}>{game.title}</a>: arrays of globals indexed by
+		one id, read as records. A data file changes their fields through the base mod <code>{game.baseMod.id}</code> (the{' '}
+		<a href="/docs/data-files/">data files</a> guide).
+	</p>
+	<table class="ome-ref">
+		<thead><tr><th>Table</th><th>Records</th><th>Fields</th><th>Built</th></tr></thead>
+		<tbody>
+			{game.tables.map((table) => (
+				<tr>
+					<td><a href={href.table(game.id, table.name)}><code>{table.name}</code></a></td>
+					<td>{table.records}</td>
+					<td>{table.fields.length}</td>
+					<td>{table.builtBy === 'boot' ? 'at boot' : <>when a {table.builtBy} loads (scope <code>{table.scopes.map((s: { name: string }) => s.name).join(', ')}</code>)</>}</td>
+				</tr>
+			))}
+		</tbody>
+	</table>
+</StarlightPage>

@@ -1,0 +1,32 @@
+---
+// A game's reference (site design §7.2): its build, its base mod, and its sections.
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import ome from 'virtual:ome';
+import { reference, referenceGame } from '../../../lib/reference.mjs';
+import { href } from '../../../lib/reference-model.mjs';
+
+export function getStaticPaths() {
+	return reference().games.map((game) => ({ params: { game: game.id } }));
+}
+
+const game = referenceGame(Astro.params.game!);
+const database = ome.databases.some((d) => d.game === game.id);
+const named = game.scripts ? Object.values(game.scripts).filter((s: { note?: unknown }) => s.note).length : 0;
+---
+
+<StarlightPage frontmatter={{ title: `${game.title} reference`, tableOfContents: false }}>
+	<p>
+		<span lang="ja">{game.titles?.[0] ?? game.title}</span> runs on AGE {game.engineBuild} (script revision{' '}
+		{game.revisions.map((r: string, i: number) => <>{i > 0 && ', '}<code>{r}</code></>)}). Its base mod,{' '}
+		<code>{game.baseMod.id}</code> {game.baseMod.version}, names its cells for Lua and data files and declares its
+		events. The <a href={`/docs/games/${game.id}/`}>game’s modding guide</a> gives what is particular to it
+		{database && <>, and <a href={`/${game.id}/`}>the database</a> its items, units and the rest</>}.
+	</p>
+	<ul>
+		<li><a href={href.globals(game.id)}>Globals</a>: {game.globals.length} named{game.unnamed.length > 0 && <>, and {game.unnamed.length} known by address only</>}.</li>
+		<li><a href={href.tables(game.id)}>Record tables</a>: {game.tables.length}{game.scopes.length > 0 && <>, in {game.scopes.length} scope{game.scopes.length === 1 ? '' : 's'} as well</>}.</li>
+		<li><a href={href.points(game.id)}>Patch points</a>: {game.points.length}.</li>
+		<li><a href={href.events(game.id)}>Base mod events</a>: {game.events.length}.</li>
+		{game.scripts && <li><a href={href.scripts(game.id)}>Scripts</a>: {Object.keys(game.scripts).length}, {named} of them described.</li>}
+	</ul>
+</StarlightPage>

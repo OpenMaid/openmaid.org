@@ -1,0 +1,39 @@
+---
+// A game's scripts (site design §7.2, OME's export design §8.2): each one in OME's script index, with OME's note on what
+// it does where there is one.
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import Prose from '../../../../components/reference/Prose.astro';
+import { reference, referenceGame } from '../../../../lib/reference.mjs';
+import { href, scriptName } from '../../../../lib/reference-model.mjs';
+
+export function getStaticPaths() {
+	return reference()
+		.games.filter((game) => game.scripts)
+		.map((game) => ({ params: { game: game.id } }));
+}
+
+const game = referenceGame(Astro.params.game!);
+const scripts = Object.entries(game.scripts!).sort(([a], [b]) => a.localeCompare(b)) as [string, any][];
+const described = scripts.filter(([, s]) => s.note).length;
+---
+
+<StarlightPage frontmatter={{ title: `${game.title} scripts`, tableOfContents: false }}>
+	<p>
+		Every script <a href={href.game(game.id)}>{game.title}</a>’s catalog and its appends mount, as OME’s script index
+		reads them: {scripts.length}, of which OME’s notes describe {described}. A name like <code>$1$ITINIT</code> is a
+		layer an append mounts over the script it names, <code>ITINIT</code>.
+	</p>
+	<table class="ome-ref">
+		<thead><tr><th>Script</th><th>What it does</th><th>Instructions</th><th>Callers</th></tr></thead>
+		<tbody>
+			{scripts.map(([key, script]) => (
+				<tr>
+					<td><a href={href.script(game.id, key)}><code>{scriptName(key)}</code></a></td>
+					<td>{script.note ? <Prose text={script.note.summary} inline /> : script.layer_of ? <>a layer over <code>{scriptName(script.layer_of)}</code></> : ''}</td>
+					<td>{script.instructions}</td>
+					<td>{script.called_by?.length ?? 0}</td>
+				</tr>
+			))}
+		</tbody>
+	</table>
+</StarlightPage>

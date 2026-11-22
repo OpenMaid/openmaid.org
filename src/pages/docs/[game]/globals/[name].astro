@@ -1,0 +1,102 @@
+---
+// One global of a game (site design §7.2): its cell, type and shape, what it means, the record tables it is a field
+// of, and the scripts that use it.
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import Prose from '../../../../components/reference/Prose.astro';
+import { reference, referenceGame } from '../../../../lib/reference.mjs';
+import { href, scriptName } from '../../../../lib/reference-model.mjs';
+
+export function getStaticPaths() {
+	return reference().games.flatMap((game) => game.globals.map((cell) => ({ params: { game: game.id, name: cell.name } })));
+}
+
+const game = referenceGame(Astro.params.game!);
+const cell = game.global(Astro.params.name!)!;
+const fields = game.fieldOf(cell.name);
+const uses = game.usedBy(cell.name);
+const columns = Object.entries(cell.columns ?? {}) as [string, string][];
+const headings = [
+	...(fields.length ? [{ depth: 2, slug: 'record-tables', text: 'Record tables' }] : []),
+	...(game.scripts ? [{ depth: 2, slug: 'scripts', text: 'Scripts that use it' }] : []),
+];
+---
+
+<StarlightPage
+	frontmatter={{ title: cell.name, tableOfContents: headings.length ? { minHeadingLevel: 2, maxHeadingLevel: 2 } : false }}
+	headings={headings}
+>
+	<p class="ome-entity-line">
+		<a href={href.globals(game.id)}>Global</a> of <a href={href.game(game.id)}>{game.title}</a>: the cell{' '}
+		<code>{cell.bank}:{cell.address}</code>, of type <code>{cell.type}</code>{cell.category && <>, {cell.category}</>}
+		{cell.value_domain && cell.value_domain !== '?' && <>, values <code>{cell.value_domain}</code></>}.
+	</p>
+	<Prose text={cell.usage} />
+	<p>
+		OME’s registry gives it with {cell.confidence} confidence, from {cell.source}.
+		{game.exported(cell.name)
+			? <> The base mod <code>{game.baseMod.id}</code> exports the name, so Lua and an event’s fields can use it.</>
+			: <> The base mod does not export the name.</>}
+	</p>
+	{
+		columns.length > 0 && (
+			<p>
+				Its columns are named: {columns.map(([i, name], n) => <>{n > 0 && ', '}{i} <code>{name}</code></>)}. Lua and an event’s
+				cell write a row’s column <code>{cell.name}[<var>i</var>].<var>column</var></code>.
+			</p>
+		)
+	}
+	{
+		cell.depends_on?.length > 0 && (
+			<p>It depends on {cell.depends_on.map((name: string, i: number) => <>{i > 0 && ', '}{game.global(name) ? <a href={href.global(game.id, name)}><code>{name}</code></a> : <code>{name}</code>}</>)}.</p>
+		)
+	}
+
+	{
+		fields.length > 0 && (
+			<>
+				<h2 id="record-tables">Record tables</h2>
+				<p>
+					It is a field of{' '}
+					{fields.map((f: { table: string; field: string }, i: number) => (
+						<>
+							{i > 0 && ', '}the table <a href={href.table(game.id, f.table)}><code>{f.table}</code></a>, as{' '}
+							<code>{f.table}.<var>id</var>.{f.field}</code>
+						</>
+					))}
+					.
+				</p>
+			</>
+		)
+	}
+
+	{
+		game.scripts && (
+			<>
+				<h2 id="scripts">Scripts that use it</h2>
+				{uses.length > 0 ? (
+					<>
+						<p>
+							The game’s scripts whose instructions read, write or index (take as an array’s base) the cell, with how many of
+							their operands do each, from OME’s script index.
+						</p>
+						<table class="ome-ref">
+							<thead><tr><th>Script</th><th>Reads</th><th>Writes</th><th>Indexes</th></tr></thead>
+							<tbody>
+								{uses.map((use: { script: string; reads: number; writes: number; indexes: number }) => (
+									<tr>
+										<td><a href={href.script(game.id, use.script)}><code>{scriptName(use.script)}</code></a></td>
+										<td>{use.reads}</td>
+										<td>{use.writes}</td>
+										<td>{use.indexes}</td>
+									</tr>
+								))}
+							</tbody>
+						</table>
+					</>
+				) : (
+					<p>No script’s instruction names the cell directly; a script may still reach it through an index.</p>
+				)}
+			</>
+		)
+	}
+</StarlightPage>

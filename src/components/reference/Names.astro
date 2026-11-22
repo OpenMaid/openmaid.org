@@ -1,0 +1,16 @@
+---
+// An expression of OME's registries (`character_levels[current_character_id]`, `L[0x1]`), in code, with each name of a
+// global of the game linked to its page.
+interface Props {
+	text: string;
+	game: { id: string; global: (name: string) => unknown };
+}
+
+import { href } from '../../lib/reference-model.mjs';
+
+const { text, game } = Astro.props;
+// Whole identifiers only: the `x1` of `0x1` is not a name.
+const parts = text.split(/\b([A-Za-z_][A-Za-z0-9_]*)\b/).filter((part) => part !== '');
+---
+
+<code>{parts.map((part) => (game.global(part) ? <a href={href.global(game.id, part)}>{part}</a> : part))}</code>

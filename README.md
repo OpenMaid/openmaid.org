@@ -11,13 +11,22 @@ The website of the Open Maid Engine (OME), on one domain:
 The design is `docs/specs/2026-11-21-site-design.md`, accepted on 2026-11-21. Its plan,
 `docs/plans/2026-11-21-site-plan.md`, keeps what each milestone built and where the build departs from the design.
 Built so far: milestone 1, the home page, the guides and search, on Astro and Starlight; milestone 2, Kamidori's
-items, units and skills; and two parts of milestone 5, Kamidori's quests, recipes, conditions, stages, dig tables,
-character profiles, objectives and glossary, then each stage's enemies.
+items, units and skills; two parts of milestone 5, Kamidori's quests, recipes, conditions, stages, dig tables,
+character profiles, objectives and glossary, then each stage's enemies; and milestone 3, the reference pages.
 
 ## Building
 
-You need Node 22.23.4 or later and a checkout of OME. The build reads the checkout at `../age-reimpl`, beside this
-repository; set `OME_CHECKOUT` to read another (`site.config.mjs`).
+You need Node 22.23.4 or later and OME's reference bundle, `OME-reference-<version>.zip`, which each OME release
+publishes. Everything the site shows of OME comes from it: the guides, the games and the reference pages. The build
+takes the first of these it finds (`src/lib/bundle.mjs`):
+
+1. `OME_BUNDLE`: the bundle's zip, or a folder holding one;
+2. `OME_CHECKOUT`: an OME checkout, whose own `tools/reference_bundle.py` the build runs to make the bundle in
+   `bundle/checkout/` (Python 3.11 from `OME_PYTHON`, else `py -3.11` on Windows and `python3` elsewhere);
+3. a bundle's zip in `bundle/`;
+4. the OME checkout at `../age-reimpl`, beside this repository, as in 2 (`site.config.mjs`).
+
+A checkout shows OME's guides as they are before a release, and checks that each file a guide links in OME exists.
 
 ```sh
 npm install
@@ -26,8 +35,8 @@ npm run build    # the site in dist/, then scripts/check-site.mjs checks its lin
 npm run preview  # serves dist/
 ```
 
-Each build copies OME's guides into `src/content/docs/docs/`, which git ignores, and fails on a guide link it cannot
-map. The favicon is OME's icon (`godot/assets/ome-icon.svg` in OME).
+Each build copies OME's guides from the bundle into `src/content/docs/docs/`, which git ignores, and fails on a guide
+link it cannot map. The favicon is OME's icon (`godot/assets/ome-icon.svg` in OME).
 
 The game database needs each game's export, which holds the game's data and so is never committed. Make it with
 OME (`Ome.Cli data-export --game <game>`, on a machine with the game installed) and copy the folder it writes to
@@ -40,8 +49,8 @@ games only, list them (`OME_SITE_GAMES=kamidori`).
 - It holds the site: pages, templates, styles, scripts, the build and the deploy.
 - It does not hold game data. Exports from OME's exporter hold data from the games, so they are kept in private
   storage and copied into `data/`, which git ignores.
-- It does not hold OME's docs. OME's repository keeps them, and publishes them with each release as a reference
-  bundle.
+- It does not hold OME's docs or registries. OME's repository keeps them, and publishes them with each release as a
+  reference bundle, which the build reads from `bundle/` or makes from a checkout there; git ignores it.
 
 What the site reads, and how OME makes it, is OME's game data export design, in the OME repository at
 `docs/superpowers/specs/2026-11-21-game-data-export-design.md`.

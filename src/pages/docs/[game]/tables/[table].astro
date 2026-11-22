@@ -1,0 +1,107 @@
+---
+// One record table of a game (site design §7.2): its fields, what each holds, what a data file may change of each
+// (from the base mod's shape), what its fields refer to, its old names, its scopes, and the database's list of the
+// kind built from it.
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import Prose from '../../../../components/reference/Prose.astro';
+import { kindsOfTable } from '../../../../lib/database.mjs';
+import { reference, referenceGame } from '../../../../lib/reference.mjs';
+import { href } from '../../../../lib/reference-model.mjs';
+
+export function getStaticPaths() {
+	return reference().games.flatMap((game) => game.tables.map((table) => ({ params: { game: game.id, table: table.name } })));
+}
+
+const game = referenceGame(Astro.params.game!);
+const table = game.table(Astro.params.table!)!;
+const kinds = kindsOfTable(game.id, table.name);
+const scope = table.scopes[0] ?? null;
+const short = scope ? Object.entries(scope.tables).find(([, name]) => name === table.name)![0] : null;
+const fieldAliases = Object.entries(table.fieldAliases) as [string, string | string[]][];
+const refTarget = (ref: string) => (game.table(ref) ? href.table(game.id, ref) : null);
+const headings = [
+	{ depth: 2, slug: 'fields', text: 'Fields' },
+	...(table.aliases.length || fieldAliases.length ? [{ depth: 2, slug: 'old-names', text: 'Old names' }] : []),
+];
+---
+
+<StarlightPage
+	frontmatter={{ title: table.name, tableOfContents: { minHeadingLevel: 2, maxHeadingLevel: 2 } }}
+	headings={headings}
+>
+	<p class="ome-entity-line">
+		<a href={href.tables(game.id)}>Record table</a> of <a href={href.game(game.id)}>{game.title}</a>, records 0 to{' '}
+		{table.records - 1}, {table.fields.length} fields.
+	</p>
+	<Prose text={table.usage} />
+	{
+		scope ? (
+			<>
+			<p>
+				The game builds it when a {table.builtBy} loads, so a data file reaches it through the scope{' '}
+				<code>{scope.name}</code> (ids {scope.first} to {scope.last}): record <var>r</var> of {scope.name}{' '}
+				<var>id</var> is <code>[{scope.name}.<var>id</var>.{short}.<var>r</var>]</code>, and a field{' '}
+				<code>{scope.name}.<var>id</var>.{short}.<var>r</var>.<var>field</var></code>.
+			</p>
+			<p>
+				The scope <code>{scope.name}</code>: <Prose text={scope.usage} inline />
+			</p>
+			</>
+		) : (
+			<p>
+				The game builds it {table.builtBy === 'boot' ? 'at boot' : <>when a {table.builtBy} loads</>}. Record <var>id</var> is{' '}
+				<code>[{table.name}.<var>id</var>]</code> in a data file, <code>{table.name}[<var>id</var>]</code> in OMS and Lua,
+				and a field <code>{table.name}.<var>id</var>.<var>field</var></code>.
+			</p>
+		)
+	}
+	{
+		kinds.length > 0 && (
+			<p>
+				The database lists it:{' '}
+				{kinds.map((kind, i) => (
+					<>
+						{i > 0 && ', '}
+						{kind.loaded ? <>each of the <a href={kind.link}>{kind.label.toLowerCase()}</a> lists its {kind.loaded.toLowerCase()}</> : <><a href={kind.link}>{kind.label}</a></>}
+					</>
+				))}
+				.
+			</p>
+		)
+	}
+
+	<h2 id="fields">Fields</h2>
+	<p>
+		Each field is a global, one cell per record, named under the field. The last column is what a data file may write
+		to it, as the base mod <code>{game.baseMod.id}</code>’s shape says.
+	</p>
+	<table class="ome-ref">
+		<thead><tr><th>Field and its global</th><th>Type</th><th>Refers to</th><th>In a data file</th></tr></thead>
+		<tbody>
+			{table.fields.map((field) => (
+				<tr>
+					<td>
+						<code>{field.name}</code>
+						<a class="ome-sub" href={href.global(game.id, field.global)}>{field.global}</a>
+					</td>
+					<td>{field.type ? <code>{field.type}</code> : '—'}</td>
+					<td class='ome-nowrap'>{field.ref === 'picture' ? <span title='a packed resource id'>a picture</span> : field.ref ? (refTarget(field.ref) ? <a href={refTarget(field.ref)}>{field.ref}</a> : field.ref) : '—'}</td>
+					<td>{field.dataFile ? <>{field.dataFile.settable ? 'yes' : 'no'}: <Prose text={field.dataFile.text} inline /></> : '—'}</td>
+				</tr>
+			))}
+		</tbody>
+	</table>
+
+	{
+		(table.aliases.length > 0 || fieldAliases.length > 0) && (
+			<>
+				<h2 id="old-names">Old names</h2>
+				<p>Names a mod written for an older base mod may still use; the base mod reads them as the new ones.</p>
+				<ul>
+					{table.aliases.map((alias: string) => <li><code>{alias}</code>: this table</li>)}
+					{fieldAliases.map(([old, now]) => <li><code>{old}</code>: the field <code>{[now].flat().join(', ')}</code></li>)}
+				</ul>
+			</>
+		)
+	}
+</StarlightPage>

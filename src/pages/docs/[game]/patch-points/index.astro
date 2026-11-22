@@ -1,0 +1,33 @@
+---
+// A game's patch points (site design §7.2).
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import Prose from '../../../../components/reference/Prose.astro';
+import { reference, referenceGame } from '../../../../lib/reference.mjs';
+import { href, scriptName } from '../../../../lib/reference-model.mjs';
+
+export function getStaticPaths() {
+	return reference().games.map((game) => ({ params: { game: game.id } }));
+}
+
+const game = referenceGame(Astro.params.game!);
+---
+
+<StarlightPage frontmatter={{ title: `${game.title} patch points`, tableOfContents: false }}>
+	<p>
+		The named instructions of <a href={href.game(game.id)}>{game.title}</a>’s scripts where a mod’s fragment or Lua hook
+		goes: {game.points.length}. A name stays the same across the revisions of a script, so a mod that names a point does
+		not depend on an offset.
+	</p>
+	<table class="ome-ref">
+		<thead><tr><th>Point</th><th>Script</th><th>What is true there</th></tr></thead>
+		<tbody>
+			{game.points.map((point) => (
+				<tr>
+					<td><a href={href.point(game.id, point.name)}><code>{point.name}</code></a></td>
+					<td>{game.script(point.script) ? <a href={href.script(game.id, point.script)}><code>{scriptName(point.script)}</code></a> : <code>{scriptName(point.script)}</code>}</td>
+					<td><Prose text={point.description} inline /></td>
+				</tr>
+			))}
+		</tbody>
+	</table>
+</StarlightPage>

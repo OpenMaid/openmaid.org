@@ -4,13 +4,20 @@
 // - the search index holds every page that marks its content for search (`data-pagefind-body`), and only those: the
 //   reference section and the ordinary pages share one index (site design §5);
 // - every entity of a game's database has its page, in the search index, and its picture: each kind's tooltip file
-//   (/<game>/tooltips/<kind>.json) lists every entity of the export (site design §10.2).
+//   (/<game>/tooltips/<kind>.json) lists every entity of the export (site design §10.2);
+// - every entry of the reference bundle the build read has its page, in the search index: each opcode, and each game's
+//   named globals, record tables, patch points, events and scripts (site plan §6.1);
+// - every link of a page to a file in OME's repository names the bundle's commit, so a guide rendered for another
+//   commit (Astro's content store keeps a render while the file is the same) shows up.
 //
 // It exits 1 on any failure, listing each.
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import zlib from 'node:zlib';
+import config from '../site.config.mjs';
+import { locateBundle, openBundle } from '../src/lib/bundle.mjs';
+import { href, referenceModel } from '../src/lib/reference-model.mjs';
 
 const dist = fileURLToPath(new URL('../dist/', import.meta.url));
 const failures = [];
@@ -76,8 +83,37 @@ for (const [url] of pages) {
 	}
 }
 
+// The bundle the build read: the same source, without building it again.
+const root = fileURLToPath(new URL('../', import.meta.url));
+const located = locateBundle({ siteRoot: root, bundleDir: path.join(root, 'bundle'), checkout: config.ome.checkout, build: false });
+const model = referenceModel(openBundle(located.zip));
+const entries = [
+	...model.opcodes.map((op) => [`opcode ${op.op}`, href.opcode(op.op)]),
+	...model.games.flatMap((game) => [
+		...game.globals.map((cell) => [`${game.id} global ${cell.name}`, href.global(game.id, cell.name)]),
+		...game.tables.map((table) => [`${game.id} table ${table.name}`, href.table(game.id, table.name)]),
+		...game.points.map((point) => [`${game.id} patch point ${point.name}`, href.point(game.id, point.name)]),
+		...game.events.map((event) => [`${game.id} event ${event.name}`, href.event(game.id, event.name)]),
+		...Object.keys(game.scripts ?? {}).map((key) => [`${game.id} script ${key}`, href.script(game.id, key)]),
+	]),
+];
+for (const [what, url] of entries) {
+	if (!pages.has(url)) failures.push(`${what}: its page ${url} is not built`);
+	else if (!indexed.has(url)) failures.push(`${what}: its page ${url} is not in the search index`);
+}
+const files = `${config.ome.repository}/`;
+let repositoryLinks = 0;
+for (const [, page] of pages)
+	for (const link of page.links) {
+		if (!link.startsWith(files)) continue;
+		const ref = link.slice(files.length).match(/^(?:blob|tree)\/([^/]+)\//);
+		if (!ref) continue;
+		repositoryLinks++;
+		if (ref[1] !== model.commit) failures.push(`${page.file}: ${link} is at ${ref[1]}, not the bundle's commit ${model.commit}`);
+	}
+
 console.log(
-	`check-site: ${pages.size} pages, ${links} links on the site, ${indexed.size} pages in the search index, ${entities} entities`,
+	`check-site: ${pages.size} pages, ${links} links on the site, ${repositoryLinks} to OME's files, ${indexed.size} pages in the search index, ${entities} entities, ${entries.length} reference entries`,
 );
 if (failures.length) {
 	for (const failure of failures) console.error(`  ${failure}`);

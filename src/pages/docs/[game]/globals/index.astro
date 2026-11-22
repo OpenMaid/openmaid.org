@@ -1,0 +1,59 @@
+---
+// A game's globals (site design §7.2): each named one, with its page, and those the registry knows by address only.
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import Prose from '../../../../components/reference/Prose.astro';
+import { reference, referenceGame } from '../../../../lib/reference.mjs';
+import { href } from '../../../../lib/reference-model.mjs';
+
+export function getStaticPaths() {
+	return reference().games.map((game) => ({ params: { game: game.id } }));
+}
+
+const game = referenceGame(Astro.params.game!);
+const headings = game.unnamed.length ? [{ depth: 2, slug: 'by-address', text: 'Known by address only' }] : [];
+---
+
+<StarlightPage
+	frontmatter={{ title: `${game.title} globals`, tableOfContents: game.unnamed.length ? { minHeadingLevel: 2, maxHeadingLevel: 2 } : false }}
+	headings={headings}
+>
+	<p>
+		The cells of <a href={href.game(game.id)}>{game.title}</a>’s global banks that OME’s registry names: {game.globals.length}.
+		A script, OMS and Lua name each the same way; a record table’s field is one of them.
+	</p>
+	<table class="ome-ref">
+		<thead><tr><th>Name</th><th>Cell</th><th>Type</th><th>Category</th><th>Field of</th></tr></thead>
+		<tbody>
+			{game.globals.map((cell) => (
+				<tr>
+					<td><a href={href.global(game.id, cell.name)}><code>{cell.name}</code></a></td>
+					<td><code>{cell.bank}:{cell.address}</code></td>
+					<td><code>{cell.type}</code></td>
+					<td>{cell.category}</td>
+					<td>{game.fieldOf(cell.name).map((f: { table: string; field: string }, i: number) => <>{i > 0 && ', '}<a href={href.table(game.id, f.table)}>{f.table}</a>.{f.field}</>)}</td>
+				</tr>
+			))}
+		</tbody>
+	</table>
+	{
+		game.unnamed.length > 0 && (
+			<>
+				<h2 id="by-address">Known by address only</h2>
+				<p>Cells the registry describes but has not named yet. They have no page: a name comes first.</p>
+				<table class="ome-ref">
+					<thead><tr><th>Cell</th><th>Type</th><th>Category</th><th>What is known</th></tr></thead>
+					<tbody>
+						{game.unnamed.map((cell) => (
+							<tr>
+								<td><code>{cell.bank}:{cell.address}</code></td>
+								<td><code>{cell.type}</code></td>
+								<td>{cell.category}</td>
+								<td><Prose text={cell.usage} inline /> ({cell.confidence} confidence)</td>
+							</tr>
+						))}
+					</tbody>
+				</table>
+			</>
+		)
+	}
+</StarlightPage>
