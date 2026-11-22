@@ -8,12 +8,14 @@ import Picture from '../../../components/Picture.astro';
 import DatabaseSwitches from '../../../components/DatabaseSwitches.astro';
 import LanguageCredit from '../../../components/LanguageCredit.astro';
 import Name from '../../../components/Name.astro';
+import Value from '../../../components/Value.astro';
 import WidePage from '../../../components/WidePage.astro';
 import { databaseSidebar, game, games } from '../../../lib/database.mjs';
 import { label } from '../../../lib/labels.mjs';
 import { referenceGame } from '../../../lib/reference.mjs';
 import { href } from '../../../lib/reference-model.mjs';
-import { translated } from '../../../lib/values.mjs';
+import { SOURCE_LANGUAGE } from '../../../lib/export.mjs';
+import { translated, valueItems } from '../../../lib/values.mjs';
 
 export function getStaticPaths() {
 	return games().flatMap((data) => data.kinds.map((kind) => ({ params: { game: data.game, kind: kind.id } })));
@@ -31,7 +33,19 @@ const filters = kind.fields
 			const value = entity.values[field.name];
 			if (value !== null && value !== undefined) counts.set(value, (counts.get(value) ?? 0) + 1);
 		}
-		return { field, label: label(field.name), values: [...counts].sort((a, b) => a[0] - b[0]) };
+		return {
+			field,
+			label: field.label ?? label(field.name),
+			// Each value with its count and its name: the game's in each language (an option's text follows the language
+			// switch, by the script below), else OME's word or the number as it reads.
+			values: [...counts]
+				.sort((a, b) => a[0] - b[0])
+				.map(([value, count]) => {
+					const items = valueItems(field, value);
+					const names = items.length === 1 && items[0].names ? items[0].names : null;
+					return { value, count, text: items.map((item) => item.text ?? item.title).join(', '), names };
+				}),
+		};
 	});
 ---
 
@@ -40,12 +54,11 @@ const filters = kind.fields
 	sidebar={databaseSidebar(data)}
 >
 	<p>
-		{kind.entities.length} {kind.label.many.toLowerCase()}, from game data revision <code>{data.revision}</code>. A field
-		whose values stand for something in the game (a category, a race) shows them as the game stores them, as numbers.
+		{kind.entities.length} {kind.label.many.toLowerCase()} of {data.title}.
 	</p>
 	<DatabaseSwitches languages={data.languages} />
 	{translated(kind.entities) && <LanguageCredit data={data} />}
-	<form class="ome-filters not-content" data-ome-filters>
+	<form class="ome-filters not-content" data-ome-filters data-lang={data.languages[0] ?? SOURCE_LANGUAGE}>
 		<label>Name <input type="search" name="q" autocomplete="off" /></label>
 		{
 			filters.map((f) => (
@@ -53,9 +66,9 @@ const filters = kind.fields
 					{f.label}
 					<select name={f.field.name}>
 						<option value="">all</option>
-						{f.values.map(([value, count]) => (
-							<option value={String(value)}>
-								{value} ({count})
+						{f.values.map((v) => (
+							<option value={String(v.value)} data-names={v.names ? JSON.stringify(v.names) : undefined} data-count={v.count}>
+								{v.text} ({v.count})
 							</option>
 						))}
 					</select>
@@ -85,7 +98,16 @@ const filters = kind.fields
 						<td>
 							<a href={entity.url}><Name entity={entity} /></a>
 						</td>
-						{filters.map((f) => <td>{entity.values[f.field.name]}</td>)}
+						{filters.map((f) => (
+							<td>
+								{valueItems(f.field, entity.values[f.field.name]).map((item, i) => (
+									<>
+										{i > 0 && ', '}
+										<Value item={item} />
+									</>
+								))}
+							</td>
+						))}
 					</tr>
 				))
 			}
@@ -118,6 +140,7 @@ const filters = kind.fields
 			</section>
 		)
 	}
+	<p class="ome-entity-line ome-page-foot">From {data.title}'s game data revision <code>{data.revision}</code>.</p>
 	<script is:inline src="/tooltips.js" defer></script>
 	<WidePage />
 </StarlightPage>
@@ -148,6 +171,18 @@ const filters = kind.fields
 	form.addEventListener('input', apply);
 	form.addEventListener('submit', (event) => event.preventDefault());
 	apply();
+
+	// A filter's option names a value the game names in the game text's language (DatabaseSwitches.astro), as the
+	// list's cells do; with none chosen, in the first language the export translates the text into.
+	const relabel = () => {
+		const language = document.documentElement.getAttribute('data-ome-lang') ?? form.dataset.lang!;
+		for (const option of form.querySelectorAll<HTMLOptionElement>('option[data-names]')) {
+			const names: Record<string, string> = JSON.parse(option.dataset.names!);
+			option.textContent = `${names[language] ?? names.ja ?? Object.values(names)[0]} (${option.dataset.count})`;
+		}
+	};
+	relabel();
+	new MutationObserver(relabel).observe(document.documentElement, { attributes: true, attributeFilter: ['data-ome-lang'] });
 </script>
 
 <style is:global>

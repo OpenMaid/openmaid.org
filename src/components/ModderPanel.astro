@@ -1,10 +1,10 @@
 ---
 // The modder panel of an entity page (site design §8.7, OME's export design §6.6): hidden unless modder mode is on. It
 // names the record as OMS and data files do, lists every cell a script wrote, with its value, its writer (so its layer)
-// and its address, then the cells of the tables the game's loaders build for it (a stage's enemies), and gives a data
-// file that sets what the page shows. A string field the kind does not publish shows no value. The scripts that use
-// the table are listed once, on the kind's page; the calls that name this entity, each at its offset (OME's export
-// §6.7), are listed here. Each table, field and script name links to its reference page (§8.7). A run of an array's
+// and its address, then the cells of the tables the game's loaders build for it (a stage's enemies and allies, one
+// table, with the rule that puts a record in a part), and gives a data file that sets what the page shows. A string
+// field the kind does not publish shows no value. The scripts that use the table are listed once, on the kind's page;
+// the calls that name this entity, each at its offset (OME's export §6.7), are listed here, and only here. Each table, field and script name links to its reference page (§8.7). A run of an array's
 // cells that one script wrote alike is one row (site plan §10), so every cell is still listed: a unit's title changes
 // write 1,000 skill flags each, most of them 0, which were 11,000 rows on one page.
 interface Field { name: string; isArray: boolean; width: number | null; columns: (string | null)[] | null }
@@ -16,7 +16,14 @@ interface Props {
 		table: string;
 		label: { one: string; many: string };
 		fields: Field[];
-		loaded: { name: string; table: string; scope: string | null; label: { one: string; many: string }; fields: Field[] }[];
+		loaded: {
+			name: string;
+			table: string;
+			scope: string | null;
+			label: { one: string; many: string };
+			fields: Field[];
+			parts: { name: string; label: { one: string; many: string }; field: string; global: string; sameAs: number }[];
+		}[];
 		scriptUse: unknown[];
 	};
 	entity: {
@@ -139,11 +146,17 @@ const loaded = kind.loaded
 	{
 		loaded.map(({ table, cells }) => (
 			<>
-				<h3>Cells of its {table.label.many.toLowerCase()}</h3>
+				<h3>Cells of its {[table.label, ...table.parts.map((part) => part.label)].map((l) => l.many.toLowerCase()).join(' and ')}</h3>
 				{table.scope ? (
 					<p>
 						The table <a href={tableLink(table.table)}><code>{table.table}</code></a>, which the game builds when it loads this {kind.label.one.toLowerCase()}:
 						its record <var>r</var> is <code>[{table.scope}.{entity.id}.{table.name}.<var>r</var>]</code> in a data file.
+						{table.parts.map((part) => (
+							<>
+								{' '}A record is one of its {part.label.many.toLowerCase()} when{' '}
+								<code>{part.global}[{part.field}]</code> is not 0 and equals <code>{part.global}[{part.sameAs}]</code>.
+							</>
+						))}
 					</p>
 				) : (
 					<p>

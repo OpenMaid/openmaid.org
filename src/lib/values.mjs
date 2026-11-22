@@ -6,12 +6,61 @@ import { label } from './labels.mjs';
 // 0 is none, and for a reference so is a negative value (the games write -1 for none too).
 const isNone = (field, v) => v === 0 || (field.refKind && v < 0);
 
-/** One element of a field as a page shows it: `{ text }`, `{ entity }` (a link) or `{ missing }` (an id no entity has). */
+/**
+ * A value's name (OME's export plan §5): the game's own, in each language the export has it in, which `Name` draws
+ * (`{ title, names }`), else OME's word (`{ text }`); null when the value has neither.
+ */
+function nameOf(field, v) {
+	const names = field.names?.get(v);
+	if (!names) return null;
+	const game = Object.entries(names).filter(([tag]) => tag !== '');
+	if (game.length) return { title: names[SOURCE_LANGUAGE] ?? game[0][1], names: Object.fromEntries(game) };
+	return names[''] ? { text: names[''] } : null;
+}
+
+/** A number as the registry says it reads: times its scale, plus its offset, in its unit ("25%", "3 days", "1 turn"). */
+export function formatNumber(field, v, signed = false) {
+	const format = field.format;
+	const shown = format ? Number((v * (format.scale ?? 1) + (format.offset ?? 0)).toFixed(6)) : v;
+	const sign = signed && shown > 0 ? '+' : '';
+	const unit = format?.unit;
+	if (!unit) return `${sign}${shown}`;
+	if (unit === '%') return `${sign}${shown}%`;
+	return `${sign}${shown} ${Math.abs(shown) === 1 && unit.endsWith('s') ? unit.slice(0, -1) : unit}`;
+}
+
+/**
+ * The items a value that is not a reference shows as: its name, or for a mask the name of each value whose bit it has
+ * set, or the number as it reads. A mask's bit for a value with no name is left out when it sets a named one: the
+ * named values are those its global takes (a difficulty is 1 or 2, so bit 0 of the enemy difficulty mask never counts).
+ */
+export function valueItems(field, v, signed = false) {
+	if (v === null || v === undefined) return [{ text: '—' }];
+	if (field.format?.bits) {
+		const set = [];
+		for (let k = 0; k < 31; k++) if (v & (1 << k)) set.push(k);
+		const named = set.map((k) => nameOf(field, k)).filter(Boolean);
+		return named.length ? named : set.length ? set.map((k) => ({ text: String(k) })) : [{ text: '—' }];
+	}
+	return [nameOf(field, v) ?? { text: formatNumber(field, v, signed) }];
+}
+
+/** A value as plain text, in the game's language where the game names it: a list page's column, a filter's option. */
+export function valueText(field, v, signed = false) {
+	return valueItems(field, v, signed)
+		.map((item) => item.text ?? item.title)
+		.join(', ');
+}
+
+/**
+ * One element of a field as a page shows it: `{ text }`, `{ title, names }` (a value the game names), `{ entity }` (a
+ * link) or `{ missing }` (an id no entity has); a mask's element is several of them.
+ */
 function valueItem(entity, field, v, idx) {
-	if (v === null || v === undefined) return { text: '—' };
-	if (!field.refKind) return { text: String(v) };
+	if (v === null || v === undefined) return [{ text: '—' }];
+	if (!field.refKind) return valueItems(field, v);
 	const ref = entity.refs.find((r) => r.field === field.name && r.idx === idx);
-	return ref?.target ? { entity: ref.target } : { missing: `${field.refKind} ${v}` };
+	return [ref?.target ? { entity: ref.target } : { missing: `${field.refKind} ${v}` }];
 }
 
 /**
@@ -74,7 +123,7 @@ function cellTable(entity, fields, labels = null) {
 	const count = Math.min(...fields.map((field) => field.width));
 	const per = fields.map((field) => field.width / count);
 	const grid = per.some((k) => k > 1);
-	const fieldLabels = fields.length > 1 ? distinct(fields.map((field) => label(field.name))) : fields.map(() => null);
+	const fieldLabels = fields.length > 1 ? distinct(fields.map((field) => field.label ?? label(field.name))) : fields.map(() => null);
 	const columns = fields.flatMap((field, f) => {
 		const k = per[f];
 		if (k === 1) return [{ field, k, offset: 0, label: fieldLabels[f] }];
@@ -85,7 +134,7 @@ function cellTable(entity, fields, labels = null) {
 			k,
 			offset: c,
 			label:
-				names[c] && words(names[c]).length > shared ? label(words(names[c]).slice(shared).join('_')) : `${label(field.name)} ${c + 1}`,
+				names[c] && words(names[c]).length > shared ? label(words(names[c]).slice(shared).join('_')) : `${field.label ?? label(field.name)} ${c + 1}`,
 		}));
 	});
 	let rowLabel = () => null;
@@ -112,9 +161,9 @@ function cellTable(entity, fields, labels = null) {
 		rows: rows.map((r) => ({
 			label: rowLabel(r),
 			// A reference that is none, beside values that are not, shows as a dash rather than as an entry no entity has.
-			cells: kept.map((col) => [
-				col.field.refKind && none(col, r) ? { text: '—' } : valueItem(entity, col.field, value(col, r), at(col, r)),
-			]),
+			cells: kept.map((col) =>
+				col.field.refKind && none(col, r) ? [{ text: '—' }] : valueItem(entity, col.field, value(col, r), at(col, r)),
+			),
 		})),
 	};
 	// The group's shape decides, not the cells one entity leaves, so every entity of a kind reads the same way round.
@@ -153,36 +202,48 @@ export function infobox(kind, entity) {
 		if (elements.every(none)) continue;
 		const item = (v, idx) => valueItem(entity, field, v, idx);
 		if (!field.isArray) {
-			rows.push({ field, label: label(field.name), note, items: [item(value, 0)] });
+			rows.push({ field, label: field.label, note, items: item(value, 0) });
 			continue;
 		}
 		if (named(field)) {
 			const table = cellTable(entity, [field]);
-			if (table) rows.push({ field, label: label(field.name), note, table });
+			if (table) rows.push({ field, label: field.label, note, table });
 			continue;
 		}
 		const sparse = field.refKind || elements.filter(none).length * 2 > elements.length;
 		const items = elements.map((v, idx) => ({ v, idx })).filter(({ v }) => !sparse || !none(v));
-		rows.push({ field, label: label(field.name), note, items: items.map(({ v, idx }) => item(v, idx)) });
+		rows.push({ field, label: field.label, note, items: items.flatMap(({ v, idx }) => item(v, idx)) });
 	}
 	return rows;
 }
 
 /**
  * The tables the game's loaders built for the entity (OME's export plan §4.2), each with its rows: a stage's enemies, a
- * unit's title changes, one row a record. Its text columns come first (a title's name), then its references, since they
- * name what the row is (an enemy's unit); a column that is 0 or none in every row is left out. A cell's `items` are as
- * an infobox row's; an array whose elements have names shows each that is not 0 by its name ("Max HP +5"), one whose
- * elements have none its elements that are not 0 when most are, and an empty array cell shows nothing. Such a named
- * array's items, and a list of references, stack one to a line. A table whose text labels a group's rows is shown in
- * that group, not here. A column's note is the export's for table.field.
+ * unit's title changes, one row a record. A table with parts (§5) is shown as a table for its rows in no part, and one
+ * for each part that has rows, with the part's note: a stage's enemies and its allies. Its text columns come first (a
+ * title's name), then its references, since they name what the row is (an enemy's unit); a column that is 0 or none in
+ * every row is left out. A cell's `items` are as an infobox row's; an array whose elements have names shows each that
+ * is not 0 by its name ("Max HP +5"), one whose elements have none its elements that are not 0 when most are, and an
+ * empty array cell shows nothing. Such a named array's items, and a list of references, stack one to a line. A table
+ * whose text labels a group's rows is shown in that group, not here. A column's note is the export's for table.field.
  */
 export function loadedTables(kind, entity) {
 	const labelling = new Set(kind.groups.map((group) => group.labels?.split('.')[0]).filter(Boolean));
 	return kind.loaded
 		.filter((table) => !labelling.has(table.name))
-		.map((table) => {
-			const rows = entity.loaded[table.name] ?? [];
+		.flatMap((table) => {
+			const all = entity.loaded[table.name] ?? [];
+			return [
+				{ part: null, label: table.label.many, note: null, rows: all.filter((row) => !row.part) },
+				...(table.parts ?? []).map((part) => ({
+					part,
+					label: part.label.many,
+					note: part.note,
+					rows: all.filter((row) => row.part === part.name),
+				})),
+			].map((shown) => ({ table, ...shown }));
+		})
+		.map(({ table, part, label: heading, note: about, rows }) => {
 			const published = table.fields.filter((field) => field.published);
 			const refs = new Map(
 				entity.refs.filter((r) => r.field.startsWith(`${table.name}.`)).map((r) => [`${r.field}:${r.idx}`, r]),
@@ -202,27 +263,30 @@ export function loadedTables(kind, entity) {
 						.map((v, idx) => ({ v, idx }))
 						.filter(({ v }) => v != null && !isNone(field, v))
 						.map(({ v, idx }) => ({
-							text: `${field.columns[idx] ? label(field.columns[idx]) : `#${idx}`} ${signed(field) && v > 0 ? '+' : ''}${v}`,
+							text: `${field.columns[idx] ? label(field.columns[idx]) : `#${idx}`} ${valueText(field, v, signed(field))}`,
 						}));
 				const item = (v, idx) => {
-					if (v === null || v === undefined) return { text: '—' };
-					if (!field.refKind) return { text: String(v) };
+					if (v === null || v === undefined) return [{ text: '—' }];
+					if (!field.refKind) return valueItems(field, v);
 					const ref = refs.get(`${table.name}.${field.name}:${row.record * values.length + idx}`);
-					return ref?.target ? { entity: ref.target } : { missing: `${field.refKind} ${v}` };
+					return [ref?.target ? { entity: ref.target } : { missing: `${field.refKind} ${v}` }];
 				};
-				const items = values.map((v, idx) => ({ ...item(v, idx), zero: isNone(field, v) }));
+				// A mask of 0 in a row shows as none (an enemy slot placed on no difficulty), not as an empty cell.
+				const items = values.flatMap((v, idx) => item(v, idx).map((i) => ({ ...i, zero: isNone(field, v) && !field.format?.bits })));
 				const zeros = items.filter((i) => i.zero).length;
 				return zeros === items.length ? [] : field.refKind || zeros * 2 > items.length ? items.filter((i) => !i.zero) : items;
 			};
 			const note = (field) => kind.notes.get(`${table.name}.${field.name}`) ?? null;
 			return {
 				table,
-				id: table.label.many.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-				label: table.label.many,
+				part,
+				note: about,
+				id: heading.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+				label: heading,
 				columns: [
-					...textColumns.map((field) => ({ label: label(field.name), note: note(field) })),
+					...textColumns.map((field) => ({ label: field.label ?? label(field.name), note: note(field) })),
 					...columns.map((field) => ({
-						label: label(field.name),
+						label: field.label ?? label(field.name),
 						note: note(field),
 						stack: field.isArray && (named(field) || Boolean(field.refKind)),
 					})),
@@ -278,31 +342,20 @@ export function translated(entities) {
 	);
 }
 
-/** Who refers to the entity, grouped by the referring kind and field: "Units: drop item". */
+/**
+ * Who refers to the entity, grouped by the referring kind and field: "Units: drop item". A reference from a loaded
+ * table's row in a part is grouped by the part ("Stages: ally unit").
+ */
 export function referencedBy(data, entity) {
 	const groups = new Map();
-	for (const { from, field } of entity.referencedBy) {
-		const key = `${from.kind}.${field}`;
+	for (const { from, field, part } of entity.referencedBy) {
+		const shown = part ? `${part}.${field.slice(field.indexOf('.') + 1)}` : field;
+		const key = `${from.kind}.${shown}`;
 		if (!groups.has(key)) {
 			const kind = data.kinds.find((k) => k.id === from.kind);
-			groups.set(key, { key, label: `${kind.label.many}: ${label(field).toLowerCase()}`, entities: new Map() });
+			groups.set(key, { key, label: `${kind.label.many}: ${label(shown).toLowerCase()}`, entities: new Map() });
 		}
 		groups.get(key).entities.set(from.id, from);
 	}
 	return [...groups.values()].map((g) => ({ ...g, entities: [...g.entities.values()] }));
-}
-
-/**
- * Where the game's scripts name the entity (OME's export spec §6.7): its relations by name, each script once, with the
- * counts its calls set, as numbers given or taken (a taking relation's count is negative in the export).
- */
-export function scriptRelations(entity) {
-	const groups = new Map();
-	for (const { relation, script, offset, count } of entity.relations) {
-		if (!groups.has(relation)) groups.set(relation, { relation, label: label(relation), scripts: new Map() });
-		const scripts = groups.get(relation).scripts;
-		if (!scripts.has(script)) scripts.set(script, { script, calls: [] });
-		scripts.get(script).calls.push({ offset, count: count === null ? null : Math.abs(count) });
-	}
-	return [...groups.values()].map((g) => ({ ...g, scripts: [...g.scripts.values()] }));
 }

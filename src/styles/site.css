@@ -14,6 +14,10 @@
 	color: var(--sl-color-gray-3);
 	font-size: var(--sl-text-sm);
 }
+/* The game data revision a database page is from, at its foot. */
+.ome-page-foot {
+	margin-top: 2.5rem;
+}
 .ome-switches {
 	display: flex;
 	flex-wrap: wrap;

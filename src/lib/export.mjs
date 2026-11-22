@@ -38,6 +38,28 @@ export function readExport({ game, revision, dir, thumbnails = {} }) {
 		const has = (table) => Boolean(db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?").get(table));
 		const hasGroups = has('field_group');
 		const groupLabels = has('group_label') ? all('SELECT kind, name, labels FROM group_label') : [];
+		// What a field reads as (OME's export plan §5): a reader's label, how its numbers read, and the words and the
+		// game's names of its values, by language ('' is OME's word), each keyed kind:field (a loaded table's
+		// table.field); and the parts of a loaded table that a page shows apart (a stage's allies).
+		const byKindName = (rows, name) => new Map(rows.map((row) => [`${row.kind}:${row[name]}`, row]));
+		const fieldLabels = byKindName(has('label') ? all('SELECT kind, name, text FROM label') : [], 'name');
+		const formats = byKindName(has('value_format') ? all('SELECT * FROM value_format') : [], 'field');
+		const valueNames = new Map();
+		for (const row of has('value_name') ? all('SELECT kind, field, value, lang, text FROM value_name') : []) {
+			const key = `${row.kind}:${row.field}`;
+			if (!valueNames.has(key)) valueNames.set(key, new Map());
+			const names = valueNames.get(key);
+			if (!names.has(row.value)) names.set(row.value, {});
+			names.get(row.value)[row.lang] = row.text;
+		}
+		const parts = has('loaded_part') ? all('SELECT * FROM loaded_part ORDER BY kind, loaded, position') : [];
+		const reads = (kindId, key, field) => {
+			const format = formats.get(`${kindId}:${key}`);
+			field.label = fieldLabels.get(`${kindId}:${key}`)?.text ?? label(field.name);
+			field.format = format ? { scale: format.scale, offset: format.offset, unit: format.unit, bits: Boolean(format.bits) } : null;
+			field.names = valueNames.get(`${kindId}:${key}`) ?? null;
+			return field;
+		};
 		const notes = has('note') ? all('SELECT kind, name, text FROM note') : [];
 		const blocks = has('text_block') ? all('SELECT kind, field, name, first, last FROM text_block ORDER BY kind, field, position') : [];
 		const pictures = new Map(); // file name -> picture
@@ -48,14 +70,14 @@ export function readExport({ game, revision, dir, thumbnails = {} }) {
 			titleField: row.title_field,
 			aliases: JSON.parse(row.aliases),
 			label: kindLabel(row.id),
-			fields: all('SELECT * FROM field WHERE kind = ? ORDER BY rowid', row.id).map(fieldOf),
+			fields: all('SELECT * FROM field WHERE kind = ? ORDER BY rowid', row.id).map((f) => reads(row.id, f.name, fieldOf(f))),
 			// The kind's groups (OME's export plan §5): published rows of cells of one width, shown as one table. A group's
 			// labels name a loaded table's text field, table.field, whose record r names row r (a stage's objectives).
 			groups: hasGroups
 				? [...groupBy(all('SELECT name, field FROM field_group WHERE kind = ? ORDER BY name, position', row.id), (g) => g.name)]
 						.map(([name, members]) => ({
 							name,
-							label: label(name),
+							label: fieldLabels.get(`${row.id}:${name}`)?.text ?? label(name),
 							fieldNames: members.map((m) => m.field),
 							labels: groupLabels.find((g) => g.kind === row.id && g.name === name)?.labels ?? null,
 						}))
@@ -84,7 +106,12 @@ export function readExport({ game, revision, dir, thumbnails = {} }) {
 				scope: t.scope,
 				records: t.records,
 				label: kindLabel(t.name),
-				fields: all('SELECT * FROM loaded_field WHERE kind = ? AND loaded = ? ORDER BY rowid', row.id, t.name).map(fieldOf),
+				fields: all('SELECT * FROM loaded_field WHERE kind = ? AND loaded = ? ORDER BY rowid', row.id, t.name).map((f) =>
+					reads(row.id, `${t.name}.${f.name}`, fieldOf(f)),
+				),
+				parts: parts
+					.filter((p) => p.kind === row.id && p.loaded === t.name)
+					.map((p) => ({ name: p.name, label: kindLabel(p.name), note: p.note, field: p.field, global: p.global, sameAs: p.same_as })),
 			})),
 			entities: [],
 		}));
@@ -104,6 +131,7 @@ export function readExport({ game, revision, dir, thumbnails = {} }) {
 				const rows = all(`SELECT * FROM "${kind.id}.${table.name}" ORDER BY id, record`).map((row) => ({
 					id: row.id,
 					record: row.record,
+					part: row.part ?? null,
 					values: Object.fromEntries(published.map((field) => {
 						const raw = row[field.name];
 						return [field.name, field.isArray && typeof raw === 'string' ? JSON.parse(raw) : raw];
@@ -170,10 +198,21 @@ export function readExport({ game, revision, dir, thumbnails = {} }) {
 				byKey.set(`${kind.id}:${id}`, entity);
 			}
 		}
+		// A reference from a loaded table's row names the row's part, if it has one (a stage's ally), by the row's record:
+		// the cell's index over the field's width.
+		const kindById = new Map(kinds.map((kind) => [kind.id, kind]));
+		const partOf = (entity, field, idx) => {
+			const dot = field.indexOf('.');
+			if (dot < 0) return null;
+			const table = kindById.get(entity.kind).loaded.find((t) => t.name === field.slice(0, dot));
+			if (!table?.parts.length) return null;
+			const width = table.fields.find((f) => f.name === field.slice(dot + 1))?.width || 1;
+			return entity.loaded[table.name].find((row) => row.record === Math.floor(idx / width))?.part ?? null;
+		};
 		for (const entity of byKey.values())
 			for (const ref of entity.refs) {
 				ref.target = byKey.get(`${ref.kind}:${ref.id}`) ?? null;
-				ref.target?.referencedBy.push({ from: entity, field: ref.field, idx: ref.idx });
+				ref.target?.referencedBy.push({ from: entity, field: ref.field, idx: ref.idx, part: partOf(entity, ref.field, ref.idx) });
 			}
 		// A kind whose title is a reference takes its target's title (OME's export plan §4.1): a recipe is named by the
 		// item it makes. It shows the target's thumbnail too when it has none of its own.

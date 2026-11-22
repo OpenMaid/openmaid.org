@@ -28,7 +28,7 @@ interface Props {
 const { columns, rows, rowHeader = '', variant } = Astro.props;
 const labelled = rows.some((row) => row.label !== null && row.label !== undefined);
 const header = columns.some((column) => column.label);
-const NUMBER = /^(-?\d[\d,]*(\.\d+)?%?|—)$/;
+const NUMBER = /^([-+]?\d[\d,]*(\.\d+)?(%| [a-z]+)?|—)$/;
 const numeric = columns.map(
 	(_, c) =>
 		rows.some((row) => row.cells[c].length > 0) &&
