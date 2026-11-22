@@ -57,7 +57,6 @@ const filters = kind.fields
 		{kind.entities.length} {kind.label.many.toLowerCase()} of {data.title}.
 	</p>
 	<DatabaseSwitches languages={data.languages} />
-	{translated(kind.entities) && <LanguageCredit data={data} />}
 	<form class="ome-filters not-content" data-ome-filters data-lang={data.languages[0] ?? SOURCE_LANGUAGE}>
 		<label>Name <input type="search" name="q" autocomplete="off" /></label>
 		{
@@ -141,6 +140,7 @@ const filters = kind.fields
 		)
 	}
 	<p class="ome-entity-line ome-page-foot">From {data.title}'s game data revision <code>{data.revision}</code>.</p>
+	{translated(kind.entities) && <LanguageCredit data={data} switched />}
 	<script is:inline src="/tooltips.js" defer></script>
 	<WidePage />
 </StarlightPage>

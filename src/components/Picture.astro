@@ -1,17 +1,25 @@
 ---
 // One picture of an entity (site design §8.9). An explicit one (§8.11) is a blurred stand-in that the build made, with
 // a label; the page loads the picture only on a click, or at once while the "explicit pictures" switch is on. Without
-// scripts the stand-in links to the picture.
+// scripts the stand-in links to the picture. Its text may be in each language the entity's name is (`alt` by language
+// tag): `lang` shows first, and the language switch picks one (DatabaseSwitches.astro; site plan §10.3).
 import { pictureUrl, standInUrl } from '../lib/database.mjs';
 
 interface Props {
 	data: { game: string; revision: string };
 	picture: { file: string; explicit: boolean; width: number; height: number };
-	alt: string;
+	alt: string | Record<string, string>;
+	lang?: string;
 	class?: string;
 }
-const { data, picture, alt, class: className } = Astro.props;
+const { data, picture, alt, lang, class: className } = Astro.props;
 const src = pictureUrl(data, picture);
+const hidden = (text: string) => (picture.explicit ? `${text} (explicit, hidden)` : text);
+const alts = typeof alt === 'string' ? null : alt;
+const tag = alts ? (lang && alts[lang] ? lang : Object.keys(alts)[0]) : undefined;
+const text = hidden(alts ? alts[tag!] : (alt as string));
+const altData =
+	alts && Object.keys(alts).length > 1 ? JSON.stringify(Object.fromEntries(Object.entries(alts).map(([t, a]) => [t, hidden(a)]))) : undefined;
 // A small picture (a condition's icon cut from its sheet) is drawn larger with its pixels kept sharp.
 const small = picture.width <= 32 && picture.height <= 32;
 ---
@@ -19,11 +27,20 @@ const small = picture.width <= 32 && picture.height <= 32;
 {
 	picture.explicit ? (
 		<a class:list={['ome-explicit', className]} href={src} data-ome-picture={src} data-pagefind-ignore>
-			<img src={standInUrl(data, picture)} alt={`${alt} (explicit, hidden)`} width={picture.width} height={picture.height} />
+			<img src={standInUrl(data, picture)} alt={text} lang={tag} data-ome-alts={altData} width={picture.width} height={picture.height} />
 			<span>Explicit: click to show</span>
 		</a>
 	) : (
-		<img class:list={[className, { 'ome-pixel': small }]} src={src} alt={alt} width={picture.width} height={picture.height} loading="lazy" />
+		<img
+			class:list={[className, { 'ome-pixel': small }]}
+			src={src}
+			alt={text}
+			lang={tag}
+			data-ome-alts={altData}
+			width={picture.width}
+			height={picture.height}
+			loading="lazy"
+		/>
 	)
 }
 
@@ -33,7 +50,12 @@ const small = picture.width <= 32 && picture.height <= 32;
 	const reveal = (link: HTMLAnchorElement) => {
 		const img = link.querySelector('img')!;
 		img.src = link.dataset.omePicture!;
-		img.alt = img.alt.replace(/ \(explicit, hidden\)$/, '');
+		const shown = (text: string) => text.replace(/ \(explicit, hidden\)$/, '');
+		img.alt = shown(img.alt);
+		if (img.dataset.omeAlts)
+			img.dataset.omeAlts = JSON.stringify(
+				Object.fromEntries(Object.entries(JSON.parse(img.dataset.omeAlts) as Record<string, string>).map(([t, a]) => [t, shown(a)])),
+			);
 		link.classList.add('ome-revealed');
 		link.removeAttribute('href');
 	};

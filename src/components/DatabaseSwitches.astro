@@ -3,7 +3,8 @@
 // modder panel, "explicit pictures" shows them without the blur, and the game text's language picks which of an
 // element's languages shows (Name.astro), when the export translates the text. The head script (astro.config.mjs)
 // restores them before the first paint as attributes on <html>, which the styles read; with none chosen, game text
-// shows in the first language the export translates it into.
+// shows in the first language the export translates it into. The language also picks what the styles cannot: the
+// tab's title, from the page's `ome-titles`, and the pictures' text (Picture.astro; site plan §10.3).
 import { SOURCE_LANGUAGE } from '../lib/language.mjs';
 import { languageName } from '../lib/labels.mjs';
 
@@ -33,6 +34,29 @@ const { languages = [] } = Astro.props;
 </div>
 
 <script>
+	import { SOURCE_LANGUAGE } from '../lib/language.mjs';
+
+	// The language a text shows in, of those it has: the chosen one, else the first translation, as the styles pick.
+	const pick = (available: string[]) => {
+		const chosen = document.documentElement.getAttribute('data-ome-lang');
+		if (chosen && available.includes(chosen)) return chosen;
+		return available.find((tag) => tag !== SOURCE_LANGUAGE) ?? available[0];
+	};
+	const showLanguage = () => {
+		const titles = document.querySelector<HTMLMetaElement>('meta[name="ome-titles"]');
+		if (titles) {
+			const byTag = JSON.parse(titles.content) as Record<string, string>;
+			document.title = byTag[pick(Object.keys(byTag))];
+		}
+		for (const img of document.querySelectorAll<HTMLImageElement>('img[data-ome-alts]')) {
+			const alts = JSON.parse(img.dataset.omeAlts!) as Record<string, string>;
+			const tag = pick(Object.keys(alts));
+			img.alt = alts[tag];
+			img.lang = tag;
+		}
+	};
+	showLanguage();
+
 	for (const input of document.querySelectorAll<HTMLInputElement>('input[data-ome-switch]')) {
 		const attribute = input.dataset.attribute!;
 		input.checked = document.documentElement.hasAttribute(attribute);
@@ -49,6 +73,7 @@ const { languages = [] } = Astro.props;
 		if (chosen && [...select.options].some((option) => option.value === chosen)) select.value = chosen;
 		select.addEventListener('change', () => {
 			document.documentElement.setAttribute('data-ome-lang', select.value);
+			showLanguage();
 			try {
 				localStorage.setItem('ome-game-language', select.value);
 			} catch {}

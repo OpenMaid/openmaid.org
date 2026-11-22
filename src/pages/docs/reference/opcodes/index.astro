@@ -1,13 +1,28 @@
 ---
-// Every opcode of OME's registry (site design §7.2): its name, what it does, and which builds' scripts use it.
+// Every opcode of OME's registry (site design §7.2): its name, what it does, and which builds' scripts use it. A name
+// stays on one line, and what it does is the summary's first sentence, at most about two lines of the column: the
+// opcode's own page has the rest (site plan §10.3). The page takes the width between its sidebars, as a database
+// page does (WidePage.astro).
 import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
 import Prose from '../../../../components/reference/Prose.astro';
+import WidePage from '../../../../components/WidePage.astro';
 import { reference } from '../../../../lib/reference.mjs';
 import { href } from '../../../../lib/reference-model.mjs';
 
 const model = reference();
 const implemented = model.opcodes.filter((op) => op.waits).length;
 const investigated = model.opcodes.filter((op) => op.status !== 'catalog-only').length;
+const LIMIT = 200;
+const brief = (summary: string | null | undefined) => {
+	const text = (summary ?? '').replace(/\s+/g, ' ').trim();
+	// A sentence ends at a stop followed by a capital (or the summary's end), so "e.g." and "0x4." do not end one.
+	const first = text.match(/^.*?[.!?](?=\s+[A-Z(`]|$)/)?.[0] ?? text;
+	if (first.length <= LIMIT) return first;
+	let cut = first.slice(0, first.lastIndexOf(' ', LIMIT));
+	// A cut through `code` drops it, so the cell shows no stray backtick.
+	if ((cut.split('`').length - 1) % 2 === 1) cut = cut.slice(0, cut.lastIndexOf('`')).trimEnd();
+	return `${cut.replace(/[,;:\s]+$/, '')}…`;
+};
 ---
 
 <StarlightPage frontmatter={{ title: 'Opcodes', tableOfContents: false }}>
@@ -27,11 +42,12 @@ const investigated = model.opcodes.filter((op) => op.status !== 'catalog-only').
 			{model.opcodes.map((op) => (
 				<tr>
 					<td><a href={href.opcode(op.op)}><code>{op.op}</code></a></td>
-					<td>{op.name}</td>
-					<td><Prose text={op.summary} inline /></td>
+					<td class="ome-nowrap">{op.name}</td>
+					<td class="ome-summary"><Prose text={brief(op.summary)} inline /></td>
 					{op.builds.map((build) => <td>{build.used ? '✓' : ''}</td>)}
 				</tr>
 			))}
 		</tbody>
 	</table>
+	<WidePage />
 </StarlightPage>

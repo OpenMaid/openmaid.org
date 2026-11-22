@@ -1,24 +1,27 @@
 ---
 // The credit of a page that shows translated game text (site design §8.6): each language's packages, as the export
-// records them (OME's export spec §6.4), with their authors where the package names them.
+// records them (OME's export spec §6.4), with their authors where the package names them. On a page with the language
+// switch it follows the switch (`switched`): a language's credit shows only while the page shows that language's text
+// (site plan §10.3).
 import { languageName } from '../lib/labels.mjs';
 
 interface Props {
 	data: { packages: { language: string; id: string; name: string; version: string; authors: string[] }[] };
+	switched?: boolean;
 }
 
-const { data } = Astro.props;
+const { data, switched = false } = Astro.props;
 ---
 
 {
 	data.packages.map((p) =>
 		p.authors.length > 0 ? (
-			<p class="ome-credit" data-pagefind-ignore>
+			<p class="ome-credit" data-pagefind-ignore data-ome-text={switched ? p.language : undefined}>
 				{languageName(p.language)} game text translated by {p.authors.join(', ')}, from the language package “{p.name}”,
 				version {p.version}.
 			</p>
 		) : (
-			<p class="ome-credit" data-pagefind-ignore>
+			<p class="ome-credit" data-pagefind-ignore data-ome-text={switched ? p.language : undefined}>
 				{languageName(p.language)} game text from the language package “{p.name}”, version {p.version}. The translation
 				is its translators’ work.
 			</p>

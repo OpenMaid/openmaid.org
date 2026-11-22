@@ -2,9 +2,10 @@
 // An entity page (site design §8.2): its name, pictures and kind; an infobox of its published fields; its text; the
 // tables the game's loaders build for it (a stage's enemies and its allies); what refers to it, each list under the
 // heading the export gives it ("Dropped by") and, where it names details, as a table of them; the modder panel, which
-// also lists the calls of the game's scripts that name it; and, at its foot, the game data revision it is from. Its
-// names and text are in each language the export translates them into, the switch showing one (§8.6). Search indexes
-// its name and text only, with the game and kind as filters (§8.4).
+// also lists the calls of the game's scripts that name it; and, at its foot, the game data revision it is from and the
+// credit of the translation it shows. Its names and text are in each language the export translates them into, the
+// switch showing one (§8.6), the tab's title and the pictures' text too (site plan §10.3). Search indexes its name and
+// text only, with the game and kind as filters (§8.4).
 import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
 import ome from 'virtual:ome';
 import DatabaseSwitches from '../../../../components/DatabaseSwitches.astro';
@@ -18,6 +19,7 @@ import Value from '../../../../components/Value.astro';
 import WidePage from '../../../../components/WidePage.astro';
 import { databaseSidebar, game, games } from '../../../../lib/database.mjs';
 import { label } from '../../../../lib/labels.mjs';
+import { SOURCE_LANGUAGE } from '../../../../lib/language.mjs';
 import { infobox, loadedTables, referencedBy, texts, translated } from '../../../../lib/values.mjs';
 
 export function getStaticPaths() {
@@ -59,13 +61,30 @@ const headings = [
 	...(incoming.length ? [{ depth: 2, slug: 'related', text: 'Related' }] : []),
 ];
 const version = data.manifest.game_version ? `, game version ${data.manifest.game_version}` : '';
+// The tab's title in each language the name is in: that language's name first, the others after it, and the database.
+// The page's own is the language a page shows first; the language switch sets the chosen one's (DatabaseSwitches).
+const shownFirst = data.languages.find((tag: string) => entity.names[tag]) ?? SOURCE_LANGUAGE;
+const names: [string, string][] = Object.entries(entity.names);
+const titleIn = (tag: string) => {
+	const others = [...new Set(names.filter(([t, name]) => t !== tag && name !== entity.names[tag]).map(([, name]) => name))];
+	return `${entity.names[tag]}${others.length ? ` (${others.join(', ')})` : ''} – ${data.title} database | ${ome.title}`;
+};
+const titles = names.length > 1 ? Object.fromEntries(names.map(([tag]) => [tag, titleIn(tag)])) : null;
+const pageTitle = titles ? titles[shownFirst] : `${entity.title} – ${data.title} database | ${ome.title}`;
+// A picture's text names the entity in each language its name is in.
+const altOf = (caption: string) =>
+	names.length > 0 ? Object.fromEntries(names.map(([tag, name]) => [tag, `${name}: ${caption}`])) : `${entity.title}: ${caption}`;
 ---
 
 <StarlightPage
 	frontmatter={{
 		title: entity.title,
 		// The tab and a search engine's result name the database the page is in.
-		head: [{ tag: 'title', content: `${entity.title} – ${data.title} database | ${ome.title}` }],
+		head: [
+			{ tag: 'title', content: pageTitle },
+			{ tag: 'meta', attrs: { property: 'og:title', content: pageTitle } },
+			...(titles ? [{ tag: 'meta' as const, attrs: { name: 'ome-titles', content: JSON.stringify(titles) } }] : []),
+		],
 		tableOfContents: { minHeadingLevel: 2, maxHeadingLevel: 2 },
 		prev: false,
 		next: false,
@@ -79,14 +98,13 @@ const version = data.manifest.game_version ? `, game version ${data.manifest.gam
 		<a href={`/${data.game}/${kind.id}/`}>{kind.label.one}</a> {entity.id} of {data.title}
 	</p>
 	<DatabaseSwitches languages={data.languages} />
-	{credited && <LanguageCredit data={data} />}
 
 	{
 		pictures.length > 0 && (
 			<div class="ome-pictures not-content" data-pagefind-ignore>
 				{pictures.map((picture) => (
 					<figure>
-						<Picture data={data} picture={picture} alt={`${entity.title}: ${picture.names}`} />
+						<Picture data={data} picture={picture} alt={altOf(picture.names)} lang={shownFirst} />
 						<figcaption>{picture.names}</figcaption>
 					</figure>
 				))}
@@ -186,6 +204,7 @@ const version = data.manifest.game_version ? `, game version ${data.manifest.gam
 	<p class="ome-entity-line ome-page-foot" data-pagefind-ignore>
 		From {data.title}'s game data revision <code>{data.revision}</code>{version}.
 	</p>
+	{credited && <LanguageCredit data={data} switched />}
 	<script is:inline src="/tooltips.js" defer></script>
 	<WidePage />
 </StarlightPage>

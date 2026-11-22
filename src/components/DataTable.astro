@@ -4,7 +4,9 @@
 // aligns them on the right, so they compare down the column. The row labels take a column of their own, and the header
 // is left out when no column has a label (an array in the infobox, whose row already names it). A row's label may be a
 // text of the game (a stage's objective), in each language it has; a column's label may have a note. A column whose
-// cells list items that each name themselves ("Max HP +5", a link) stacks them one to a line.
+// cells list items that each name themselves ("Max HP +5", a link) stacks them one to a line. A table wider than its
+// box keeps its first column in place while the rest scrolls, and its second too where the first holds record numbers
+// (src/styles/site.css).
 import Label from './Label.astro';
 import Value from './Value.astro';
 
@@ -27,6 +29,7 @@ interface Props {
 
 const { columns, rows, rowHeader = '', variant } = Astro.props;
 const labelled = rows.some((row) => row.label !== null && row.label !== undefined);
+const numbered = labelled && columns.length > 0 && rows.every((row) => typeof row.label === 'number');
 const header = columns.some((column) => column.label);
 const NUMBER = /^([-+]?\d[\d,]*(\.\d+)?(%| [a-z]+)?|—)$/;
 const numeric = columns.map(
@@ -36,7 +39,7 @@ const numeric = columns.map(
 );
 ---
 
-<table class:list={['ome-table', `ome-${variant}`]}>
+<table class:list={['ome-table', `ome-${variant}`, { 'ome-numbered': numbered }]}>
 	{
 		header && (
 			<thead>

@@ -175,10 +175,36 @@
 .ome-table.ome-wide td {
 	white-space: nowrap;
 }
+/* A table that scrolls sideways shows it (public/scroll-edges.js; site plan §10.3): the edge with more past it fades,
+   and a database table keeps the column that names its rows in place, with the record number before it where the
+   rows are numbered, shadowed while the rest scrolls under it. */
+.sl-markdown-content table[data-ome-more-end] {
+	mask-image: linear-gradient(to left, transparent, #000 3rem);
+}
+.ome-table:is(.ome-wide, .ome-nested) > * > tr > :first-child,
+.ome-table.ome-numbered > * > tr > :nth-child(2) {
+	position: sticky;
+	inset-inline-start: 0;
+	z-index: 1;
+	background-color: var(--sl-color-bg);
+}
+.ome-table.ome-numbered > * > tr > :first-child {
+	box-sizing: border-box;
+	width: 3rem;
+	min-width: 3rem;
+	padding-inline: 0.5rem;
+}
+.ome-table.ome-numbered > * > tr > :nth-child(2) {
+	inset-inline-start: 3rem;
+}
+.ome-table[data-ome-more-start]:not(.ome-numbered) > * > tr > :first-child,
+.ome-table.ome-numbered[data-ome-more-start] > * > tr > :nth-child(2) {
+	box-shadow: 8px 0 8px -8px rgb(0 0 0 / 0.45);
+}
 .ome-missing {
 	color: var(--sl-color-gray-3);
 }
-/* An entity's text (lib/values.mjs texts): a row for each field or block, its lines as the game breaks them. */
+/* An entity's text (lib/values.mjs texts): a row for each field or block, its paragraphs (lib/text-flow.mjs). */
 /* One language's lines show at a time, so none takes the margin Starlight gives a block after another. */
 .ome-text td div {
 	margin-top: 0;
@@ -293,6 +319,10 @@ img.ome-pixel {
 .ome-ref td.ome-nowrap {
 	white-space: nowrap;
 	overflow-wrap: normal;
+}
+/* A summary in a reference index keeps a readable width: the table scrolls rather than squeeze it. */
+.ome-ref td.ome-summary {
+	min-width: 18rem;
 }
 .ome-sub {
 	display: block;

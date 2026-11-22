@@ -2,7 +2,7 @@
 // /<game>/<kind>/<id>/... on this site shows the entity's name, picture and a line of its text, from the kind's
 // tooltip file, loaded once on the first hover over that kind. Where the file translates them (§8.6), the name and the
 // line are in the language <html>'s data-ome-lang chooses, the first translation unless it is the game's own, and the
-// name in the other language follows.
+// name in the other language follows. Escape closes the tooltip.
 //
 // It depends on nothing else, so another site can load it with a <script src> from this one and get the same tooltips
 // on its links here. There it shows names and pictures only: the embedding site decides its own notice (§8.10).
@@ -106,4 +106,8 @@
 	document.addEventListener('focusin', enter);
 	document.addEventListener('mouseout', leave);
 	document.addEventListener('focusout', leave);
+	// Escape closes the tooltip; it opens again once the pointer or the focus has left the link and come back.
+	document.addEventListener('keydown', (event) => {
+		if (event.key === 'Escape' && box && box.style.display !== 'none') box.style.display = 'none';
+	});
 })();

@@ -2,6 +2,7 @@
 // plain values, links to other entities, or a list of an array's elements by name.
 import { label } from './labels.mjs';
 import { SOURCE_LANGUAGE } from './language.mjs';
+import { flow, textShape } from './text-flow.mjs';
 
 // 0 is none, and for a reference so is a negative value (the games write -1 for none too).
 const isNone = (field, v) => v === 0 || (field.refKind && v < 0);
@@ -307,9 +308,44 @@ export function loadedTables(kind, entity) {
  * The entity's text, apart from its title, as the rows of a table (site design §8.2): a row for each text field, or
  * for each of its blocks when the export divides its lines into the blocks the game draws them in (OME's export plan
  * §5: a quest's overview, clear condition and failure condition). A row holds its lines in the game's language and in
- * each that translates it (§8.6); a field or block with no line of text has no row. A field's note is on its first row.
+ * each that translates it (§8.6), with the lines the game wrapped joined into paragraphs (text-flow.mjs); a field or
+ * block with no line of text has no row. A field's note is on its first row.
  */
 export function texts(kind, entity) {
+	const shapes = textShapes(kind);
+	return gameTexts(kind, entity).map((row) => ({
+		...row,
+		languages: row.languages.map(([tag, lines]) => [tag, flow(lines, tag, shapes.get(`${row.key}:${tag}`))]),
+	}));
+}
+
+const shapesOf = new WeakMap();
+/**
+ * The shape of each of a kind's texts in each language (text-flow.mjs), by `field:block:language`, measured from every
+ * entity's lines of it. The game's own language is measured first: a translation's width is never under it.
+ */
+function textShapes(kind) {
+	if (!shapesOf.has(kind)) {
+		const lists = new Map();
+		for (const entity of kind.entities)
+			for (const row of gameTexts(kind, entity))
+				for (const [tag, lines] of row.languages) {
+					const key = `${row.key}:${tag}`;
+					if (!lists.has(key)) lists.set(key, { tag, base: `${row.key}:${SOURCE_LANGUAGE}`, lines: [] });
+					lists.get(key).lines.push(lines);
+				}
+		const shapes = new Map();
+		const source = [...lists].filter(([, list]) => list.tag === SOURCE_LANGUAGE);
+		for (const [key, list] of source) shapes.set(key, textShape(list.lines, list.tag));
+		for (const [key, list] of lists)
+			if (!shapes.has(key)) shapes.set(key, textShape(list.lines, list.tag, shapes.get(list.base)?.width ?? 0));
+		shapesOf.set(kind, shapes);
+	}
+	return shapesOf.get(kind);
+}
+
+/** The rows `texts` gives, with each text's lines as the game has them. */
+function gameTexts(kind, entity) {
 	const lines = (values) => values.filter((v) => v !== undefined && v !== null).join('\n').split('\n');
 	const shown = (list) => list && list.some((line) => line.trim());
 	const rows = [];
@@ -325,6 +361,7 @@ export function texts(kind, entity) {
 				.filter(([, list]) => shown(list));
 			rows.push({
 				field,
+				key: `${field.name}:${block.name}`,
 				label: label(block.name),
 				note: b === 0 ? (kind.notes.get(field.name) ?? null) : null,
 				languages: [[SOURCE_LANGUAGE, own], ...translations],

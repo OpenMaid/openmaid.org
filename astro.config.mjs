@@ -76,7 +76,11 @@ export default defineConfig({
 			title: config.title,
 			sidebar: [...guides.sidebar, referenceSidebar(omeGames)],
 			social: [{ icon: 'github', label: 'GitHub', href: config.ome.repository }],
-			head: [{ tag: 'script', content: headScript }],
+			head: [
+				{ tag: 'script', content: headScript },
+				// Tables that scroll sideways show that they do (site plan §10.3).
+				{ tag: 'script', attrs: { src: '/scroll-edges.js', defer: true } },
+			],
 			components: {
 				SkipLink: './src/components/SkipLink.astro',
 				SiteTitle: './src/components/SiteTitle.astro',

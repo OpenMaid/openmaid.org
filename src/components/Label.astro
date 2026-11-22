@@ -1,7 +1,7 @@
 ---
 // A detail's label with its note (OME's export plan §5), when the export has one: a line that explains what the value
-// means, which a box under the label shows while the pointer is over it or it has the focus. Without scripts the
-// browser shows the note as the label's title; a screen reader reads it after the label.
+// means, which a box under the label shows while the pointer is over it or it has the focus, until Escape closes it.
+// Without scripts the browser shows the note as the label's title; a screen reader reads it after the label.
 interface Props {
 	text: string | null;
 	note?: string | null;
@@ -63,4 +63,8 @@ const { text, note } = Astro.props;
 	document.addEventListener('focusin', enter);
 	document.addEventListener('mouseout', leave);
 	document.addEventListener('focusout', leave);
+	// Escape closes the note; it opens again once the pointer or the focus has left the label and come back.
+	document.addEventListener('keydown', (event) => {
+		if (event.key === 'Escape' && box && !box.hidden) box.hidden = true;
+	});
 </script>
