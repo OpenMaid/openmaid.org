@@ -101,9 +101,10 @@ export function labelled(head, items) {
  * unit's stats). A row whose cells are all 0 or none is left out, and so is a column that is in every row left. A table
  * with named rows whose fields give more columns than rows turns, a row for each column, so it fits the infobox (a
  * condition's five levels across, its stat changes down). A group with labels (OME's export plan §5) names row r by its
- * labelling text's record r (a stage's objective rewards by each objective's condition). Null when no row is left.
+ * labelling text's record r (a stage's objective rewards by each objective's condition), and one with a row word by the
+ * word and r ("Level 12", a character's levels). Null when no row is left.
  */
-function cellTable(entity, fields, labels = null) {
+function cellTable(entity, fields, labels = null, rowWord = null) {
 	const count = Math.min(...fields.map((field) => field.width));
 	const per = fields.map((field) => field.width / count);
 	const grid = per.some((k) => k > 1);
@@ -123,7 +124,9 @@ function cellTable(entity, fields, labels = null) {
 	});
 	let rowLabel = () => null;
 	if (labels) {
-		rowLabel = (r) => textItem(entity, labels, r) ?? `#${r}`;
+		rowLabel = (r) => textItem(entity, labels, r) ?? (rowWord ? `${rowWord} ${r}` : `#${r}`);
+	} else if (rowWord) {
+		rowLabel = (r) => `${rowWord} ${r}`;
 	} else if (grid) {
 		rowLabel = (r) => {
 			const names = columns.map((col) => col.field.columns?.[r * col.k + col.offset]);
@@ -144,9 +147,12 @@ function cellTable(entity, fields, labels = null) {
 		columns: kept.map((col) => ({ label: col.label })),
 		rows: rows.map((r) => ({
 			label: rowLabel(r),
-			// A reference that is none, beside values that are not, shows as a dash rather than as an entry no entity has.
+			// A reference that is none, beside values that are not, shows as a dash rather than as an entry no entity has;
+			// so does the value the registry says means none (OME's `none`: a level that raises no 奥義 level).
 			cells: kept.map((col) =>
-				col.field.refKind && none(col, r) ? [{ text: '—' }] : valueItem(entity, col.field, value(col, r), at(col, r)),
+				(col.field.refKind ? none(col, r) : value(col, r) != null && value(col, r) === col.field.format?.none)
+					? [{ text: '—' }]
+					: valueItem(entity, col.field, value(col, r), at(col, r)),
 			),
 		})),
 	};
@@ -175,7 +181,7 @@ export function infobox(kind, entity) {
 		if (group) {
 			if (placed.has(group)) continue;
 			placed.add(group);
-			const table = cellTable(entity, group.fields, group.labels);
+			const table = cellTable(entity, group.fields, group.labels, group.rowLabel);
 			if (table) rows.push({ field, label: group.label, note: kind.notes.get(group.name) ?? null, table });
 			continue;
 		}

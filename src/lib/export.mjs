@@ -36,8 +36,17 @@ export function readExport({ game, revision, dir, thumbnails = {}, cards = {}, c
 		const all = (sql, ...args) => db.prepare(sql).all(...args).map((row) => ({ ...row }));
 		// An export made before groups, notes or text blocks (OME's export plan §5) has no table of them.
 		const has = (table) => Boolean(db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?").get(table));
+		const columnsOf = (table) => db.prepare(`PRAGMA table_info("${table}")`).all().map((column) => column.name);
 		const hasGroups = has('field_group');
-		const groupLabels = has('group_label') ? all('SELECT kind, name, labels FROM group_label') : [];
+		// A group's row labels: a loaded table's text field, or a word that names row r with its number (an export
+		// before OME's row words has no row_label column).
+		const groupLabels = has('group_label')
+			? all(
+					columnsOf('group_label').includes('row_label')
+						? 'SELECT kind, name, labels, row_label FROM group_label'
+						: 'SELECT kind, name, labels, NULL AS row_label FROM group_label',
+				)
+			: [];
 		// What a field reads as (OME's export plan §5): a reader's label, how its numbers read, and the words and the
 		// game's names of its values, by language ('' is OME's word), each keyed kind:field (a loaded table's
 		// table.field); and the parts of a loaded table that a page shows apart (a stage's allies).
@@ -96,7 +105,8 @@ export function readExport({ game, revision, dir, thumbnails = {}, cards = {}, c
 			defaultColumns: columns[row.id] ?? null,
 			fields: all('SELECT * FROM field WHERE kind = ? ORDER BY rowid', row.id).map((f) => reads(row.id, f.name, fieldOf(f))),
 			// The kind's groups (OME's export plan §5): published rows of cells of one width, shown as one table. A group's
-			// labels name a loaded table's text field, table.field, whose record r names row r (a stage's objectives).
+			// labels name a loaded table's text field, table.field, whose record r names row r (a stage's objectives); its
+			// row word names row r with its number ("Level 12").
 			groups: hasGroups
 				? [...groupBy(all('SELECT name, field FROM field_group WHERE kind = ? ORDER BY name, position', row.id), (g) => g.name)]
 						.map(([name, members]) => ({
@@ -104,6 +114,7 @@ export function readExport({ game, revision, dir, thumbnails = {}, cards = {}, c
 							label: fieldLabels.get(`${row.id}:${name}`)?.text ?? label(name),
 							fieldNames: members.map((m) => m.field),
 							labels: groupLabels.find((g) => g.kind === row.id && g.name === name)?.labels ?? null,
+							rowLabel: groupLabels.find((g) => g.kind === row.id && g.name === name)?.row_label ?? null,
 						}))
 				: [],
 			// A line that explains a detail (OME's export plan §5), by the field or group it explains; a loaded table's
