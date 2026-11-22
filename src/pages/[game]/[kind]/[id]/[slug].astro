@@ -9,6 +9,7 @@ import LanguageCredit from '../../../../components/LanguageCredit.astro';
 import ModderPanel from '../../../../components/ModderPanel.astro';
 import Name from '../../../../components/Name.astro';
 import Picture from '../../../../components/Picture.astro';
+import Value from '../../../../components/Value.astro';
 import { databaseSidebar, game, games } from '../../../../lib/database.mjs';
 import { label } from '../../../../lib/labels.mjs';
 import { referenceGame } from '../../../../lib/reference.mjs';
@@ -68,7 +69,7 @@ const version = data.manifest.game_version ? `, game version ${data.manifest.gam
 ---
 
 <StarlightPage
-	frontmatter={{ title: entity.title, tableOfContents: { minHeadingLevel: 2, maxHeadingLevel: 2 } }}
+	frontmatter={{ title: entity.title, tableOfContents: { minHeadingLevel: 2, maxHeadingLevel: 2 }, prev: false, next: false }}
 	sidebar={databaseSidebar(data)}
 	headings={headings}
 >
@@ -102,20 +103,39 @@ const version = data.manifest.game_version ? `, game version ${data.manifest.gam
 					<tr>
 						<th scope="row">{row.label}</th>
 						<td>
-							<ul class:list={['ome-values', { 'ome-list': row.list }]}>
-								{row.items.map((item) => (
-									<li>
-										{item.label && <span class="ome-element">{item.label}</span>}
-										{item.entity ? (
-											<a href={item.entity.url}><Name entity={item.entity} /></a>
-										) : item.missing ? (
-											<span class="ome-missing">{item.missing} (no such entry)</span>
-										) : (
-											item.text
-										)}
-									</li>
-								))}
-							</ul>
+							{row.group ? (
+								<table class="ome-group">
+									<thead>
+										<tr>
+											{row.group.named && <td />}
+											{row.group.columns.map((column) => (
+												<th scope="col">{column}</th>
+											))}
+										</tr>
+									</thead>
+									<tbody>
+										{row.group.rows.map((r) => (
+											<tr>
+												{row.group.named && <th scope="row">{r.label}</th>}
+												{r.cells.map((item) => (
+													<td>
+														<Value item={item} />
+													</td>
+												))}
+											</tr>
+										))}
+									</tbody>
+								</table>
+							) : (
+								<ul class:list={['ome-values', { 'ome-list': row.list }]}>
+									{row.items.map((item) => (
+										<li>
+											{item.label && <span class="ome-element">{item.label}</span>}
+											<Value item={item} />
+										</li>
+									))}
+								</ul>
+							)}
 						</td>
 					</tr>
 				))
@@ -173,13 +193,7 @@ const version = data.manifest.game_version ? `, game version ${data.manifest.gam
 										{items.map((item, i) => (
 											<>
 												{i > 0 && ', '}
-												{item.entity ? (
-													<a href={item.entity.url}><Name entity={item.entity} /></a>
-												) : item.missing ? (
-													<span class="ome-missing">{item.missing} (no such entry)</span>
-												) : (
-													item.text
-												)}
+												<Value item={item} />
 											</>
 										))}
 									</td>

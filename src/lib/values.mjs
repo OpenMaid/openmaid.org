@@ -2,32 +2,81 @@
 // plain values, links to other entities, or a list of an array's elements by name.
 import { label } from './labels.mjs';
 
+// 0 is none, and for a reference so is a negative value (the games write -1 for none too).
+const isNone = (field, v) => v === 0 || (field.refKind && v < 0);
+
+/** One element of a field as a page shows it: `{ text }`, `{ entity }` (a link) or `{ missing }` (an id no entity has). */
+function valueItem(entity, field, v, idx) {
+	if (v === null || v === undefined) return { text: '—' };
+	if (!field.refKind) return { text: String(v) };
+	const ref = entity.refs.find((r) => r.field === field.name && r.idx === idx);
+	return ref?.target ? { entity: ref.target } : { missing: `${field.refKind} ${v}` };
+}
+
+/**
+ * A group's table (OME's export plan §5): a column for each of its fields, its words in common with the others left
+ * out ("Item", "Quantities" for a recipe's ingredients), and a row for each element that is not none in every field,
+ * named by the first field's column names when they say more than a number (a unit's stats). Null when every row is
+ * none.
+ */
+function groupTable(entity, group) {
+	const words = group.fields.map((field) => label(field.name).split(' '));
+	const shortest = Math.min(...words.map((w) => w.length));
+	let common = 0;
+	while (common < shortest - 1 && words.every((w) => w[common].toLowerCase() === words[0][common].toLowerCase())) common++;
+	const columns = words.map((w) => {
+		const rest = w.slice(common).join(' ');
+		return rest[0].toUpperCase() + rest.slice(1);
+	});
+	const names = group.fields[0].columns;
+	const named = Boolean(names) && !names.every((name) => name === null || /_\d+$/.test(name));
+	const values = group.fields.map((field) => entity.values[field.name] ?? []);
+	const width = Math.max(...values.map((v) => v.length));
+	const rows = [];
+	for (let idx = 0; idx < width; idx++) {
+		if (group.fields.every((field, f) => values[f][idx] == null || isNone(field, values[f][idx]))) continue;
+		rows.push({
+			label: named ? (names[idx] ? label(names[idx]) : `#${idx}`) : null,
+			// A reference that is none, beside values that are not, shows as a dash rather than as an entry no entity has.
+			cells: group.fields.map((field, f) =>
+				field.refKind && isNone(field, values[f][idx]) ? { text: '—' } : valueItem(entity, field, values[f][idx], idx),
+			),
+		});
+	}
+	return rows.length ? { columns, named, rows } : null;
+}
+
 /**
  * The infobox of an entity: a row for each published field, in the export's order, and the labels of the fields whose
  * value is 0 or none, which the page lists apart so the rows show what the entity has. A row's `items` are what it
  * shows: `{ text }`, `{ entity }` (a link) or `{ missing }` (an id no entity has), each with an optional element
- * `label`. An array whose elements are mostly 0 shows the others only.
+ * `label`. An array whose elements are mostly 0 shows the others only. A group's fields share one row, at the first
+ * of them, which holds its table (`group`).
  */
 export function infobox(kind, entity) {
 	const rows = [];
 	const zero = [];
+	const groupOf = new Map(kind.groups.flatMap((group) => group.fields.map((field) => [field.name, group])));
+	const placed = new Set();
 	for (const field of kind.fields) {
 		if (!field.published) continue;
+		const group = groupOf.get(field.name);
+		if (group) {
+			if (placed.has(group)) continue;
+			placed.add(group);
+			const table = groupTable(entity, group);
+			if (table) rows.push({ field, label: group.label, group: table });
+			else zero.push(group.label);
+			continue;
+		}
 		const value = entity.values[field.name];
 		const elements = field.isArray ? (value ?? []) : [value];
-		// 0 is none, and for a reference so is a negative value (the games write -1 for none too).
-		const none = (v) => v === 0 || (field.refKind && v < 0);
+		const none = (v) => isNone(field, v);
 		if (elements.every(none)) {
 			zero.push(label(field.name));
 			continue;
 		}
-		const targets = new Map(entity.refs.filter((r) => r.field === field.name).map((r) => [r.idx, r]));
-		const item = (v, idx) => {
-			if (v === null || v === undefined) return { text: '—' };
-			const ref = targets.get(idx);
-			if (field.refKind) return ref?.target ? { entity: ref.target } : { missing: `${field.refKind} ${v}` };
-			return { text: String(v) };
-		};
+		const item = (v, idx) => valueItem(entity, field, v, idx);
 		if (!field.isArray) {
 			rows.push({ field, label: label(field.name), items: [item(value, 0)] });
 			continue;

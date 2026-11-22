@@ -3,7 +3,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import { kindLabel } from './labels.mjs';
+import { kindLabel, label } from './labels.mjs';
 
 /** The export format this site reads (the database's `format_version`). */
 export const FORMAT_VERSION = 1;
@@ -34,6 +34,8 @@ export function readExport({ game, revision, dir, thumbnails = {} }) {
 		const packages = info.language_packages ? JSON.parse(info.language_packages) : [];
 
 		const all = (sql, ...args) => db.prepare(sql).all(...args).map((row) => ({ ...row }));
+		// An export made before groups (OME's export plan §5) has no field_group table.
+		const hasGroups = Boolean(db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'field_group'").get());
 		const pictures = new Map(); // file name -> picture
 		const byKey = new Map(); // "item:12" -> entity
 		const kinds = all('SELECT id, table_name, title_field, aliases, entities FROM kind ORDER BY rowid').map((row) => ({
@@ -43,6 +45,11 @@ export function readExport({ game, revision, dir, thumbnails = {} }) {
 			aliases: JSON.parse(row.aliases),
 			label: kindLabel(row.id),
 			fields: all('SELECT * FROM field WHERE kind = ? ORDER BY rowid', row.id).map(fieldOf),
+			// The kind's groups (OME's export plan §5): published rows of cells of one width, shown as one table.
+			groups: hasGroups
+				? [...groupBy(all('SELECT name, field FROM field_group WHERE kind = ? ORDER BY name, position', row.id), (g) => g.name)]
+						.map(([name, members]) => ({ name, label: label(name), fieldNames: members.map((m) => m.field) }))
+				: [],
 			// The scripts whose instructions read, write or index (take as an array's base) a cell of the table or of its
 			// loaded tables (OME's export plan §4.3), most used first.
 			scriptUse: all(
@@ -62,6 +69,7 @@ export function readExport({ game, revision, dir, thumbnails = {} }) {
 		}));
 
 		for (const kind of kinds) {
+			for (const group of kind.groups) group.fields = group.fieldNames.map((name) => kind.fields.find((f) => f.name === name));
 			const published = kind.fields.filter((field) => field.published);
 			const grouped = (sql) => groupBy(all(sql, kind.id), (row) => row.id);
 			const texts = grouped('SELECT id, field, idx, lang, value FROM text WHERE kind = ? ORDER BY id, field, idx, lang');

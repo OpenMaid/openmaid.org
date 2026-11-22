@@ -1,0 +1,21 @@
+---
+// One value of an entity's field as the infobox, a group or a loaded table shows it (lib/values.mjs): a link to the
+// entity it refers to, an id no entity has, or the value as text.
+import Name from './Name.astro';
+
+interface Props {
+	item: { text?: string; entity?: { url: string; title: string; names: Record<string, string> }; missing?: string };
+}
+
+const { item } = Astro.props;
+---
+
+{
+	item.entity ? (
+		<a href={item.entity.url}><Name entity={item.entity} /></a>
+	) : item.missing ? (
+		<span class="ome-missing">{item.missing} (no such entry)</span>
+	) : (
+		item.text
+	)
+}

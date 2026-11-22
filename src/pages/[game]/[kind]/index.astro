@@ -35,7 +35,7 @@ const filters = kind.fields
 ---
 
 <StarlightPage
-	frontmatter={{ title: `${kind.label.many} of ${data.title}`, pagefind: false, tableOfContents: false }}
+	frontmatter={{ title: `${kind.label.many} of ${data.title}`, pagefind: false, tableOfContents: false, prev: false, next: false }}
 	sidebar={databaseSidebar(data)}
 >
 	<p>
@@ -147,3 +147,21 @@ const filters = kind.fields
 	form.addEventListener('submit', (event) => event.preventDefault());
 	apply();
 </script>
+
+<style is:global>
+	/* A kind's list takes the page's whole width (the user, 2026-11-22): its table has room for more columns. */
+	.sl-container {
+		max-width: none;
+	}
+	/* Starlight lays a table out as a block that scrolls, as wide as its content; on a wide screen the list fills the
+	   page instead. */
+	@media (min-width: 50rem) {
+		table.ome-list {
+			display: table;
+			width: 100%;
+		}
+	}
+	table.ome-list td {
+		vertical-align: middle;
+	}
+</style>

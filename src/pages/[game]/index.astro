@@ -13,7 +13,7 @@ const data = game(Astro.params.game!);
 const version = data.manifest.game_version ? ` (game version ${data.manifest.game_version})` : '';
 ---
 
-<StarlightPage frontmatter={{ title: data.title, tableOfContents: false }} sidebar={databaseSidebar(data)}>
+<StarlightPage frontmatter={{ title: data.title, tableOfContents: false, prev: false, next: false }} sidebar={databaseSidebar(data)}>
 	<p>
 		The data of <span lang="ja">{data.info.title}</span>, read from the game by Open Maid Engine’s exporter: what the
 		game holds for each entry, with its own text and pictures. The story’s scenes are not here.

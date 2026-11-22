@@ -103,6 +103,28 @@
 	grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
 	gap: 0 1rem;
 }
+/* A group (OME's export plan §5): its fields side by side, a row for each element, inside the infobox's row. */
+.ome-infobox .ome-group {
+	display: table;
+	width: auto;
+	margin: 0;
+	font-size: var(--sl-text-sm);
+}
+.ome-infobox .ome-group th,
+.ome-infobox .ome-group td {
+	width: auto;
+	padding: 0.1rem 1.25rem 0.1rem 0;
+	border: none;
+	vertical-align: baseline;
+}
+.ome-infobox .ome-group thead th {
+	color: var(--sl-color-gray-3);
+	font-weight: 600;
+}
+.ome-infobox .ome-group tbody th {
+	font-weight: 400;
+	color: var(--sl-color-gray-2);
+}
 .ome-element {
 	color: var(--sl-color-gray-3);
 	margin-inline-end: 0.4rem;

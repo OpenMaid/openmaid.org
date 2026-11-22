@@ -77,7 +77,7 @@
 			words.append(text);
 		}
 		box.append(words);
-		box.hidden = false;
+		box.style.display = 'flex';
 		const rect = link.getBoundingClientRect();
 		const width = box.offsetWidth;
 		const left = Math.max(8, Math.min(rect.left + scrollX, scrollX + document.documentElement.clientWidth - width - 8));
@@ -100,7 +100,7 @@
 		if (!current || (event.relatedTarget && current.contains(event.relatedTarget))) return;
 		if (event.target.closest?.('a[href]') !== current) return;
 		current = null;
-		if (box) box.hidden = true;
+		if (box) box.style.display = 'none';	// not `hidden`: the box's inline display would win over it
 	};
 	document.addEventListener('mouseover', enter);
 	document.addEventListener('focusin', enter);
