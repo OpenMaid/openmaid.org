@@ -11,6 +11,7 @@ import ModderPanel from '../../../../components/ModderPanel.astro';
 import Name from '../../../../components/Name.astro';
 import Picture from '../../../../components/Picture.astro';
 import Value from '../../../../components/Value.astro';
+import WidePage from '../../../../components/WidePage.astro';
 import { databaseSidebar, game, games } from '../../../../lib/database.mjs';
 import { label } from '../../../../lib/labels.mjs';
 import { referenceGame } from '../../../../lib/reference.mjs';
@@ -206,4 +207,5 @@ const version = data.manifest.game_version ? `, game version ${data.manifest.gam
 
 	<ModderPanel game={data.game} kind={kind} entity={entity} />
 	<script is:inline src="/tooltips.js" defer></script>
+	<WidePage />
 </StarlightPage>

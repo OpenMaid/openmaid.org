@@ -1,0 +1,21 @@
+---
+// Lifts Starlight's content width on the page that includes it, so the page takes the room between its sidebars
+// (the user, 2026-11-22): a kind's list, for more columns, and an entity page, for its wide tables (a stage's enemies).
+// Starlight widens the "On this page" column to centre a page of its content width; here that column keeps the left
+// sidebar's width and the content takes the rest. `--sl-content-width` itself stays, since the header centres the
+// search over it, which would move between pages. Starlight's rules are in a cascade layer, so these win.
+---
+
+<style is:global>
+	.sl-container {
+		max-width: none;
+	}
+	@media (min-width: 72rem) {
+		.right-sidebar-container {
+			width: var(--sl-sidebar-width);
+		}
+		:root[data-has-sidebar][data-has-toc] .main-pane {
+			width: calc(100% - var(--sl-sidebar-width));
+		}
+	}
+</style>

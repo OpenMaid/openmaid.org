@@ -8,6 +8,7 @@ import Picture from '../../../components/Picture.astro';
 import DatabaseSwitches from '../../../components/DatabaseSwitches.astro';
 import LanguageCredit from '../../../components/LanguageCredit.astro';
 import Name from '../../../components/Name.astro';
+import WidePage from '../../../components/WidePage.astro';
 import { databaseSidebar, game, games } from '../../../lib/database.mjs';
 import { label } from '../../../lib/labels.mjs';
 import { referenceGame } from '../../../lib/reference.mjs';
@@ -118,6 +119,7 @@ const filters = kind.fields
 		)
 	}
 	<script is:inline src="/tooltips.js" defer></script>
+	<WidePage />
 </StarlightPage>
 
 <script>
@@ -149,10 +151,6 @@ const filters = kind.fields
 </script>
 
 <style is:global>
-	/* A kind's list takes the page's whole width (the user, 2026-11-22): its table has room for more columns. */
-	.sl-container {
-		max-width: none;
-	}
 	/* Starlight lays a table out as a block that scrolls, as wide as its content; on a wide screen the list fills the
 	   page instead. */
 	@media (min-width: 50rem) {
