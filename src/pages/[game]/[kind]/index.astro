@@ -1,9 +1,11 @@
 ---
 // A kind's list (site design §8.3): every entity in a table, with a filter on each field the export marks filterable
 // and on the name. The rows are in the page, so it reads without scripts; a script filters them in the browser and
-// keeps the filters in the URL, so a filtered list can be linked. Lists are not in the search index.
+// keeps the filters in the URL, so a filtered list can be linked. Lists are not in the search index. In modder mode
+// (§8.7) the page also lists the scripts that use the kind's table, which each entity's modder panel links to.
 import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
 import Picture from '../../../components/Picture.astro';
+import DatabaseSwitches from '../../../components/DatabaseSwitches.astro';
 import { databaseSidebar, game, games } from '../../../lib/database.mjs';
 import { label } from '../../../lib/labels.mjs';
 
@@ -33,6 +35,7 @@ const filters = kind.fields
 		{kind.entities.length} {kind.label.many.toLowerCase()}, from game data revision <code>{data.revision}</code>. A field
 		whose values stand for something in the game (a category, a race) shows them as the game stores them, as numbers.
 	</p>
+	<DatabaseSwitches />
 	<form class="ome-filters not-content" data-ome-filters>
 		<label>Name <input type="search" name="q" autocomplete="off" /></label>
 		{
@@ -79,6 +82,33 @@ const filters = kind.fields
 			}
 		</tbody>
 	</table>
+	{
+		kind.scriptUse.length > 0 && (
+			<section class="ome-modder" aria-labelledby="scripts" data-pagefind-ignore>
+				<h2 id="scripts">Scripts that use the table</h2>
+				<p>
+					Each script of the game whose instructions read, write or index (take as an array's base) a cell of the table{' '}
+					<code>{kind.table}</code>
+					{kind.loaded.length > 0 && <> or of the tables its loaders build ({kind.loaded.map((t, i) => <>{i > 0 && ', '}<code>{t.table}</code></>)})</>},
+					with how many of its operands do each, from OME's script index. A scene that reads a record through an index
+					counts as indexing the table.
+				</p>
+				<table class="ome-cells">
+					<thead><tr><th>Script</th><th>Reads</th><th>Writes</th><th>Indexes</th></tr></thead>
+					<tbody>
+						{kind.scriptUse.map((use) => (
+							<tr>
+								<td><code>{use.script}</code></td>
+								<td>{use.reads}</td>
+								<td>{use.writes}</td>
+								<td>{use.addresses}</td>
+							</tr>
+						))}
+					</tbody>
+				</table>
+			</section>
+		)
+	}
 	<script is:inline src="/tooltips.js" defer></script>
 </StarlightPage>
 

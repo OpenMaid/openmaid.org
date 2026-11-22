@@ -206,6 +206,6 @@ const version = data.manifest.game_version ? `, game version ${data.manifest.gam
 		)
 	}
 
-	<ModderPanel kind={kind} entity={entity} />
+	<ModderPanel game={data.game} kind={kind} entity={entity} />
 	<script is:inline src="/tooltips.js" defer></script>
 </StarlightPage>

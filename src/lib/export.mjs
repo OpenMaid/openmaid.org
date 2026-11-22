@@ -36,7 +36,12 @@ export function readExport({ game, revision, dir, thumbnails = {} }) {
 			aliases: JSON.parse(row.aliases),
 			label: kindLabel(row.id),
 			fields: all('SELECT * FROM field WHERE kind = ? ORDER BY rowid', row.id).map(fieldOf),
-			scriptUse: all('SELECT script, reads, writes FROM script_use WHERE kind = ? ORDER BY script', row.id),
+			// The scripts whose instructions read, write or index (take as an array's base) a cell of the table or of its
+			// loaded tables (OME's export plan §4.3), most used first.
+			scriptUse: all(
+				'SELECT script, reads, writes, addresses FROM script_use WHERE kind = ? ORDER BY reads + writes + addresses DESC, script',
+				row.id,
+			),
 			// The tables the game's loaders build for each entity (OME's export plan §4.2): a stage's enemies.
 			loaded: all('SELECT name, table_name, scope, records FROM loaded WHERE kind = ? ORDER BY rowid', row.id).map((t) => ({
 				name: t.name,
