@@ -6,7 +6,7 @@
 // text of the game (a stage's objective), in each language it has; a column's label may have a note. A column whose
 // cells list items that each name themselves ("Max HP +5", a link) stacks them one to a line. A table wider than its
 // box keeps its first column in place while the rest scrolls, and its second too where the first holds record numbers
-// (src/styles/site.css).
+// (src/styles/site.css). A name may have its entity's picture beside it (a "Related" table), which takes `data`.
 import Label from './Label.astro';
 import Value from './Value.astro';
 
@@ -16,6 +16,7 @@ type Item = {
 	missing?: string;
 	title?: string;
 	names?: Record<string, string>;
+	thumb?: { file: string; explicit: boolean; width: number; height: number } | null;
 };
 
 interface Props {
@@ -25,9 +26,11 @@ interface Props {
 	rowHeader?: string;
 	/** `nested` sits in a row of the infobox; `wide` is a page's own table, which scrolls in its box. */
 	variant: 'nested' | 'wide';
+	/** The export, where a cell shows an entity's picture. */
+	data?: { game: string; revision: string };
 }
 
-const { columns, rows, rowHeader = '', variant } = Astro.props;
+const { columns, rows, rowHeader = '', variant, data } = Astro.props;
 const labelled = rows.some((row) => row.label !== null && row.label !== undefined);
 const numbered = labelled && columns.length > 0 && rows.every((row) => typeof row.label === 'number');
 const header = columns.some((column) => column.label);
@@ -58,13 +61,13 @@ const numeric = columns.map(
 		{
 			rows.map((row) => (
 				<tr>
-					{labelled && <th scope="row">{typeof row.label === 'object' && row.label ? <Value item={row.label} /> : row.label}</th>}
+					{labelled && <th scope="row">{typeof row.label === 'object' && row.label ? <Value item={row.label} data={data} /> : row.label}</th>}
 					{row.cells.map((items, c) => (
 						<td class:list={{ 'ome-num': numeric[c] }}>
 							{items.map((item, i) => (
 								<>
 									{i > 0 && (columns[c].stack ? <br /> : ', ')}
-									<Value item={item} />
+									<Value item={item} data={data} />
 								</>
 							))}
 						</td>

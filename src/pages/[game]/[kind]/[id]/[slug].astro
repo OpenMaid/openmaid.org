@@ -13,8 +13,8 @@ import LanguageCredit from '../../../../components/LanguageCredit.astro';
 import DataTable from '../../../../components/DataTable.astro';
 import Label from '../../../../components/Label.astro';
 import ModderPanel from '../../../../components/ModderPanel.astro';
-import Name from '../../../../components/Name.astro';
 import Picture from '../../../../components/Picture.astro';
+import Tabs from '../../../../components/Tabs.astro';
 import Value from '../../../../components/Value.astro';
 import WidePage from '../../../../components/WidePage.astro';
 import { databaseSidebar, game, games } from '../../../../lib/database.mjs';
@@ -180,22 +180,14 @@ const altOf = (caption: string) =>
 		incoming.length > 0 && (
 			<div data-pagefind-ignore>
 				<h2 id="related">Related</h2>
-				{incoming.map((group) => (
-					<>
-						<h3>{group.label}</h3>
-						{group.table ? (
-							<DataTable variant="wide" columns={group.table.columns} rows={group.table.rows} />
-						) : (
-							<ul class="ome-links">
-								{group.entities.map((e) => (
-									<li>
-										<a href={e.url}><Name entity={e} /></a>
-									</li>
-								))}
-							</ul>
-						)}
-					</>
-				))}
+				<Tabs label="Related entries" tabs={incoming.map((group) => ({ id: group.id, label: group.label, count: group.count }))}>
+					{incoming.map((group) => (
+						<section id={group.id}>
+							<h3 class="ome-tab-heading">{group.label}</h3>
+							<DataTable variant="wide" data={data} columns={group.table.columns} rows={group.table.rows} />
+						</section>
+					))}
+				</Tabs>
 			</div>
 		)
 	}

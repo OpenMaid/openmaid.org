@@ -246,8 +246,89 @@ img.ome-pixel {
 	width: 3rem;
 	height: auto;
 }
-.ome-links {
-	columns: 16rem;
+/* Tabs (src/components/Tabs.astro; site plan §9): a row of tabs over the panel shown, the chosen one underlined (so it
+   reads the same when the row wraps on a phone), each with its count. Hidden until a script turns the panels into
+   tabs; then the panels' own headings are hidden. */
+.ome-tablist {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.25rem;
+	margin-top: 1rem;
+	border-bottom: 1px solid var(--sl-color-gray-5);
+}
+.ome-tablist[hidden],
+.ome-tabs[data-ome-tabbed] .ome-tab-heading {
+	display: none;
+}
+.ome-tablist [role='tab'] {
+	margin: 0 0 -1px;
+	padding: 0.45rem 0.75rem;
+	border: 0;
+	border-bottom: 2px solid transparent;
+	border-radius: 0.3rem 0.3rem 0 0;
+	background: none;
+	color: var(--sl-color-gray-2);
+	font: inherit;
+	font-size: var(--sl-text-sm);
+	cursor: pointer;
+}
+.ome-tablist [role='tab']:hover {
+	color: var(--sl-color-white);
+	background: var(--sl-color-gray-6);
+}
+.ome-tablist [role='tab'][aria-selected='true'] {
+	color: var(--sl-color-white);
+	font-weight: 600;
+	border-bottom-color: var(--sl-color-accent);
+}
+.ome-tablist [role='tab']:focus-visible {
+	outline: 2px solid var(--sl-color-accent);
+	outline-offset: -2px;
+}
+.ome-tab-count {
+	margin-inline-start: 0.45rem;
+	padding: 0 0.45rem;
+	border-radius: 999px;
+	background: var(--sl-color-gray-6);
+	color: var(--sl-color-gray-2);
+	font-size: var(--sl-text-xs);
+	font-weight: 400;
+}
+.ome-tabs[data-ome-tabbed] > [role='tabpanel'] {
+	margin-top: 0;
+}
+.ome-tabs[data-ome-tabbed] > [role='tabpanel'] > .ome-table {
+	margin-top: 0.75rem;
+}
+.ome-tabs .ome-table td {
+	vertical-align: middle;
+}
+/* An entity's picture before its name in a table row (src/components/Value.astro), in a box of one size, so the names
+   line up; a small picture fills it with its pixels kept sharp. */
+/* The link is a flex box, so the space between the picture and the name is not underlined. */
+.ome-thumbed {
+	display: inline-flex;
+	align-items: center;
+	vertical-align: middle;
+}
+.ome-row-thumb {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 2rem;
+	height: 2rem;
+	margin-inline-end: 0.6rem;
+	vertical-align: middle;
+}
+.ome-row-thumb img {
+	max-width: 2rem;
+	max-height: 2rem;
+	width: auto;
+	height: auto;
+}
+.ome-row-thumb img.ome-pixel {
+	width: 2rem;
+	height: auto;
 }
 
 /* The modder panel (§8.7): in the page, shown only in modder mode. */

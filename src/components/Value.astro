@@ -1,7 +1,9 @@
 ---
 // One value of an entity's field as the infobox, a group or a loaded table shows it (lib/values.mjs): a link to the
-// entity it refers to, an id no entity has, a text of the game in each language it has, or the value as text.
+// entity it refers to, an id no entity has, a text of the game in each language it has, or the value as text. A link
+// may have its entity's picture before the name (`thumb`; null keeps the picture's room empty, so names line up).
 import Name from './Name.astro';
+import Picture from './Picture.astro';
 
 interface Props {
 	item: {
@@ -10,15 +12,24 @@ interface Props {
 		missing?: string;
 		title?: string;
 		names?: Record<string, string>;
+		thumb?: { file: string; explicit: boolean; width: number; height: number } | null;
 	};
+	data?: { game: string; revision: string };
 }
 
-const { item } = Astro.props;
+const { item, data } = Astro.props;
 ---
 
 {
 	item.entity ? (
-		<a href={item.entity.url}><Name entity={item.entity} /></a>
+		<a href={item.entity.url} class:list={[{ 'ome-thumbed': item.thumb !== undefined }]}>
+			{item.thumb !== undefined && (
+				<span class="ome-row-thumb" aria-hidden="true">
+					{item.thumb && data && <Picture data={data} picture={item.thumb} alt="" />}
+				</span>
+			)}
+			<Name entity={item.entity} />
+		</a>
 	) : item.missing ? (
 		<span class="ome-missing">{item.missing} (no such entry)</span>
 	) : item.names ? (

@@ -1,0 +1,75 @@
+---
+// Tabs over panels (site plan §9): a tab for each panel, its count beside its name, and one panel shown at a time
+// (an entity's "Related" tables; the search's results by kind later, §12). The panels are the slot's elements, in the
+// tabs' order, each with the id its tab names and a heading with the `ome-tab-heading` class. Without scripts the tabs
+// stay hidden and every panel shows under its heading. A tab is chosen by a click, by the arrow keys, Home and End, or
+// by the address's hash naming its panel (on load, or a link within the page), which a choice writes, so a link opens
+// on it.
+interface Props {
+	/** What the tabs choose between, for screen readers. */
+	label: string;
+	tabs: { id: string; label: string; count?: number }[];
+}
+
+const { label, tabs } = Astro.props;
+---
+
+<div class="ome-tabs" data-ome-tabs>
+	<div class="ome-tablist not-content" role="tablist" aria-label={label} hidden>
+		{
+			tabs.map((tab, i) => (
+				<button
+					type="button"
+					role="tab"
+					id={`${tab.id}-tab`}
+					aria-controls={tab.id}
+					aria-selected={i === 0 ? 'true' : 'false'}
+					tabindex={i === 0 ? 0 : -1}
+				>
+					{tab.label}
+					{tab.count !== undefined && <span class="ome-tab-count">{tab.count.toLocaleString('en')}</span>}
+				</button>
+			))
+		}
+	</div>
+	<slot />
+</div>
+
+<script>
+	for (const box of document.querySelectorAll<HTMLElement>('[data-ome-tabs]')) {
+		const list = box.querySelector<HTMLElement>('[role="tablist"]')!;
+		const tabs = [...list.querySelectorAll<HTMLButtonElement>('[role="tab"]')];
+		const panels = tabs.map((tab) => document.getElementById(tab.getAttribute('aria-controls')!)!);
+		panels.forEach((panel, i) => {
+			panel.setAttribute('role', 'tabpanel');
+			panel.setAttribute('aria-labelledby', tabs[i].id);
+			panel.tabIndex = 0;
+		});
+		const choose = (chosen: number, { focus = false, remember = false } = {}) => {
+			tabs.forEach((tab, i) => {
+				tab.setAttribute('aria-selected', String(i === chosen));
+				tab.tabIndex = i === chosen ? 0 : -1;
+				panels[i].hidden = i !== chosen;
+			});
+			if (focus) tabs[chosen].focus();
+			if (remember) history.replaceState(history.state, '', `#${panels[chosen].id}`);
+		};
+		const named = () => panels.findIndex((panel) => `#${panel.id}` === decodeURIComponent(location.hash));
+		choose(Math.max(0, named()));
+		// A link within the page to a panel chooses its tab too.
+		addEventListener('hashchange', () => {
+			if (named() >= 0) choose(named());
+		});
+		list.hidden = false;
+		box.setAttribute('data-ome-tabbed', '');
+		tabs.forEach((tab, i) => {
+			tab.addEventListener('click', () => choose(i, { remember: true }));
+			tab.addEventListener('keydown', (event) => {
+				const to = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: tabs.length - 1 }[event.key];
+				if (to === undefined) return;
+				event.preventDefault();
+				choose((to + tabs.length) % tabs.length, { focus: true, remember: true });
+			});
+		});
+	}
+</script>

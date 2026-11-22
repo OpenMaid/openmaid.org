@@ -109,6 +109,14 @@ function distinct(labels) {
 	});
 }
 
+/**
+ * The fields a kind's list shows beside each name (src/pages/[game]/[kind]/index.astro), which a "Related" table of its
+ * entities shows too (`referencedBy`): its filters that are one cell of a record.
+ */
+export function listFields(kind) {
+	return kind.fields.filter((field) => field.filter && !field.isArray);
+}
+
 /** Whether an array field's elements have names that say more than a number, so a table can name its rows. */
 function named(field) {
 	if (field.columnEntities?.size || field.columnNames?.size) return true;
@@ -475,9 +483,10 @@ export function referencedBy(data, entity) {
 		}
 		groups.get(key).refs.push(by);
 	}
+	const ids = new Set();
 	return [...groups.values()].map(({ key, kind, label: heading, details, refs }) => {
-		const entities = [...new Map(refs.map((by) => [by.from.id, by.from])).values()];
-		if (!details.length) return { key, label: heading, entities, table: null };
+		// The columns the kind's list shows (`listFields`), but those the reference's details show already.
+		const listed = listFields(kind).filter((field) => !details.includes(field.name));
 		const rows = new Map();
 		for (const by of refs) {
 			const cells = details.map((detail) => detailItems(kind, by, detail));
@@ -486,13 +495,22 @@ export function referencedBy(data, entity) {
 			else rows.set(id, { from: by.from, cells, count: 1 });
 		}
 		const counted = [...rows.values()].some((row) => row.count > 1);
+		// A kind whose entities have pictures shows each one's beside its name, an empty box where one has none.
+		const pictured = [...rows.values()].some((row) => row.from.thumbnail);
+		const omit = [...details, ...listed.map((field) => field.name)];
+		const base = `related-${heading.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'entries'}`;
+		let id = base;
+		for (let n = 2; ids.has(id); n++) id = `${base}-${n}`;
+		ids.add(id);
 		return {
 			key,
+			id,
 			label: heading,
-			entities,
+			count: new Set(refs.map((by) => by.from.id)).size,
 			table: {
 				columns: [
 					{ label: kind.label.one },
+					...listed.map((field) => ({ label: field.label ?? label(field.name) })),
 					...details.map((detail) => {
 						const { field } = fieldNamed(kind, detail);
 						return { label: field?.label ?? label(detail) };
@@ -502,7 +520,13 @@ export function referencedBy(data, entity) {
 				rows: [...rows.values()].map((row) => ({
 					label: null,
 					cells: [
-						[{ entity: { ...row.from, ...nameWithout(row.from, details) } }],
+						[
+							{
+								entity: { ...row.from, ...nameWithout(row.from, omit) },
+								...(pictured ? { thumb: row.from.thumbnail ?? null } : {}),
+							},
+						],
+						...listed.map((field) => valueItems(field, row.from.values[field.name])),
 						...row.cells,
 						...(counted ? [[{ text: String(row.count) }]] : []),
 					],

@@ -15,7 +15,7 @@ import { label } from '../../../lib/labels.mjs';
 import { referenceGame } from '../../../lib/reference.mjs';
 import { href } from '../../../lib/reference-model.mjs';
 import { SOURCE_LANGUAGE } from '../../../lib/language.mjs';
-import { translated, valueItems } from '../../../lib/values.mjs';
+import { listFields, translated, valueItems } from '../../../lib/values.mjs';
 
 export function getStaticPaths() {
 	return games().flatMap((data) => data.kinds.map((kind) => ({ params: { game: data.game, kind: kind.id } })));
@@ -25,9 +25,7 @@ const data = game(Astro.params.game!);
 const kind = data.kinds.find((k) => k.id === Astro.params.kind)!;
 const reference = referenceGame(data.game);
 const tableLink = (name: string) => (reference.table(name) ? href.table(data.game, name) : null);
-const filters = kind.fields
-	.filter((field) => field.filter && !field.isArray)
-	.map((field) => {
+const filters = listFields(kind).map((field) => {
 		const counts = new Map<number, number>();
 		for (const entity of kind.entities) {
 			const value = entity.values[field.name];
