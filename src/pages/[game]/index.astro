@@ -1,7 +1,9 @@
 ---
-// A game's front page in the database (site design §4): what the data is, where it comes from, and its kinds.
+// A game's front page in the database (site design §4): what the data is, its kinds as cards (each with a picture of
+// one of its entries and how many it has), and where the data comes from.
 import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
 import LanguageCredit from '../../components/LanguageCredit.astro';
+import Picture from '../../components/Picture.astro';
 import { databaseSidebar, game, games } from '../../lib/database.mjs';
 import { languageName } from '../../lib/labels.mjs';
 
@@ -11,6 +13,8 @@ export function getStaticPaths() {
 
 const data = game(Astro.params.game!);
 const version = data.manifest.game_version ? ` (game version ${data.manifest.game_version})` : '';
+// A card's picture: the first entry's of the kind that has one (a thumbnail is never an explicit picture).
+const kinds = data.kinds.map((kind) => ({ kind, thumbnail: kind.entities.find((entity) => entity.thumbnail)?.thumbnail }));
 ---
 
 <StarlightPage frontmatter={{ title: data.title, tableOfContents: false, prev: false, next: false }} sidebar={databaseSidebar(data)}>
@@ -18,15 +22,24 @@ const version = data.manifest.game_version ? ` (game version ${data.manifest.gam
 		The data of <span lang="ja">{data.info.title}</span>, read from the game by Open Maid Engine’s exporter: what the
 		game holds for each entry, with its own text and pictures. The story’s scenes are not here.
 	</p>
-	<ul>
+	<ul class="ome-kinds not-content">
 		{
-			data.kinds.map((kind) => (
+			kinds.map(({ kind, thumbnail }) => (
 				<li>
-					<a href={`/${data.game}/${kind.id}/`}>{kind.label.many}</a>: {kind.entities.length}
+					<a href={`/${data.game}/${kind.id}/`}>
+						<span class="ome-kind-picture" aria-hidden="true">
+							{thumbnail ? <Picture data={data} picture={thumbnail} alt="" /> : kind.label.many[0]}
+						</span>
+						<span class="ome-kind-name">{kind.label.many}</span>
+						<span class="ome-kind-count">
+							{kind.entities.length.toLocaleString('en')} {kind.entities.length === 1 ? 'entry' : 'entries'}
+						</span>
+					</a>
 				</li>
 			))
 		}
 	</ul>
+	<h2 id="about">About the data</h2>
 	<p>
 		This is game data revision <code>{data.revision}</code>{version}. The text is the game’s own, in Japanese{
 			data.languages.length > 0 && (
@@ -39,3 +52,60 @@ const version = data.manifest.game_version ? ` (game version ${data.manifest.gam
 	</p>
 	<LanguageCredit data={data} />
 </StarlightPage>
+
+<style>
+	.ome-kinds {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+		gap: 0.75rem;
+		margin: 1.5rem 0 2rem;
+		padding: 0;
+		list-style: none;
+	}
+	.ome-kinds a {
+		display: grid;
+		grid-template-columns: 3.5rem 1fr;
+		grid-template-rows: auto auto;
+		column-gap: 0.9rem;
+		align-items: center;
+		height: 100%;
+		padding: 0.75rem;
+		border: 1px solid var(--sl-color-gray-5);
+		border-radius: 0.5rem;
+		color: var(--sl-color-white);
+		text-decoration: none;
+	}
+	.ome-kinds a:hover {
+		border-color: var(--sl-color-accent);
+		background: var(--sl-color-accent-low);
+	}
+	.ome-kind-picture {
+		grid-row: span 2;
+		display: grid;
+		place-items: center;
+		width: 3.5rem;
+		height: 3.5rem;
+		overflow: hidden;
+		border-radius: 0.35rem;
+		background: var(--sl-color-gray-6);
+		color: var(--sl-color-gray-3);
+		font-size: var(--sl-text-2xl);
+		font-weight: 600;
+	}
+	.ome-kind-picture :global(img) {
+		max-width: 100%;
+		max-height: 100%;
+		width: auto;
+		height: auto;
+		object-fit: contain;
+	}
+	.ome-kind-name {
+		align-self: end;
+		font-weight: 600;
+	}
+	.ome-kind-count {
+		align-self: start;
+		color: var(--sl-color-gray-3);
+		font-size: var(--sl-text-sm);
+	}
+</style>

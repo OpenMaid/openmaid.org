@@ -6,6 +6,7 @@
 import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
 import DatabaseSwitches from '../../../../components/DatabaseSwitches.astro';
 import LanguageCredit from '../../../../components/LanguageCredit.astro';
+import DataTable from '../../../../components/DataTable.astro';
 import ModderPanel from '../../../../components/ModderPanel.astro';
 import Name from '../../../../components/Name.astro';
 import Picture from '../../../../components/Picture.astro';
@@ -31,7 +32,7 @@ export function getStaticPaths() {
 const data = game(Astro.params.game!);
 const kind = data.kinds.find((k) => k.id === Astro.props.kindId)!;
 const entity = data.byKey.get(`${kind.id}:${Astro.props.id}`)!;
-const { rows, zero } = infobox(kind, entity);
+const rows = infobox(kind, entity);
 const text = texts(kind, entity);
 const incoming = referencedBy(data, entity);
 const loaded = loadedTables(kind, entity);
@@ -103,38 +104,15 @@ const version = data.manifest.game_version ? `, game version ${data.manifest.gam
 					<tr>
 						<th scope="row">{row.label}</th>
 						<td>
-							{row.group ? (
-								<table class="ome-group">
-									<thead>
-										<tr>
-											{row.group.named && <td />}
-											{row.group.columns.map((column) => (
-												<th scope="col">{column}</th>
-											))}
-										</tr>
-									</thead>
-									<tbody>
-										{row.group.rows.map((r) => (
-											<tr>
-												{row.group.named && <th scope="row">{r.label}</th>}
-												{r.cells.map((item) => (
-													<td>
-														<Value item={item} />
-													</td>
-												))}
-											</tr>
-										))}
-									</tbody>
-								</table>
+							{row.table ? (
+								<DataTable variant="nested" columns={row.table.columns} rows={row.table.rows} />
 							) : (
-								<ul class:list={['ome-values', { 'ome-list': row.list }]}>
-									{row.items.map((item) => (
-										<li>
-											{item.label && <span class="ome-element">{item.label}</span>}
-											<Value item={item} />
-										</li>
-									))}
-								</ul>
+								row.items.map((item, i) => (
+									<>
+										{i > 0 && ', '}
+										<Value item={item} />
+									</>
+								))
 							)}
 						</td>
 					</tr>
@@ -142,7 +120,6 @@ const version = data.manifest.game_version ? `, game version ${data.manifest.gam
 			}
 		</tbody>
 	</table>
-	{zero.length > 0 && <p class="ome-zero" data-pagefind-ignore>At 0 or none: {zero.join(', ')}.</p>}
 
 	{
 		text.length > 0 && (
@@ -175,34 +152,7 @@ const version = data.manifest.game_version ? `, game version ${data.manifest.gam
 					What the game's scripts build when it loads this {kind.label.one.toLowerCase()}: {t.rows.length} of the
 					table's {t.table.records} records, by record number.
 				</p>
-				<table class="ome-loaded">
-					<thead>
-						<tr>
-							<th scope="col">#</th>
-							{t.columns.map((c) => (
-								<th scope="col">{c.label}</th>
-							))}
-						</tr>
-					</thead>
-					<tbody>
-						{t.rows.map((row) => (
-							<tr>
-								<td>{row.record}</td>
-								{row.cells.map((items) => (
-									<td>
-										{items.map((item, i) => (
-											<>
-												{i > 0 && ', '}
-												<Value item={item} />
-											</>
-										))}
-									</td>
-								))}
-							</tr>
-						))}
-					</tbody>
-				</table>
-				{t.zero.length > 0 && <p class="ome-zero">At 0 or none in every row: {t.zero.join(', ')}.</p>}
+				<DataTable variant="wide" columns={t.columns} rows={t.rows} rowHeader="#" />
 			</div>
 		))
 	}

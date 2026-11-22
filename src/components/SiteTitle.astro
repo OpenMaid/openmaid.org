@@ -1,21 +1,58 @@
 ---
-// Starlight's site title, with a link to each section beside it: the guides and each game's database (site design §1.1).
+// Starlight's site title, with the site's sections beside it (site design §1.1): the guides, and a menu of the game
+// databases (the user, 2026-11-22: "instead of kamidori being a top level link, it should be 'Game Databases' or
+// something, with a dropdown").
 import Default from '@astrojs/starlight/components/SiteTitle.astro';
 import ome from 'virtual:ome';
 
-const sections = [
-	{ label: 'Modding guide', href: '/docs/' },
-	...ome.databases.map(({ game }) => ({ label: ome.games.find((g) => g.id === game)?.title ?? game, href: `/${game}/` })),
-];
+const databases = ome.databases.map(({ game }) => ({
+	label: ome.games.find((g) => g.id === game)?.title ?? game,
+	href: `/${game}/`,
+}));
 const here = Astro.url.pathname;
+const inDatabase = databases.some(({ href }) => here.startsWith(href));
 ---
 
 <div class="ome-site-title">
 	<Default />
 	<nav aria-label="Sections" class="ome-sections">
-		{sections.map(({ label, href }) => <a href={href} aria-current={here.startsWith(href) ? 'true' : undefined}>{label}</a>)}
+		<a href="/docs/" aria-current={here.startsWith('/docs/') ? 'true' : undefined}>Modding guide</a>
+		{
+			databases.length > 0 && (
+				<details class="ome-menu" data-ome-menu>
+					<summary class:list={{ 'ome-here': inDatabase }}>Game databases</summary>
+					<ul>
+						{databases.map(({ label, href }) => (
+							<li>
+								<a href={href} aria-current={here.startsWith(href) ? 'true' : undefined}>
+									{label}
+								</a>
+							</li>
+						))}
+					</ul>
+				</details>
+			)
+		}
 	</nav>
 </div>
+
+<script>
+	// The menu closes on a click elsewhere, on Escape and when the focus leaves it.
+	for (const menu of document.querySelectorAll<HTMLDetailsElement>('details[data-ome-menu]')) {
+		document.addEventListener('click', (event) => {
+			if (!menu.contains(event.target as Node)) menu.open = false;
+		});
+		menu.addEventListener('keydown', (event) => {
+			if (event.key === 'Escape' && menu.open) {
+				menu.open = false;
+				menu.querySelector('summary')?.focus();
+			}
+		});
+		menu.addEventListener('focusout', (event) => {
+			if (!menu.contains(event.relatedTarget as Node)) menu.open = false;
+		});
+	}
+</script>
 
 <style>
 	.ome-site-title {
@@ -26,21 +63,83 @@ const here = Astro.url.pathname;
 	}
 	.ome-sections {
 		display: none;
+		align-items: center;
 		gap: 1rem;
 		font-size: var(--sl-text-sm);
 		white-space: nowrap;
 	}
-	.ome-sections a {
+	.ome-sections a,
+	.ome-menu summary {
 		color: var(--sl-color-gray-2);
 		text-decoration: none;
 	}
 	.ome-sections a:hover,
-	.ome-sections a[aria-current] {
+	.ome-sections a[aria-current],
+	.ome-menu summary:hover,
+	.ome-menu summary.ome-here,
+	.ome-menu[open] summary {
 		color: var(--sl-color-white);
+	}
+	.ome-menu {
+		position: relative;
+	}
+	.ome-menu summary {
+		display: flex;
+		align-items: center;
+		gap: 0.3rem;
+		cursor: pointer;
+		list-style: none;
+	}
+	.ome-menu summary::-webkit-details-marker {
+		display: none;
+	}
+	.ome-menu summary::after {
+		content: '';
+		width: 0.4em;
+		height: 0.4em;
+		margin-top: -0.2em;
+		border-right: 1.5px solid currentColor;
+		border-bottom: 1.5px solid currentColor;
+		transform: rotate(45deg);
+	}
+	.ome-menu[open] summary::after {
+		margin-top: 0.2em;
+		transform: rotate(-135deg);
+	}
+	.ome-menu ul {
+		position: absolute;
+		top: calc(100% + 0.6rem);
+		left: -0.75rem;
+		z-index: 10;
+		min-width: 14rem;
+		margin: 0;
+		padding: 0.4rem 0;
+		list-style: none;
+		background: var(--sl-color-bg-nav);
+		border: 1px solid var(--sl-color-hairline-shade);
+		border-radius: 0.5rem;
+		box-shadow: var(--sl-shadow-md);
+	}
+	.ome-menu li a {
+		display: block;
+		padding: 0.4rem 0.75rem;
+	}
+	.ome-menu li a:hover {
+		background: var(--sl-color-gray-6);
 	}
 	@media (min-width: 72rem) {
 		.ome-sections {
 			display: flex;
+		}
+	}
+</style>
+
+<style is:global>
+	/* Starlight clips the title's box so a long title cannot cover the search on a narrow screen; where the sections
+	   show, there is room, and the menu must drop out of it. Starlight's own rule is in a cascade layer, so this wins. */
+	@media (min-width: 72rem) {
+		.title-wrapper {
+			overflow: visible;
 		}
 	}
 </style>

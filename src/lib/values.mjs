@@ -13,49 +13,107 @@ function valueItem(entity, field, v, idx) {
 	return ref?.target ? { entity: ref.target } : { missing: `${field.refKind} ${v}` };
 }
 
-/**
- * A group's table (OME's export plan §5): a column for each of its fields, its words in common with the others left
- * out ("Item", "Quantities" for a recipe's ingredients), and a row for each element that is not none in every field,
- * named by the first field's column names when they say more than a number (a unit's stats). Null when every row is
- * none.
- */
-function groupTable(entity, group) {
-	const words = group.fields.map((field) => label(field.name).split(' '));
-	const shortest = Math.min(...words.map((w) => w.length));
+// A name that says no more than a number: `drop_1`, `skill_2`.
+const GENERIC = /_\d+$/;
+const words = (name) => name.split('_');
+
+/** The words all the lists begin with. */
+function lead(lists) {
+	let n = 0;
+	while (lists.length && lists.every((list) => n < list.length && list[n] === lists[0][n])) n++;
+	return lists.length ? lists[0].slice(0, n) : [];
+}
+
+/** Labels with the words they all begin with left out, but never every word of the shortest ("Item", "Quantities"). */
+function distinct(labels) {
+	const split = labels.map((l) => l.split(' '));
+	const shortest = Math.min(...split.map((w) => w.length));
 	let common = 0;
-	while (common < shortest - 1 && words.every((w) => w[common].toLowerCase() === words[0][common].toLowerCase())) common++;
-	const columns = words.map((w) => {
+	while (common < shortest - 1 && split.every((w) => w[common].toLowerCase() === split[0][common].toLowerCase())) common++;
+	return split.map((w) => {
 		const rest = w.slice(common).join(' ');
 		return rest[0].toUpperCase() + rest.slice(1);
 	});
-	const names = group.fields[0].columns;
-	const named = Boolean(names) && !names.every((name) => name === null || /_\d+$/.test(name));
-	const values = group.fields.map((field) => entity.values[field.name] ?? []);
-	const width = Math.max(...values.map((v) => v.length));
-	const rows = [];
-	for (let idx = 0; idx < width; idx++) {
-		if (group.fields.every((field, f) => values[f][idx] == null || isNone(field, values[f][idx]))) continue;
-		rows.push({
-			label: named ? (names[idx] ? label(names[idx]) : `#${idx}`) : null,
-			// A reference that is none, beside values that are not, shows as a dash rather than as an entry no entity has.
-			cells: group.fields.map((field, f) =>
-				field.refKind && isNone(field, values[f][idx]) ? { text: '—' } : valueItem(entity, field, values[f][idx], idx),
-			),
-		});
-	}
-	return rows.length ? { columns, named, rows } : null;
+}
+
+/** Whether an array field's elements have names that say more than a number, so a table can name its rows. */
+function named(field) {
+	return Boolean(field.columns) && !field.columns.every((name) => !name || GENERIC.test(name));
 }
 
 /**
- * The infobox of an entity: a row for each published field, in the export's order, and the labels of the fields whose
- * value is 0 or none, which the page lists apart so the rows show what the entity has. A row's `items` are what it
- * shows: `{ text }`, `{ entity }` (a link) or `{ missing }` (an id no entity has), each with an optional element
- * `label`. An array whose elements are mostly 0 shows the others only. A group's fields share one row, at the first
- * of them, which holds its table (`group`).
+ * Rows of cells as a table (src/components/DataTable.astro): a group's fields (OME's export plan §5) or one array
+ * field. The narrowest field's width is the number of rows; a field as wide gives a column, and a field some times as
+ * wide gives that many, its elements row by row (a condition's nine stat changes at each level), named by its elements'
+ * names less the words they share. A group's columns are its fields' labels less their words in common ("Item",
+ * "Quantities"); one field's table has no header. The rows are named by what their elements' names share ("Level 1")
+ * when a field gives several columns, else by the first field's element names when they say more than a number (a
+ * unit's stats). A row whose cells are all 0 or none is left out, and so is a column that is in every row left. A table
+ * with named rows whose fields give more columns than rows turns, a row for each column, so it fits the infobox (a
+ * condition's five levels across, its stat changes down). Null when no row is left.
+ */
+function cellTable(entity, fields) {
+	const count = Math.min(...fields.map((field) => field.width));
+	const per = fields.map((field) => field.width / count);
+	const grid = per.some((k) => k > 1);
+	const fieldLabels = fields.length > 1 ? distinct(fields.map((field) => label(field.name))) : fields.map(() => null);
+	const columns = fields.flatMap((field, f) => {
+		const k = per[f];
+		if (k === 1) return [{ field, k, offset: 0, label: fieldLabels[f] }];
+		const names = field.columns?.slice(0, k) ?? [];
+		const shared = names.length === k && names.every(Boolean) ? lead(names.map(words)).length : 0;
+		return Array.from({ length: k }, (_, c) => ({
+			field,
+			k,
+			offset: c,
+			label:
+				names[c] && words(names[c]).length > shared ? label(words(names[c]).slice(shared).join('_')) : `${label(field.name)} ${c + 1}`,
+		}));
+	});
+	let rowLabel = () => null;
+	if (grid) {
+		rowLabel = (r) => {
+			const names = columns.map((col) => col.field.columns?.[r * col.k + col.offset]);
+			const shared = names.every(Boolean) ? lead(names.map(words)) : [];
+			return shared.length ? label(shared.join('_')) : `#${r}`;
+		};
+	} else if (named(fields[0])) {
+		rowLabel = (r) => (fields[0].columns[r] ? label(fields[0].columns[r]) : `#${r}`);
+	}
+	const at = (col, r) => r * col.k + col.offset;
+	const value = (col, r) => entity.values[col.field.name]?.[at(col, r)];
+	const none = (col, r) => value(col, r) == null || isNone(col.field, value(col, r));
+	const all = Array.from({ length: count }, (_, r) => r);
+	const rows = all.filter((r) => columns.some((col) => !none(col, r)));
+	const kept = columns.filter((col) => rows.some((r) => !none(col, r)));
+	if (!rows.length || !kept.length) return null;
+	const table = {
+		columns: kept.map((col) => ({ label: col.label })),
+		rows: rows.map((r) => ({
+			label: rowLabel(r),
+			// A reference that is none, beside values that are not, shows as a dash rather than as an entry no entity has.
+			cells: kept.map((col) => [
+				col.field.refKind && none(col, r) ? { text: '—' } : valueItem(entity, col.field, value(col, r), at(col, r)),
+			]),
+		})),
+	};
+	// The group's shape decides, not the cells one entity leaves, so every entity of a kind reads the same way round.
+	if (rowLabel(0) === null || columns.length <= count) return table;
+	return {
+		columns: table.rows.map((row) => ({ label: row.label })),
+		rows: table.columns.map((column, c) => ({ label: column.label, cells: table.rows.map((row) => row.cells[c]) })),
+	};
+}
+
+/**
+ * The infobox of an entity: a row for each published field that is not 0 or none, in the export's order. A value is
+ * `items`, each `{ text }`, `{ entity }` (a link) or `{ missing }` (an id no entity has); an array whose elements have
+ * names is a `table` (`cellTable`, its elements that are not 0), and one whose elements have none is a list of them
+ * (its elements that are not 0, when most are). A group's fields share one row, at the first of them, which holds its
+ * table.
  */
 export function infobox(kind, entity) {
 	const rows = [];
-	const zero = [];
 	const groupOf = new Map(kind.groups.flatMap((group) => group.fields.map((field) => [field.name, group])));
 	const placed = new Set();
 	for (const field of kind.fields) {
@@ -64,42 +122,36 @@ export function infobox(kind, entity) {
 		if (group) {
 			if (placed.has(group)) continue;
 			placed.add(group);
-			const table = groupTable(entity, group);
-			if (table) rows.push({ field, label: group.label, group: table });
-			else zero.push(group.label);
+			const table = cellTable(entity, group.fields);
+			if (table) rows.push({ field, label: group.label, table });
 			continue;
 		}
 		const value = entity.values[field.name];
 		const elements = field.isArray ? (value ?? []) : [value];
 		const none = (v) => isNone(field, v);
-		if (elements.every(none)) {
-			zero.push(label(field.name));
-			continue;
-		}
+		if (elements.every(none)) continue;
 		const item = (v, idx) => valueItem(entity, field, v, idx);
 		if (!field.isArray) {
 			rows.push({ field, label: label(field.name), items: [item(value, 0)] });
 			continue;
 		}
-		const items = elements.map((v, idx) => ({
-			...item(v, idx),
-			label: field.columns?.[idx] ? label(field.columns[idx]) : field.columns ? `#${idx}` : null,
-			zero: none(v),
-		}));
-		const zeros = items.filter((i) => i.zero).length;
-		const sparse = field.refKind || zeros * 2 > items.length;
-		const shown = sparse ? items.filter((i) => !i.zero) : items;
-		if (sparse && zeros && !field.refKind) shown.push({ text: `others 0`, label: null });
-		rows.push({ field, label: label(field.name), list: true, items: shown });
+		if (named(field)) {
+			const table = cellTable(entity, [field]);
+			if (table) rows.push({ field, label: label(field.name), table });
+			continue;
+		}
+		const sparse = field.refKind || elements.filter(none).length * 2 > elements.length;
+		const items = elements.map((v, idx) => ({ v, idx })).filter(({ v }) => !sparse || !none(v));
+		rows.push({ field, label: label(field.name), items: items.map(({ v, idx }) => item(v, idx)) });
 	}
-	return { rows, zero };
+	return rows;
 }
 
 /**
  * The tables the game's loaders built for the entity (OME's export plan §4.2), each with its rows: a stage's enemies,
- * one row a record. A reference column comes first, since it names what the row is (an enemy's unit); a column
- * that is 0 or none in every row is left out and named in `zero`. A cell's `items` are as an
- * infobox row's; an array shows its elements that are not 0 when most are, and an empty array cell shows nothing.
+ * one row a record. A reference column comes first, since it names what the row is (an enemy's unit); a column that
+ * is 0 or none in every row is left out. A cell's `items` are as an infobox row's; an array shows its elements that
+ * are not 0 when most are, and an empty array cell shows nothing.
  */
 export function loadedTables(kind, entity) {
 	return kind.loaded
@@ -109,10 +161,9 @@ export function loadedTables(kind, entity) {
 			const refs = new Map(
 				entity.refs.filter((r) => r.field.startsWith(`${table.name}.`)).map((r) => [`${r.field}:${r.idx}`, r]),
 			);
-			const none = (field, v) => v === 0 || (field.refKind && v < 0);
 			const elements = (field, row) => (field.isArray ? (row.values[field.name] ?? []) : [row.values[field.name]]);
 			const columns = published
-				.filter((field) => rows.some((row) => elements(field, row).some((v) => !none(field, v))))
+				.filter((field) => rows.some((row) => elements(field, row).some((v) => !isNone(field, v))))
 				.sort((a, b) => Boolean(b.refKind) - Boolean(a.refKind));
 			const cell = (field, row) => {
 				const values = elements(field, row);
@@ -122,7 +173,7 @@ export function loadedTables(kind, entity) {
 					const ref = refs.get(`${table.name}.${field.name}:${row.record * values.length + idx}`);
 					return ref?.target ? { entity: ref.target } : { missing: `${field.refKind} ${v}` };
 				};
-				const items = values.map((v, idx) => ({ ...item(v, idx), zero: none(field, v) }));
+				const items = values.map((v, idx) => ({ ...item(v, idx), zero: isNone(field, v) }));
 				const zeros = items.filter((i) => i.zero).length;
 				return zeros === items.length ? [] : field.refKind || zeros * 2 > items.length ? items.filter((i) => !i.zero) : items;
 			};
@@ -130,9 +181,8 @@ export function loadedTables(kind, entity) {
 				table,
 				id: table.label.many.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
 				label: table.label.many,
-				columns: columns.map((field) => ({ field, label: label(field.name) })),
-				rows: rows.map((row) => ({ record: row.record, cells: columns.map((field) => cell(field, row)) })),
-				zero: published.filter((field) => !columns.includes(field)).map((field) => label(field.name)),
+				columns: columns.map((field) => ({ label: label(field.name) })),
+				rows: rows.map((row) => ({ label: row.record, cells: columns.map((field) => cell(field, row)) })),
 			};
 		})
 		.filter((table) => table.rows.length > 0);
