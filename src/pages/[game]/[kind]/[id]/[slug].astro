@@ -7,6 +7,7 @@ import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
 import DatabaseSwitches from '../../../../components/DatabaseSwitches.astro';
 import LanguageCredit from '../../../../components/LanguageCredit.astro';
 import DataTable from '../../../../components/DataTable.astro';
+import Label from '../../../../components/Label.astro';
 import ModderPanel from '../../../../components/ModderPanel.astro';
 import Name from '../../../../components/Name.astro';
 import Picture from '../../../../components/Picture.astro';
@@ -16,7 +17,6 @@ import { databaseSidebar, game, games } from '../../../../lib/database.mjs';
 import { label } from '../../../../lib/labels.mjs';
 import { referenceGame } from '../../../../lib/reference.mjs';
 import { href, scriptName } from '../../../../lib/reference-model.mjs';
-import { SOURCE_LANGUAGE } from '../../../../lib/export.mjs';
 import { infobox, loadedTables, referencedBy, scriptRelations, texts, translated } from '../../../../lib/values.mjs';
 
 export function getStaticPaths() {
@@ -103,7 +103,7 @@ const version = data.manifest.game_version ? `, game version ${data.manifest.gam
 			{
 				rows.map((row) => (
 					<tr>
-						<th scope="row">{row.label}</th>
+						<th scope="row"><Label text={row.label} note={row.note} /></th>
 						<td>
 							{row.table ? (
 								<DataTable variant="nested" columns={row.table.columns} rows={row.table.rows} />
@@ -126,21 +126,27 @@ const version = data.manifest.game_version ? `, game version ${data.manifest.gam
 		text.length > 0 && (
 			<>
 				<h2 id="text" data-pagefind-ignore>Text</h2>
-				{text.map((t) => (
-					<section class="ome-text">
-						<h3 data-pagefind-ignore>{t.label}</h3>
-						{[[SOURCE_LANGUAGE, t.lines], ...Object.entries(t.translations)].map(([tag, lines]) => (
-							<p lang={tag} data-ome-text={Object.keys(t.translations).length ? tag : undefined}>
-								{lines.map((line, i) => (
-									<>
-										{i > 0 && <br />}
-										{line}
-									</>
-								))}
-							</p>
+				<table class="ome-infobox ome-text">
+					<tbody>
+						{text.map((t) => (
+							<tr>
+								<th scope="row" data-pagefind-ignore><Label text={t.label} note={t.note} /></th>
+								<td>
+									{t.languages.map(([tag, lines]) => (
+										<div lang={tag} data-ome-text={t.translated ? tag : undefined}>
+											{lines.map((line, i) => (
+												<>
+													{i > 0 && <br />}
+													{line}
+												</>
+											))}
+										</div>
+									))}
+								</td>
+							</tr>
 						))}
-					</section>
-				))}
+					</tbody>
+				</table>
 			</>
 		)
 	}
@@ -150,8 +156,17 @@ const version = data.manifest.game_version ? `, game version ${data.manifest.gam
 			<div data-pagefind-ignore>
 				<h2 id={t.id}>{t.label}</h2>
 				<p>
-					What the game's scripts build when it loads this {kind.label.one.toLowerCase()}: {t.rows.length} of the
-					table's {t.table.records} records, by record number.
+					{t.table.scope ? (
+						<>
+							What the game's scripts build when it loads this {kind.label.one.toLowerCase()}: {t.rows.length} of the
+							table's {t.table.records} records, by record number.
+						</>
+					) : (
+						<>
+							What the game's scripts build for this {kind.label.one.toLowerCase()}, a run of them for each row:{' '}
+							{t.rows.length} {t.rows.length === 1 ? 'row' : 'rows'}, by number.
+						</>
+					)}
 				</p>
 				<DataTable variant="wide" columns={t.columns} rows={t.rows} rowHeader="#" />
 			</div>

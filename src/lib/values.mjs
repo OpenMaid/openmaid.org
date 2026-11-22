@@ -1,5 +1,6 @@
 // How an entity's published values read on its page (site design §8.2): each field becomes a row of the infobox, as
 // plain values, links to other entities, or a list of an array's elements by name.
+import { SOURCE_LANGUAGE } from './export.mjs';
 import { label } from './labels.mjs';
 
 // 0 is none, and for a reference so is a negative value (the games write -1 for none too).
@@ -11,6 +12,22 @@ function valueItem(entity, field, v, idx) {
 	if (!field.refKind) return { text: String(v) };
 	const ref = entity.refs.find((r) => r.field === field.name && r.idx === idx);
 	return ref?.target ? { entity: ref.target } : { missing: `${field.refKind} ${v}` };
+}
+
+/**
+ * A text of the entity as a value (`{ title, names }`, which `Name` draws in each language it has): the text field
+ * `field`'s element `idx` (a loaded table's is `table.field`, its element the record times the width). Null when the
+ * game's text has none there.
+ */
+function textItem(entity, field, idx) {
+	const own = entity.text[field]?.[idx]?.trim();
+	if (!own) return null;
+	const names = { [SOURCE_LANGUAGE]: own };
+	for (const [tag, text] of Object.entries(entity.translations)) {
+		const line = text[field]?.[idx]?.trim();
+		if (line) names[tag] = line;
+	}
+	return { title: own, names };
 }
 
 // A name that says no more than a number: `drop_1`, `skill_2`.
@@ -50,9 +67,10 @@ function named(field) {
  * when a field gives several columns, else by the first field's element names when they say more than a number (a
  * unit's stats). A row whose cells are all 0 or none is left out, and so is a column that is in every row left. A table
  * with named rows whose fields give more columns than rows turns, a row for each column, so it fits the infobox (a
- * condition's five levels across, its stat changes down). Null when no row is left.
+ * condition's five levels across, its stat changes down). A group with labels (OME's export plan §5) names row r by its
+ * labelling text's record r (a stage's objective rewards by each objective's condition). Null when no row is left.
  */
-function cellTable(entity, fields) {
+function cellTable(entity, fields, labels = null) {
 	const count = Math.min(...fields.map((field) => field.width));
 	const per = fields.map((field) => field.width / count);
 	const grid = per.some((k) => k > 1);
@@ -71,7 +89,9 @@ function cellTable(entity, fields) {
 		}));
 	});
 	let rowLabel = () => null;
-	if (grid) {
+	if (labels) {
+		rowLabel = (r) => textItem(entity, labels, r) ?? `#${r}`;
+	} else if (grid) {
 		rowLabel = (r) => {
 			const names = columns.map((col) => col.field.columns?.[r * col.k + col.offset]);
 			const shared = names.every(Boolean) ? lead(names.map(words)) : [];
@@ -122,39 +142,45 @@ export function infobox(kind, entity) {
 		if (group) {
 			if (placed.has(group)) continue;
 			placed.add(group);
-			const table = cellTable(entity, group.fields);
-			if (table) rows.push({ field, label: group.label, table });
+			const table = cellTable(entity, group.fields, group.labels);
+			if (table) rows.push({ field, label: group.label, note: kind.notes.get(group.name) ?? null, table });
 			continue;
 		}
+		const note = kind.notes.get(field.name) ?? null;
 		const value = entity.values[field.name];
 		const elements = field.isArray ? (value ?? []) : [value];
 		const none = (v) => isNone(field, v);
 		if (elements.every(none)) continue;
 		const item = (v, idx) => valueItem(entity, field, v, idx);
 		if (!field.isArray) {
-			rows.push({ field, label: label(field.name), items: [item(value, 0)] });
+			rows.push({ field, label: label(field.name), note, items: [item(value, 0)] });
 			continue;
 		}
 		if (named(field)) {
 			const table = cellTable(entity, [field]);
-			if (table) rows.push({ field, label: label(field.name), table });
+			if (table) rows.push({ field, label: label(field.name), note, table });
 			continue;
 		}
 		const sparse = field.refKind || elements.filter(none).length * 2 > elements.length;
 		const items = elements.map((v, idx) => ({ v, idx })).filter(({ v }) => !sparse || !none(v));
-		rows.push({ field, label: label(field.name), items: items.map(({ v, idx }) => item(v, idx)) });
+		rows.push({ field, label: label(field.name), note, items: items.map(({ v, idx }) => item(v, idx)) });
 	}
 	return rows;
 }
 
 /**
- * The tables the game's loaders built for the entity (OME's export plan §4.2), each with its rows: a stage's enemies,
- * one row a record. A reference column comes first, since it names what the row is (an enemy's unit); a column that
- * is 0 or none in every row is left out. A cell's `items` are as an infobox row's; an array shows its elements that
- * are not 0 when most are, and an empty array cell shows nothing.
+ * The tables the game's loaders built for the entity (OME's export plan §4.2), each with its rows: a stage's enemies, a
+ * unit's title changes, one row a record. Its text columns come first (a title's name), then its references, since they
+ * name what the row is (an enemy's unit); a column that is 0 or none in every row is left out. A cell's `items` are as
+ * an infobox row's; an array whose elements have names shows each that is not 0 by its name ("Max HP +5"), one whose
+ * elements have none its elements that are not 0 when most are, and an empty array cell shows nothing. Such a named
+ * array's items, and a list of references, stack one to a line. A table whose text labels a group's rows is shown in
+ * that group, not here. A column's note is the export's for table.field.
  */
 export function loadedTables(kind, entity) {
+	const labelling = new Set(kind.groups.map((group) => group.labels?.split('.')[0]).filter(Boolean));
 	return kind.loaded
+		.filter((table) => !labelling.has(table.name))
 		.map((table) => {
 			const rows = entity.loaded[table.name] ?? [];
 			const published = table.fields.filter((field) => field.published);
@@ -162,11 +188,22 @@ export function loadedTables(kind, entity) {
 				entity.refs.filter((r) => r.field.startsWith(`${table.name}.`)).map((r) => [`${r.field}:${r.idx}`, r]),
 			);
 			const elements = (field, row) => (field.isArray ? (row.values[field.name] ?? []) : [row.values[field.name]]);
+			const text = (field, row) => textItem(entity, `${table.name}.${field.name}`, row.record * (field.width || 1));
+			const textColumns = table.fields.filter((field) => field.text && rows.some((row) => text(field, row)));
 			const columns = published
 				.filter((field) => rows.some((row) => elements(field, row).some((v) => !isNone(field, v))))
 				.sort((a, b) => Boolean(b.refKind) - Boolean(a.refKind));
+			// A change shows its sign: "Max HP +5", "Fire -1".
+			const signed = (field) => /(^|_)deltas?$/.test(field.name);
 			const cell = (field, row) => {
 				const values = elements(field, row);
+				if (named(field))
+					return values
+						.map((v, idx) => ({ v, idx }))
+						.filter(({ v }) => v != null && !isNone(field, v))
+						.map(({ v, idx }) => ({
+							text: `${field.columns[idx] ? label(field.columns[idx]) : `#${idx}`} ${signed(field) && v > 0 ? '+' : ''}${v}`,
+						}));
 				const item = (v, idx) => {
 					if (v === null || v === undefined) return { text: '—' };
 					if (!field.refKind) return { text: String(v) };
@@ -177,35 +214,61 @@ export function loadedTables(kind, entity) {
 				const zeros = items.filter((i) => i.zero).length;
 				return zeros === items.length ? [] : field.refKind || zeros * 2 > items.length ? items.filter((i) => !i.zero) : items;
 			};
+			const note = (field) => kind.notes.get(`${table.name}.${field.name}`) ?? null;
 			return {
 				table,
 				id: table.label.many.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
 				label: table.label.many,
-				columns: columns.map((field) => ({ label: label(field.name) })),
-				rows: rows.map((row) => ({ label: row.record, cells: columns.map((field) => cell(field, row)) })),
+				columns: [
+					...textColumns.map((field) => ({ label: label(field.name), note: note(field) })),
+					...columns.map((field) => ({
+						label: label(field.name),
+						note: note(field),
+						stack: field.isArray && (named(field) || Boolean(field.refKind)),
+					})),
+				],
+				rows: rows.map((row) => ({
+					label: row.record,
+					cells: [
+						...textColumns.map((field) => (text(field, row) ? [text(field, row)] : [])),
+						...columns.map((field) => cell(field, row)),
+					],
+				})),
 			};
 		})
 		.filter((table) => table.rows.length > 0);
 }
 
 /**
- * The entity's text by field, apart from its title: each a list of lines (site design §8.2), with its lines in each
- * language that translates it (§8.6).
+ * The entity's text, apart from its title, as the rows of a table (site design §8.2): a row for each text field, or
+ * for each of its blocks when the export divides its lines into the blocks the game draws them in (OME's export plan
+ * §5: a quest's overview, clear condition and failure condition). A row holds its lines in the game's language and in
+ * each that translates it (§8.6); a field or block with no line of text has no row. A field's note is on its first row.
  */
 export function texts(kind, entity) {
-	const lines = (values) => values.filter((v) => v !== undefined).join('\n').split('\n');
-	return kind.fields
-		.filter((field) => field.text && field.name !== kind.titleField && entity.text[field.name])
-		.map((field) => ({
-			field,
-			label: label(field.name),
-			lines: lines(entity.text[field.name]),
-			translations: Object.fromEntries(
-				Object.entries(entity.translations)
-					.filter(([, text]) => text[field.name])
-					.map(([tag, text]) => [tag, lines(text[field.name])]),
-			),
-		}));
+	const lines = (values) => values.filter((v) => v !== undefined && v !== null).join('\n').split('\n');
+	const shown = (list) => list && list.some((line) => line.trim());
+	const rows = [];
+	for (const field of kind.fields) {
+		if (!field.text || field.name === kind.titleField || !entity.text[field.name]) continue;
+		const blocks = kind.textBlocks.get(field.name) ?? [{ name: field.name, first: 0, last: Infinity }];
+		blocks.forEach((block, b) => {
+			const part = (values) => (values ? lines(values.slice(block.first, block.last + 1)) : null);
+			const own = part(entity.text[field.name]);
+			if (!shown(own)) return;
+			const translations = Object.entries(entity.translations)
+				.map(([tag, text]) => [tag, part(text[field.name])])
+				.filter(([, list]) => shown(list));
+			rows.push({
+				field,
+				label: label(block.name),
+				note: b === 0 ? (kind.notes.get(field.name) ?? null) : null,
+				languages: [[SOURCE_LANGUAGE, own], ...translations],
+				translated: translations.length > 0,
+			});
+		});
+	}
+	return rows;
 }
 
 /** Whether a page shows any of the entities' translated text: a name or a text in another language. */

@@ -22,7 +22,14 @@ export default {
 			// The picture a kind's lists and tooltips show, by the export's picture names, first found first. An explicit
 			// picture is never shown there (site design §8.11).
 			// A kind titled by a reference (a recipe, by the item it makes) shows its target's when it has none.
-			thumbnails: { item: ['icon'], skill: ['icon'], unit: ['battle_face', 'face', 'sprite'], quest: ['requester'] },
+			thumbnails: {
+				item: ['icon'],
+				skill: ['icon'],
+				unit: ['battle_face', 'face', 'sprite'],
+				quest: ['requester'],
+				condition: ['icon'],
+				world_area: ['picture'],
+			},
 		},
 	},
 };

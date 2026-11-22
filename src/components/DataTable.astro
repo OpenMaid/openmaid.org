@@ -2,14 +2,23 @@
 // A table of an entity's values (src/lib/values.mjs): an array's elements, a group of fields, or a table a loader
 // built. Every cell holds values as `Value` draws them, several joined by commas. A column whose cells are all numbers
 // aligns them on the right, so they compare down the column. The row labels take a column of their own, and the header
-// is left out when no column has a label (an array in the infobox, whose row already names it).
+// is left out when no column has a label (an array in the infobox, whose row already names it). A row's label may be a
+// text of the game (a stage's objective), in each language it has; a column's label may have a note. A column whose
+// cells list items that each name themselves ("Max HP +5", a link) stacks them one to a line.
+import Label from './Label.astro';
 import Value from './Value.astro';
 
-type Item = { text?: string; entity?: { url: string; title: string; names: Record<string, string> }; missing?: string };
+type Item = {
+	text?: string;
+	entity?: { url: string; title: string; names: Record<string, string> };
+	missing?: string;
+	title?: string;
+	names?: Record<string, string>;
+};
 
 interface Props {
-	columns: { label: string | null }[];
-	rows: { label?: string | number | null; cells: Item[][] }[];
+	columns: { label: string | null; note?: string | null; stack?: boolean }[];
+	rows: { label?: string | number | Item | null; cells: Item[][] }[];
 	/** The heading of the row labels' column, when the rows have labels. */
 	rowHeader?: string;
 	/** `nested` sits in a row of the infobox; `wide` is a page's own table, which scrolls in its box. */
@@ -35,7 +44,7 @@ const numeric = columns.map(
 					{labelled && <th scope="col">{rowHeader}</th>}
 					{columns.map((column, c) => (
 						<th scope="col" class:list={{ 'ome-num': numeric[c] }}>
-							{column.label}
+							<Label text={column.label} note={column.note} />
 						</th>
 					))}
 				</tr>
@@ -46,12 +55,12 @@ const numeric = columns.map(
 		{
 			rows.map((row) => (
 				<tr>
-					{labelled && <th scope="row">{row.label}</th>}
+					{labelled && <th scope="row">{typeof row.label === 'object' && row.label ? <Value item={row.label} /> : row.label}</th>}
 					{row.cells.map((items, c) => (
 						<td class:list={{ 'ome-num': numeric[c] }}>
 							{items.map((item, i) => (
 								<>
-									{i > 0 && ', '}
+									{i > 0 && (columns[c].stack ? <br /> : ', ')}
 									<Value item={item} />
 								</>
 							))}

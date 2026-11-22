@@ -1,0 +1,66 @@
+---
+// A detail's label with its note (OME's export plan §5), when the export has one: a line that explains what the value
+// means, which a box under the label shows while the pointer is over it or it has the focus. Without scripts the
+// browser shows the note as the label's title; a screen reader reads it after the label.
+interface Props {
+	text: string | null;
+	note?: string | null;
+}
+
+const { text, note } = Astro.props;
+---
+
+{
+	note ? (
+		<span class="ome-noted" tabindex="0" title={note}>
+			{text}
+			<span class="sr-only"> ({note})</span>
+		</span>
+	) : (
+		text
+	)
+}
+
+<script>
+	// One box for the page's notes, placed under the label it explains and kept inside the window.
+	let box: HTMLDivElement | undefined;
+	let current: HTMLElement | null = null;
+	for (const label of document.querySelectorAll<HTMLElement>('.ome-noted[title]')) {
+		label.dataset.omeNote = label.title;
+		label.removeAttribute('title');
+	}
+	const show = (label: HTMLElement) => {
+		if (!box) {
+			box = document.createElement('div');
+			box.className = 'ome-note-box';
+			box.setAttribute('role', 'tooltip');
+			box.setAttribute('aria-hidden', 'true');
+			document.body.append(box);
+		}
+		current = label;
+		box.textContent = label.dataset.omeNote ?? '';
+		box.hidden = false;
+		const rect = label.getBoundingClientRect();
+		const width = box.offsetWidth;
+		box.style.left = `${Math.max(8, Math.min(rect.left + scrollX, scrollX + document.documentElement.clientWidth - width - 8))}px`;
+		box.style.top = `${rect.bottom + scrollY + 6}px`;
+	};
+	const hide = () => {
+		current = null;
+		if (box) box.hidden = true;
+	};
+	const noted = (event: Event) => (event.target as Element).closest?.<HTMLElement>('.ome-noted') ?? null;
+	const enter = (event: Event) => {
+		const label = noted(event);
+		if (label && label !== current) show(label);
+	};
+	const leave = (event: Event) => {
+		const label = noted(event);
+		const to = (event as MouseEvent | FocusEvent).relatedTarget as Node | null;
+		if (label && label === current && !(to && label.contains(to))) hide();
+	};
+	document.addEventListener('mouseover', enter);
+	document.addEventListener('focusin', enter);
+	document.addEventListener('mouseout', leave);
+	document.addEventListener('focusout', leave);
+</script>

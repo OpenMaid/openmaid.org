@@ -12,6 +12,8 @@ interface Props {
 }
 const { data, picture, alt, class: className } = Astro.props;
 const src = pictureUrl(data, picture);
+// A small picture (a condition's icon cut from its sheet) is drawn larger with its pixels kept sharp.
+const small = picture.width <= 32 && picture.height <= 32;
 ---
 
 {
@@ -21,7 +23,7 @@ const src = pictureUrl(data, picture);
 			<span>Explicit: click to show</span>
 		</a>
 	) : (
-		<img class={className} src={src} alt={alt} width={picture.width} height={picture.height} loading="lazy" />
+		<img class:list={[className, { 'ome-pixel': small }]} src={src} alt={alt} width={picture.width} height={picture.height} loading="lazy" />
 	)
 }
 

@@ -34,8 +34,12 @@ export function readExport({ game, revision, dir, thumbnails = {} }) {
 		const packages = info.language_packages ? JSON.parse(info.language_packages) : [];
 
 		const all = (sql, ...args) => db.prepare(sql).all(...args).map((row) => ({ ...row }));
-		// An export made before groups (OME's export plan §5) has no field_group table.
-		const hasGroups = Boolean(db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'field_group'").get());
+		// An export made before groups, notes or text blocks (OME's export plan §5) has no table of them.
+		const has = (table) => Boolean(db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?").get(table));
+		const hasGroups = has('field_group');
+		const groupLabels = has('group_label') ? all('SELECT kind, name, labels FROM group_label') : [];
+		const notes = has('note') ? all('SELECT kind, name, text FROM note') : [];
+		const blocks = has('text_block') ? all('SELECT kind, field, name, first, last FROM text_block ORDER BY kind, field, position') : [];
 		const pictures = new Map(); // file name -> picture
 		const byKey = new Map(); // "item:12" -> entity
 		const kinds = all('SELECT id, table_name, title_field, aliases, entities FROM kind ORDER BY rowid').map((row) => ({
@@ -45,11 +49,28 @@ export function readExport({ game, revision, dir, thumbnails = {} }) {
 			aliases: JSON.parse(row.aliases),
 			label: kindLabel(row.id),
 			fields: all('SELECT * FROM field WHERE kind = ? ORDER BY rowid', row.id).map(fieldOf),
-			// The kind's groups (OME's export plan §5): published rows of cells of one width, shown as one table.
+			// The kind's groups (OME's export plan §5): published rows of cells of one width, shown as one table. A group's
+			// labels name a loaded table's text field, table.field, whose record r names row r (a stage's objectives).
 			groups: hasGroups
 				? [...groupBy(all('SELECT name, field FROM field_group WHERE kind = ? ORDER BY name, position', row.id), (g) => g.name)]
-						.map(([name, members]) => ({ name, label: label(name), fieldNames: members.map((m) => m.field) }))
+						.map(([name, members]) => ({
+							name,
+							label: label(name),
+							fieldNames: members.map((m) => m.field),
+							labels: groupLabels.find((g) => g.kind === row.id && g.name === name)?.labels ?? null,
+						}))
 				: [],
+			// A line that explains a detail (OME's export plan §5), by the field or group it explains; a loaded table's
+			// field's is table.field.
+			notes: new Map(notes.filter((n) => n.kind === row.id).map((n) => [n.name, n.text])),
+			// The blocks a text field's lines are drawn in (OME's export plan §5), by the field: a quest's overview and its
+			// clear and failure conditions.
+			textBlocks: new Map(
+				[...groupBy(blocks.filter((b) => b.kind === row.id), (b) => b.field)].map(([field, list]) => [
+					field,
+					list.map((b) => ({ name: b.name, first: b.first, last: b.last })),
+				]),
+			),
 			// The scripts whose instructions read, write or index (take as an array's base) a cell of the table or of its
 			// loaded tables (OME's export plan §4.3), most used first.
 			scriptUse: all(

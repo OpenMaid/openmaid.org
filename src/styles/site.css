@@ -85,6 +85,11 @@
 	display: none;
 }
 
+/* The infobox and the text table span the column, so their labels line up from table to table. */
+.ome-infobox {
+	display: table;
+	width: 100%;
+}
 .ome-infobox th {
 	width: 30%;
 	min-width: 10rem;
@@ -145,8 +150,44 @@
 .ome-missing {
 	color: var(--sl-color-gray-3);
 }
-.ome-text p {
+/* An entity's text (lib/values.mjs texts): a row for each field or block, its lines as the game breaks them. */
+/* One language's lines show at a time, so none takes the margin Starlight gives a block after another. */
+.ome-text td div {
+	margin-top: 0;
 	white-space: pre-wrap;
+}
+/* A detail's label with a note (src/components/Label.astro): underlined, and a box under it shows the note. */
+.ome-noted {
+	cursor: help;
+	text-decoration: underline dotted;
+	text-underline-offset: 0.2em;
+}
+.ome-noted:focus-visible {
+	outline: 2px solid var(--sl-color-text-accent);
+	outline-offset: 2px;
+}
+.ome-note-box {
+	position: absolute;
+	z-index: 2000;
+	max-width: 22rem;
+	padding: 0.5rem 0.7rem;
+	border-radius: 0.4rem;
+	background: #17181c;
+	color: #f1f2f6;
+	font: 14px/1.4 system-ui, sans-serif;
+	box-shadow: 0 4px 16px rgb(0 0 0 / 0.35);
+	pointer-events: none;
+}
+.ome-note-box[hidden] {
+	display: none;
+}
+/* A small picture (a condition's icon) drawn larger, its pixels kept sharp. */
+img.ome-pixel {
+	image-rendering: pixelated;
+}
+.ome-pictures img.ome-pixel {
+	width: 3rem;
+	height: auto;
 }
 .ome-links {
 	columns: 16rem;
