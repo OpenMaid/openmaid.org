@@ -1,7 +1,9 @@
 ---
 // A game's front page in the database (site design §4): what the data is, where it comes from, and its kinds.
 import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import LanguageCredit from '../../components/LanguageCredit.astro';
 import { databaseSidebar, game, games } from '../../lib/database.mjs';
+import { languageName } from '../../lib/labels.mjs';
 
 export function getStaticPaths() {
 	return games().map((data) => ({ params: { game: data.game } }));
@@ -26,6 +28,14 @@ const version = data.manifest.game_version ? ` (game version ${data.manifest.gam
 		}
 	</ul>
 	<p>
-		This is game data revision <code>{data.revision}</code>{version}. The text is the game’s own, in Japanese.
+		This is game data revision <code>{data.revision}</code>{version}. The text is the game’s own, in Japanese{
+			data.languages.length > 0 && (
+				<>
+					, with its translation into {data.languages.map(languageName).join(' and ')} where a language package
+					has one; the switch on each page picks which shows, and a text the translation lacks shows in Japanese
+				</>
+			)
+		}.
 	</p>
+	<LanguageCredit data={data} />
 </StarlightPage>

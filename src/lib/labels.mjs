@@ -17,3 +17,8 @@ export function kindLabel(id) {
 	const many = /[^aeiou]y$/.test(one) ? `${one.slice(0, -1)}ies` : /(s|x|ch|sh)$/.test(one) ? `${one}es` : `${one}s`;
 	return { one, many };
 }
+
+/** A language's name in itself: 日本語, English. */
+export function languageName(tag) {
+	return new Intl.DisplayNames([tag], { type: 'language' }).of(tag) ?? tag;
+}

@@ -26,6 +26,18 @@
 	align-items: center;
 }
 
+/* Game text in the chosen language (§8.6): an element the export translates holds the game's text and its
+   translation, each marked with its language, and <html>'s data-ome-lang (DatabaseSwitches.astro) picks one, English
+   unless the visitor chose Japanese. A text the export does not translate is not marked, and always shows. */
+:root:not([data-ome-lang='ja']) [data-ome-text='ja'],
+:root[data-ome-lang='ja'] [data-ome-text]:not([data-ome-text='ja']) {
+	display: none;
+}
+.ome-credit {
+	font-size: var(--sl-text-sm);
+	color: var(--sl-color-gray-3);
+}
+
 .ome-pictures {
 	display: flex;
 	flex-wrap: wrap;

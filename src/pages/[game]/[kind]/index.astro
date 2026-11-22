@@ -6,10 +6,13 @@
 import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
 import Picture from '../../../components/Picture.astro';
 import DatabaseSwitches from '../../../components/DatabaseSwitches.astro';
+import LanguageCredit from '../../../components/LanguageCredit.astro';
+import Name from '../../../components/Name.astro';
 import { databaseSidebar, game, games } from '../../../lib/database.mjs';
 import { label } from '../../../lib/labels.mjs';
 import { referenceGame } from '../../../lib/reference.mjs';
 import { href } from '../../../lib/reference-model.mjs';
+import { translated } from '../../../lib/values.mjs';
 
 export function getStaticPaths() {
 	return games().flatMap((data) => data.kinds.map((kind) => ({ params: { game: data.game, kind: kind.id } })));
@@ -39,7 +42,8 @@ const filters = kind.fields
 		{kind.entities.length} {kind.label.many.toLowerCase()}, from game data revision <code>{data.revision}</code>. A field
 		whose values stand for something in the game (a category, a race) shows them as the game stores them, as numbers.
 	</p>
-	<DatabaseSwitches />
+	<DatabaseSwitches languages={data.languages} />
+	{translated(kind.entities) && <LanguageCredit data={data} />}
 	<form class="ome-filters not-content" data-ome-filters>
 		<label>Name <input type="search" name="q" autocomplete="off" /></label>
 		{
@@ -70,7 +74,7 @@ const filters = kind.fields
 			{
 				kind.entities.map((entity) => (
 					<tr
-						data-name={entity.title.toLowerCase()}
+						data-name={[...new Set([entity.title, ...Object.values(entity.names)])].join(' ').toLowerCase()}
 						{...Object.fromEntries(filters.map((f) => [`data-f-${f.field.name}`, String(entity.values[f.field.name])]))}
 					>
 						<td class="ome-thumb">
@@ -78,7 +82,7 @@ const filters = kind.fields
 						</td>
 						<td>{entity.id}</td>
 						<td>
-							<a href={entity.url}>{entity.title}</a>
+							<a href={entity.url}><Name entity={entity} /></a>
 						</td>
 						{filters.map((f) => <td>{entity.values[f.field.name]}</td>)}
 					</tr>

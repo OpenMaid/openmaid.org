@@ -1,17 +1,20 @@
 ---
 // An entity page (site design §8.2): its name, pictures, kind and game revision; an infobox of its published fields;
 // its text; the tables the game's loaders build for it (a stage's enemies); what refers to it; what the game's scripts
-// do with it; and the modder panel. Search indexes its name and
-// text only, with the game and kind as filters (§8.4).
+// do with it; and the modder panel. Its names and text are in each language the export translates them into, the
+// switch showing one (§8.6). Search indexes its name and text only, with the game and kind as filters (§8.4).
 import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
 import DatabaseSwitches from '../../../../components/DatabaseSwitches.astro';
+import LanguageCredit from '../../../../components/LanguageCredit.astro';
 import ModderPanel from '../../../../components/ModderPanel.astro';
+import Name from '../../../../components/Name.astro';
 import Picture from '../../../../components/Picture.astro';
 import { databaseSidebar, game, games } from '../../../../lib/database.mjs';
 import { label } from '../../../../lib/labels.mjs';
 import { referenceGame } from '../../../../lib/reference.mjs';
 import { href, scriptName } from '../../../../lib/reference-model.mjs';
-import { infobox, loadedTables, referencedBy, scriptRelations, texts } from '../../../../lib/values.mjs';
+import { SOURCE_LANGUAGE } from '../../../../lib/export.mjs';
+import { infobox, loadedTables, referencedBy, scriptRelations, texts, translated } from '../../../../lib/values.mjs';
 
 export function getStaticPaths() {
 	return games().flatMap((data) =>
@@ -32,6 +35,14 @@ const text = texts(kind, entity);
 const incoming = referencedBy(data, entity);
 const loaded = loadedTables(kind, entity);
 const relations = scriptRelations(entity);
+// The title holds the name in each language it has (src/components/PageTitle.astro), and the page credits the
+// translations it shows: the entity's, and the names of those it links to.
+if (Object.keys(entity.names).length > 1) Astro.locals.omeNames = entity.names;
+const credited = translated([
+	entity,
+	...entity.refs.map((ref: { target: unknown }) => ref.target).filter(Boolean),
+	...entity.referencedBy.map((by: { from: unknown }) => by.from),
+]);
 const reference = referenceGame(data.game);
 const scriptLink = (key: string) => (reference.script(key) ? href.script(data.game, key) : null);
 // A script's calls in a line: the counts they set, or how many calls when the relation has no count.
@@ -67,7 +78,8 @@ const version = data.manifest.game_version ? `, game version ${data.manifest.gam
 		<a href={`/${data.game}/${kind.id}/`}>{kind.label.one}</a> {entity.id} of {data.title}, from game data revision
 		<code>{data.revision}</code>{version}.
 	</p>
-	<DatabaseSwitches />
+	<DatabaseSwitches languages={data.languages} />
+	{credited && <LanguageCredit data={data} />}
 
 	{
 		pictures.length > 0 && (
@@ -95,7 +107,7 @@ const version = data.manifest.game_version ? `, game version ${data.manifest.gam
 									<li>
 										{item.label && <span class="ome-element">{item.label}</span>}
 										{item.entity ? (
-											<a href={item.entity.url}>{item.entity.title}</a>
+											<a href={item.entity.url}><Name entity={item.entity} /></a>
 										) : item.missing ? (
 											<span class="ome-missing">{item.missing} (no such entry)</span>
 										) : (
@@ -117,16 +129,18 @@ const version = data.manifest.game_version ? `, game version ${data.manifest.gam
 			<>
 				<h2 id="text" data-pagefind-ignore>Text</h2>
 				{text.map((t) => (
-					<section class="ome-text" lang="ja">
+					<section class="ome-text">
 						<h3 data-pagefind-ignore>{t.label}</h3>
-						<p>
-							{t.lines.map((line, i) => (
-								<>
-									{i > 0 && <br />}
-									{line}
-								</>
-							))}
-						</p>
+						{[[SOURCE_LANGUAGE, t.lines], ...Object.entries(t.translations)].map(([tag, lines]) => (
+							<p lang={tag} data-ome-text={Object.keys(t.translations).length ? tag : undefined}>
+								{lines.map((line, i) => (
+									<>
+										{i > 0 && <br />}
+										{line}
+									</>
+								))}
+							</p>
+						))}
 					</section>
 				))}
 			</>
@@ -160,7 +174,7 @@ const version = data.manifest.game_version ? `, game version ${data.manifest.gam
 											<>
 												{i > 0 && ', '}
 												{item.entity ? (
-													<a href={item.entity.url}>{item.entity.title}</a>
+													<a href={item.entity.url}><Name entity={item.entity} /></a>
 												) : item.missing ? (
 													<span class="ome-missing">{item.missing} (no such entry)</span>
 												) : (
@@ -189,7 +203,7 @@ const version = data.manifest.game_version ? `, game version ${data.manifest.gam
 						<ul class="ome-links">
 							{group.entities.map((e) => (
 								<li>
-									<a href={e.url}>{e.title}</a>
+									<a href={e.url}><Name entity={e} /></a>
 								</li>
 							))}
 						</ul>

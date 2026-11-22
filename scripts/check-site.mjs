@@ -4,7 +4,8 @@
 // - the search index holds every page that marks its content for search (`data-pagefind-body`), and only those: the
 //   reference section and the ordinary pages share one index (site design §5);
 // - every entity of a game's database has its page, in the search index, and its picture: each kind's tooltip file
-//   (/<game>/tooltips/<kind>.json) lists every entity of the export (site design §10.2);
+//   (/<game>/tooltips/<kind>.json) lists every entity of the export (site design §10.2), and the page of each whose
+//   name or text the export translates credits the translation's packages (§8.6);
 // - every entry of the reference bundle the build read has its page, in the search index: each opcode, and each game's
 //   named globals, record tables, patch points, events and scripts (site plan §6.1);
 // - every link of a page to a file in OME's repository names the bundle's commit, so a guide rendered for another
@@ -33,6 +34,7 @@ for (const file of walk(dist)) {
 		ids: new Set([...html.matchAll(/\sid="([^"]*)"/g)].map((m) => decode(m[1]))),
 		links: [...html.matchAll(/<(?:a|link|img|script|source)\b[^>]*?\s(?:href|src)="([^"]*)"/g)].map((m) => decode(m[1])),
 		searchable: /\sdata-pagefind-body(?:[\s=>])/.test(html),
+		credited: /\sclass="ome-credit"/.test(html),
 	});
 }
 
@@ -78,6 +80,8 @@ for (const [url] of pages) {
 			const where = `${game} ${name.replace(/\.json$/, '')} ${id}`;
 			if (!pages.has(entity.u)) failures.push(`${where}: its page ${entity.u} is not built`);
 			else if (!indexed.has(entity.u)) failures.push(`${where}: its page ${entity.u} is not in the search index`);
+			if (entity.tr && pages.get(entity.u) && !pages.get(entity.u).credited)
+				failures.push(`${where}: its page ${entity.u} shows translated text and credits no package`);
 			if (entity.p && !fs.existsSync(path.join(dist, decodeURI(entity.p)))) failures.push(`${where}: its picture ${entity.p} is not built`);
 		}
 	}

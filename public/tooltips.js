@@ -1,6 +1,8 @@
 // Tooltips for links to the database's entities (site design §8.5). Hovering or focusing a link to
 // /<game>/<kind>/<id>/... on this site shows the entity's name, picture and a line of its text, from the kind's
-// tooltip file, loaded once on the first hover over that kind.
+// tooltip file, loaded once on the first hover over that kind. Where the file translates them (§8.6), the name and the
+// line are in the language <html>'s data-ome-lang chooses, the first translation unless it is the game's own, and the
+// name in the other language follows.
 //
 // It depends on nothing else, so another site can load it with a <script src> from this one and get the same tooltips
 // on its links here. There it shows names and pictures only: the embedding site decides its own notice (§8.10).
@@ -46,16 +48,31 @@
 			box.append(img);
 		}
 		const words = document.createElement('div');
+		const chosen = document.documentElement.getAttribute('data-ome-lang');
+		const translations = entity.tr ?? {};
+		const tag = chosen === 'ja' ? null : chosen && translations[chosen] ? chosen : Object.keys(translations)[0] ?? null;
+		const shown = tag ? translations[tag] : null;
 		const name = document.createElement('strong');
-		name.textContent = entity.n;
+		name.textContent = shown?.n ?? entity.n;
+		if (shown?.n) name.lang = tag;
 		const what = document.createElement('div');
 		what.textContent = `${file.kind} · ${file.game}`;
 		Object.assign(what.style, { fontSize: '12px', opacity: 0.7 });
-		words.append(name, what);
-		if (entity.t && !foreign) {
+		words.append(name);
+		const other = shown?.n ? entity.n : tag === null && chosen === 'ja' ? Object.values(translations)[0]?.n : null;
+		if (other) {
+			const also = document.createElement('div');
+			also.textContent = other;
+			also.lang = shown?.n ? 'ja' : Object.keys(translations)[0];
+			Object.assign(also.style, { fontSize: '12px' });
+			words.append(also);
+		}
+		words.append(what);
+		const line = shown?.t ?? entity.t;
+		if (line && !foreign) {
 			const text = document.createElement('div');
-			text.textContent = entity.t;
-			text.lang = 'ja';
+			text.textContent = line;
+			text.lang = shown?.t ? tag : 'ja';
 			text.style.marginTop = '0.3rem';
 			words.append(text);
 		}

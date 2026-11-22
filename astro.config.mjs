@@ -41,7 +41,8 @@ const ome = {
 };
 
 // Before the first paint: marks a visitor who confirmed the age notice (src/components/AgeNotice.astro), and restores
-// the database's switches, modder mode and explicit pictures (src/components/DatabaseSwitches.astro).
+// the database's switches, modder mode, explicit pictures and the game text's language
+// (src/components/DatabaseSwitches.astro).
 const remembered = [
 	['ome-age-confirmed', 'data-ome-age-confirmed'],
 	['ome-modder-mode', 'data-ome-modder'],
@@ -49,7 +50,7 @@ const remembered = [
 ];
 const headScript = `try{${remembered
 	.map(([key, attribute]) => `if(localStorage.getItem('${key}')==='1')document.documentElement.setAttribute('${attribute}','');`)
-	.join('')}}catch{}`;
+	.join('')}const l=localStorage.getItem('ome-game-language');if(l)document.documentElement.setAttribute('data-ome-lang',l);}catch{}`;
 
 export default defineConfig({
 	site: config.site,
@@ -78,6 +79,7 @@ export default defineConfig({
 			components: {
 				SkipLink: './src/components/SkipLink.astro',
 				SiteTitle: './src/components/SiteTitle.astro',
+				PageTitle: './src/components/PageTitle.astro',
 			},
 			// src/pages/404.astro sends an entity's address without its slug, or with a wrong one, to the right page.
 			disable404Route: true,

@@ -8,6 +8,9 @@ import { kindLabel } from './labels.mjs';
 /** The export format this site reads (the database's `format_version`). */
 export const FORMAT_VERSION = 1;
 
+/** The language of the games' own text (OME's localization spec §4). */
+export const SOURCE_LANGUAGE = 'ja';
+
 /**
  * A game's export as the pages use it: its build facts, its kinds with their fields and entities, and its pictures.
  * Fails on what the site cannot show: a missing export, another format version, a picture file the export lacks.
@@ -25,6 +28,10 @@ export function readExport({ game, revision, dir, thumbnails = {} }) {
 			throw new Error(`${file} holds ${info.game} revision ${info.revision}, not ${game} ${revision}`);
 		const manifestFile = path.join(dir, 'manifest.json');
 		const manifest = fs.existsSync(manifestFile) ? JSON.parse(fs.readFileSync(manifestFile, 'utf8')) : {};
+		// The languages the export translates the text into, and the packages each comes from (OME's export spec §6.4),
+		// which the pages credit (site design §8.6).
+		const languages = (info.languages ?? SOURCE_LANGUAGE).split(',').filter((tag) => tag !== SOURCE_LANGUAGE);
+		const packages = info.language_packages ? JSON.parse(info.language_packages) : [];
 
 		const all = (sql, ...args) => db.prepare(sql).all(...args).map((row) => ({ ...row }));
 		const pictures = new Map(); // file name -> picture
@@ -57,7 +64,7 @@ export function readExport({ game, revision, dir, thumbnails = {} }) {
 		for (const kind of kinds) {
 			const published = kind.fields.filter((field) => field.published);
 			const grouped = (sql) => groupBy(all(sql, kind.id), (row) => row.id);
-			const texts = grouped('SELECT id, field, idx, value FROM text WHERE kind = ? AND lang = \'ja\' ORDER BY id, field, idx');
+			const texts = grouped('SELECT id, field, idx, lang, value FROM text WHERE kind = ? ORDER BY id, field, idx, lang');
 			const refs = grouped('SELECT from_id AS id, field, idx, to_kind, to_id FROM ref WHERE from_kind = ? ORDER BY from_id, field, idx');
 			const pics = grouped('SELECT id, name, file, explicit, width, height, hash FROM picture WHERE kind = ? ORDER BY id, name');
 			const cells = grouped('SELECT id, field, idx, bank, address, raw, writer FROM cell WHERE kind = ? ORDER BY id, field, idx');
@@ -78,8 +85,14 @@ export function readExport({ game, revision, dir, thumbnails = {} }) {
 
 			for (const row of all(`SELECT * FROM "${kind.id}" ORDER BY id`)) {
 				const id = row.id;
+				// The game's own text by field, and its translations by language and field; a text a language lacks has no
+				// row there, and shows in the game's own language.
 				const text = {};
-				for (const t of texts.get(id) ?? []) (text[t.field] ??= [])[t.idx] = t.value;
+				const translations = Object.fromEntries(languages.map((tag) => [tag, {}]));
+				for (const t of texts.get(id) ?? []) {
+					const into = t.lang === SOURCE_LANGUAGE ? text : translations[t.lang];
+					if (into) (into[t.field] ??= [])[t.idx] = t.value;
+				}
 				const values = {};
 				for (const field of published) {
 					const raw = row[field.name];
@@ -95,13 +108,24 @@ export function readExport({ game, revision, dir, thumbnails = {} }) {
 					return { name: p.name, ...pictures.get(name) };
 				});
 				const title = text[kind.titleField]?.[0]?.trim() || `${kind.label.one} ${id}`;
+				// The name in each language that has one; none when the title is not the game's text.
+				const names = {};
+				if (text[kind.titleField]?.[0]?.trim()) {
+					names[SOURCE_LANGUAGE] = title;
+					for (const tag of languages) {
+						const name = translations[tag][kind.titleField]?.[0]?.trim();
+						if (name) names[tag] = name;
+					}
+				}
 				const entity = {
 					kind: kind.id,
 					id,
 					title,
+					names,
 					slug: slugify(title, kind.id),
 					values,
 					text,
+					translations,
 					pictures: entityPictures,
 					thumbnail: thumbnailOf(entityPictures, thumbnails[kind.id]),
 					refs: (refs.get(id) ?? []).map((r) => ({ field: r.field, idx: r.idx, kind: r.to_kind, id: r.to_id })),
@@ -131,12 +155,13 @@ export function readExport({ game, revision, dir, thumbnails = {} }) {
 				const target = entity.refs.find((ref) => ref.field === field.name)?.target;
 				if (!target) continue;
 				entity.title = target.title;
+				entity.names = target.names;
 				entity.slug = slugify(target.title, kind.id);
 				entity.url = `/${game}/${kind.id}/${entity.id}/${entity.slug}/`;
 				entity.thumbnail ??= target.thumbnail;
 			}
 		}
-		return { game, revision, info, manifest, kinds, byKey, pictures };
+		return { game, revision, info, manifest, languages, packages, kinds, byKey, pictures };
 	} finally {
 		db.close();
 	}

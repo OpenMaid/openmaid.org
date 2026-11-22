@@ -22,3 +22,10 @@ declare module 'virtual:ome' {
 	};
 	export default ome;
 }
+
+declare namespace App {
+	interface Locals {
+		// An entity page's name in each language it has one, by tag (src/components/PageTitle.astro).
+		omeNames?: Record<string, string>;
+	}
+}

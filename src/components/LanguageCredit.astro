@@ -1,0 +1,20 @@
+---
+// The credit of a page that shows translated game text (site design §8.6): each language's packages, as the export
+// records them (OME's export spec §6.4), with their authors where the package names them.
+import { languageName } from '../lib/labels.mjs';
+
+interface Props {
+	data: { packages: { language: string; id: string; name: string; version: string; authors: string[] }[] };
+}
+
+const { data } = Astro.props;
+---
+
+{
+	data.packages.map((p) => (
+		<p class="ome-credit" data-pagefind-ignore>
+			{languageName(p.language)} game text from the language package “{p.name}”, version {p.version}
+			{p.authors.length > 0 ? `, translated by ${p.authors.join(', ')}` : ''}. The translation is its translators’ work.
+		</p>
+	))
+}

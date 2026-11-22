@@ -89,15 +89,31 @@ export function loadedTables(kind, entity) {
 		.filter((table) => table.rows.length > 0);
 }
 
-/** The entity's text by field, apart from its title: each a list of lines (site design §8.2). */
+/**
+ * The entity's text by field, apart from its title: each a list of lines (site design §8.2), with its lines in each
+ * language that translates it (§8.6).
+ */
 export function texts(kind, entity) {
+	const lines = (values) => values.filter((v) => v !== undefined).join('\n').split('\n');
 	return kind.fields
 		.filter((field) => field.text && field.name !== kind.titleField && entity.text[field.name])
 		.map((field) => ({
 			field,
 			label: label(field.name),
-			lines: entity.text[field.name].filter((v) => v !== undefined).join('\n').split('\n'),
+			lines: lines(entity.text[field.name]),
+			translations: Object.fromEntries(
+				Object.entries(entity.translations)
+					.filter(([, text]) => text[field.name])
+					.map(([tag, text]) => [tag, lines(text[field.name])]),
+			),
 		}));
+}
+
+/** Whether a page shows any of the entities' translated text: a name or a text in another language. */
+export function translated(entities) {
+	return entities.some(
+		(entity) => Object.keys(entity.names).length > 1 || Object.values(entity.translations).some((t) => Object.keys(t).length),
+	);
 }
 
 /** Who refers to the entity, grouped by the referring kind and field: "Units: drop item". */
