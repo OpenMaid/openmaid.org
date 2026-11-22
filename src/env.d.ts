@@ -6,6 +6,7 @@ declare module 'virtual:ome' {
 		version: string;
 		commit: string;
 		repository: string;
+		references: Record<string, string>;
 		games: {
 			id: string;
 			title: string;

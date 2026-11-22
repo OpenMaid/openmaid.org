@@ -4,8 +4,14 @@
 // its `name`, `refKind`, `format` and `names` (a Map from a value to its names by language, '' being OME's word).
 import { SOURCE_LANGUAGE } from './language.mjs';
 
-/** Whether a value is none: 0, and for a reference a negative value too (the games write -1 for none as well). */
-export const isNone = (field, v) => v === 0 || (Boolean(field.refKind) && v < 0);
+/** Whether a field's value is the one its registry says means none (OME's `none`: a quest's deadline of 0). */
+const meansNone = (field, v) => field.format?.none != null && v === field.format.none;
+
+/**
+ * Whether a value is none: 0, the value the registry says means none, and for a reference a negative value too (the
+ * games write -1 for none as well).
+ */
+export const isNone = (field, v) => v === 0 || meansNone(field, v) || (Boolean(field.refKind) && v < 0);
 
 /**
  * A value's name (OME's export plan §5): the game's own, in each language the export has it in, which `Name` draws
@@ -33,11 +39,13 @@ export function shownNumber(field, v) {
 
 /**
  * Whether a list's cell of a value is empty (src/lib/columns.mjs, of a column `type`): no value, a reference to none,
- * and a 0 that says nothing: a mask's, a change's, and a named field's where the game does not name 0.
+ * the value the registry says means none (a quest with no deadline; site plan §13, C3), and a 0 that says nothing: a
+ * mask's, a change's, and a named field's where the game does not name 0.
  */
 export function emptyValue(field, type, v) {
 	if (v === null || v === undefined) return true;
 	if (field.refKind) return isNone(field, v);
+	if (meansNone(field, v)) return true;
 	return v === 0 && (type === 'mask' || isChange(field) || (type === 'name' && !field.names?.has(0)));
 }
 

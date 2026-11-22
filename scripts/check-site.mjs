@@ -11,7 +11,8 @@
 // - every entry of the reference bundle the build read has its page, in the search index: each opcode, and each game's
 //   named globals, record tables, patch points, events and scripts (site plan §6.1);
 // - every link of a page to a file in OME's repository names the bundle's commit, so a guide rendered for another
-//   commit (Astro's content store keeps a render while the file is the same) shows up.
+//   commit (Astro's content store keeps a render while the file is the same) shows up; where the bundle was built from
+//   a checkout, the file is in it (a path a registry's note cites may be stale).
 //
 // It exits 1 on any failure, listing each.
 import fs from 'node:fs';
@@ -136,6 +137,9 @@ for (const [, page] of pages)
 		if (!ref) continue;
 		repositoryLinks++;
 		if (ref[1] !== model.commit) failures.push(`${page.file}: ${link} is at ${ref[1]}, not the bundle's commit ${model.commit}`);
+		const file = decodeURIComponent(link.slice(files.length + ref[0].length).replace(/#.*$/, ''));
+		if (located.checkout && !fs.existsSync(path.join(located.checkout, file)))
+			failures.push(`${page.file}: ${link} names ${file}, which the checkout lacks`);
 	}
 
 console.log(

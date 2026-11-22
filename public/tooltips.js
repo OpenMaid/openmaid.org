@@ -2,7 +2,8 @@
 // /<game>/<kind>/<id>/... on this site shows the entity's name, picture and a line of its text, from the kind's
 // tooltip file, loaded once on the first hover over that kind. Where the file translates them (§8.6), the name and the
 // line are in the language <html>'s data-ome-lang chooses, the first translation unless it is the game's own, and the
-// name in the other language follows. Escape closes the tooltip.
+// name in the other language follows. Escape closes the tooltip. Its border and its background, a shade lighter than a
+// dark page's, set it apart from the page in either theme (site plan §13, C8).
 //
 // It depends on nothing else, so another site can load it with a <script src> from this one and get the same tooltips
 // on its links here. There it shows names and pictures only: the embedding site decides its own notice (§8.10).
@@ -34,7 +35,8 @@
 			box.setAttribute('role', 'tooltip');
 			Object.assign(box.style, {
 				position: 'absolute', zIndex: 2000, maxWidth: '22rem', padding: '0.6rem 0.75rem', borderRadius: '0.4rem',
-				background: '#17181c', color: '#f1f2f6', font: '14px/1.4 system-ui, sans-serif',
+				background: '#24262c', color: '#f1f2f6', font: '14px/1.4 system-ui, sans-serif',
+				border: '1px solid rgb(255 255 255 / 0.16)',
 				boxShadow: '0 4px 16px rgb(0 0 0 / 0.35)', pointerEvents: 'none', display: 'flex', gap: '0.6rem',
 			});
 			document.body.append(box);

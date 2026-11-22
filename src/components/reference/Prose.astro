@@ -1,6 +1,10 @@
 ---
 // Text from OME's registries as the reference pages show it: a paragraph at each blank line, its wrapped lines joined,
-// and `code` in backticks. The text holds no markup of its own, so it is escaped like any other value.
+// and `code` in backticks. The text holds no markup of its own, so it is escaped like any other value. A path of OME's
+// repository it cites ("docs/kamidori-data-tables.md") links to the file at the bundle's commit, or to the site's page
+// of a generated reference (site plan §13, P11); a guide's path stays as it is.
+import ome from 'virtual:ome';
+
 interface Props {
 	text: string | null | undefined;
 	// One run of text, for a table cell: no paragraphs.
@@ -8,11 +12,28 @@ interface Props {
 }
 
 const { text, inline = false } = Astro.props;
-const pieces = (paragraph: string) => {
+// A file of OME's repository, as the registries cite one: a folder of the repository, then the file's path.
+const PATH = /\b((?:docs|tools|vm-map|engine|mods|oms|godot|launcher)\/[A-Za-z0-9_./-]*[A-Za-z0-9_-]\.[a-z]+)\b/;
+const WHOLE_PATH = new RegExp(`^${PATH.source}$`);
+const linkOf = (path: string) =>
+	ome.references[path] ?? (path.startsWith('docs/modding/') ? null : `${ome.repository}/blob/${ome.commit}/${path}`);
+
+type Piece = { code: boolean; part: string; href?: string | null };
+const linked = (piece: Piece): Piece[] => {
+	if (piece.code) return [{ ...piece, href: WHOLE_PATH.test(piece.part) ? linkOf(piece.part) : null }];
+	return piece.part
+		.split(PATH)
+		.map((part, i) => ({ code: false, part, href: i % 2 === 1 ? linkOf(part) : null }))
+		.filter((p) => p.part !== '');
+};
+const pieces = (paragraph: string): Piece[] => {
 	const parts = paragraph.split('`');
 	// An odd count of backticks is not code: show the text as it is.
-	if (parts.length % 2 === 0) return [{ code: false, part: paragraph }];
-	return parts.map((part, i) => ({ code: i % 2 === 1, part })).filter((piece) => piece.part !== '');
+	if (parts.length % 2 === 0) return linked({ code: false, part: paragraph });
+	return parts
+		.map((part, i) => ({ code: i % 2 === 1, part }))
+		.filter((piece) => piece.part !== '')
+		.flatMap(linked);
 };
 const paragraphs = (text ?? '')
 	.trim()
@@ -23,12 +44,23 @@ const paragraphs = (text ?? '')
 ---
 
 {
-	inline
-		? paragraphs.map((parts, i) => (
-				<>
-					{i > 0 && ' '}
-					{parts.map((piece) => (piece.code ? <code>{piece.part}</code> : piece.part))}
-				</>
-			))
-		: paragraphs.map((parts) => <p>{parts.map((piece) => (piece.code ? <code>{piece.part}</code> : piece.part))}</p>)
+	paragraphs.map((parts, i) => {
+		const run = parts.map((piece) =>
+			piece.href ? (
+				<a href={piece.href}>{piece.code ? <code>{piece.part}</code> : piece.part}</a>
+			) : piece.code ? (
+				<code>{piece.part}</code>
+			) : (
+				piece.part
+			),
+		);
+		return inline ? (
+			<>
+				{i > 0 && ' '}
+				{run}
+			</>
+		) : (
+			<p>{run}</p>
+		);
+	})
 }

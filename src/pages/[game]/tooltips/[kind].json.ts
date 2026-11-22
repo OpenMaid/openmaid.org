@@ -14,7 +14,8 @@ export const GET: APIRoute = ({ params }) => {
 	const data = game(params.game!);
 	const kind = data.kinds.find((k) => k.id === params.kind)!;
 	const textField = kind.fields.find((f) => f.text && f.name !== kind.titleField)?.name;
-	// The line: the field's text in one language, its paragraphs as the page flows them (src/lib/text-flow.mjs).
+	// The line: the field's text in one language, its paragraphs as the page flows them (src/lib/text-flow.mjs); of a
+	// text in blocks, the first block's alone (a quest's overview, not its conditions; site plan §13, P2).
 	type Row = { field: { name: string }; languages: [string, string[]][] };
 	const lineOf = (rows: Row[], tag: string) =>
 		rows
@@ -26,7 +27,7 @@ export const GET: APIRoute = ({ params }) => {
 			.slice(0, 160) || null;
 	const entities = Object.fromEntries(
 		kind.entities.map((e) => {
-			const rows = (texts(kind, e) as Row[]).filter((row) => row.field.name === textField);
+			const rows = (texts(kind, e) as Row[]).filter((row) => row.field.name === textField).slice(0, 1);
 			const tooltip: Record<string, unknown> = {
 				n: e.title,
 				u: e.url,

@@ -342,7 +342,7 @@ function gameTexts(kind, entity) {
 			rows.push({
 				field,
 				key: `${field.name}:${block.name}`,
-				label: label(block.name),
+				label: kind.textBlocks.has(field.name) ? label(block.name) : field.label,
 				note: b === 0 ? (kind.notes.get(field.name) ?? null) : null,
 				languages: [[SOURCE_LANGUAGE, own], ...translations],
 				translated: translations.length > 0,
@@ -419,7 +419,8 @@ export function referencedBy(data, entity) {
 				key,
 				kind,
 				label: declared?.heading ?? `${kind.label.many}: ${label(shown).toLowerCase()}`,
-				details: declared?.details ?? [],
+				// A column reference (a skill's condition level) shows its cell beside each entry (site plan §13, C2).
+				details: [...(by.column ? [by.field] : []), ...(declared?.details ?? [])],
 				refs: [],
 			});
 		}
@@ -456,7 +457,12 @@ export function referencedBy(data, entity) {
 						const { field } = fieldNamed(kind, detail);
 						return { label: field?.label ?? label(detail) };
 					}),
-					...listed.map((column) => ({ label: column.label, group: column.group, note: column.note })),
+					...listed.map((column) => ({
+						label: column.label,
+						group: column.group,
+						note: column.note,
+						wrap: column.type === 'entities' || column.type === 'list',
+					})),
 					...(counted ? [{ label: 'Count' }] : []),
 				],
 				rows: [...rows.values()].map((row) => ({

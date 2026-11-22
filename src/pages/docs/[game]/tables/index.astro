@@ -25,7 +25,15 @@ const game = referenceGame(Astro.params.game!);
 					<td><a href={href.table(game.id, table.name)}><code>{table.name}</code></a></td>
 					<td>{table.records}</td>
 					<td>{table.fields.length}</td>
-					<td>{table.builtBy === 'boot' ? 'at boot' : <>when a {table.builtBy} loads (scope <code>{table.scopes.map((s: { name: string }) => s.name).join(', ')}</code>)</>}</td>
+					<td>
+						{table.builtBy === 'boot' ? (
+							'at boot'
+						) : table.scopes.length ? (
+							<>when a {table.builtBy} loads (scope <code>{table.scopes.map((s: { name: string }) => s.name).join(', ')}</code>)</>
+						) : (
+							<>as the game needs it (<code>{table.builtBy}</code>)</>
+						)}
+					</td>
 				</tr>
 			))}
 		</tbody>

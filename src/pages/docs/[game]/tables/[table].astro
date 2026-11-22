@@ -49,7 +49,9 @@ const headings = [
 			</>
 		) : (
 			<p>
-				The game builds it {table.builtBy === 'boot' ? 'at boot' : <>when a {table.builtBy} loads</>}. Record <var>id</var> is{' '}
+				The game builds it{' '}
+				{table.builtBy === 'boot' ? 'at boot' : <>as it needs it (its <code>built_by</code> is <code>{table.builtBy}</code>)</>}. Record{' '}
+				<var>id</var> is{' '}
 				<code>[{table.name}.<var>id</var>]</code> in a data file, <code>{table.name}[<var>id</var>]</code> in OMS and Lua,
 				and a field <code>{table.name}.<var>id</var>.<var>field</var></code>.
 			</p>

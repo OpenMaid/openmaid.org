@@ -103,7 +103,7 @@ function start(table: HTMLTableElement, form: HTMLFormElement, file: ListFile) {
 	if (columns.length) {
 		tools.innerHTML = `<label>Filter on <select data-ome-add></select></label><details class="ome-choose"><summary>Columns</summary><div class="ome-choose-panel">
 			<p><button type="button" data-cols="default">Default columns</button> <button type="button" data-cols="none">None</button></p>
-			${grouped
+			<div class="ome-choose-groups">${grouped
 				.map(
 					([group, list]) =>
 						`<fieldset><legend>${esc(group)}</legend>${list
@@ -115,7 +115,7 @@ function start(table: HTMLTableElement, form: HTMLFormElement, file: ListFile) {
 							)
 							.join('')}</fieldset>`,
 				)
-				.join('')}
+				.join('')}</div>
 		</div></details>`;
 	}
 	tools.insertAdjacentHTML('beforeend', '<button type="button" data-ome-clear hidden>Clear filters</button>');

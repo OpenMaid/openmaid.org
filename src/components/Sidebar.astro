@@ -1,12 +1,13 @@
 ---
 // Starlight's sidebar, with the site's sections above it where the header does not show them (below 72rem): in the
 // sidebar beside the page, and in the phone's menu, which is the sidebar. Without them a phone reader in the guide had
-// no way to the databases, nor back (the usability review, site plan §10).
+// no way to the databases, nor back (the usability review, site plan §10). On a database's pages they leave that
+// database out, which the sidebar under them names (site plan §13, P5).
 import Default from '@astrojs/starlight/components/Sidebar.astro';
 import { databases, guide } from '../lib/sections.mjs';
 
 const here = Astro.url.pathname;
-const games = databases();
+const games = databases().filter(({ href }) => !here.startsWith(href));
 ---
 
 <nav class="ome-sidebar-sections" aria-label="Sections">
@@ -14,13 +15,11 @@ const games = databases();
 	{
 		games.length > 0 && (
 			<>
-				<span class="ome-sidebar-heading">Game databases</span>
+				<span class="ome-sidebar-heading">{games.length < databases().length ? 'Other game databases' : 'Game databases'}</span>
 				<ul>
 					{games.map(({ label, href }) => (
 						<li>
-							<a href={href} aria-current={here.startsWith(href) ? 'page' : undefined}>
-								{label}
-							</a>
+							<a href={href}>{label}</a>
 						</li>
 					))}
 				</ul>

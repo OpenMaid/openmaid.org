@@ -41,7 +41,9 @@ async function run(root: HTMLElement) {
 	const byText = pages === null ? '' : `${found.length ? ', and' : ';'} ${number(pages.length)} by their text`;
 	status.innerHTML =
 		!found.length && !pages?.length
-			? `Nothing matches ${quoted}, by name or by text. A name matches when it holds every word searched for, ${esc(root.dataset.omeLanguages ?? '')}.`
+			? `Nothing matches ${quoted}, by name or by text. A name matches when it holds every word searched for, ${esc(
+					root.dataset.omeLanguages ?? '',
+				)}: try fewer words, or part of a word. A comma separates names to find any of them (“sword, spear”).`
 			: `${byName}${byText}.`;
 	if (!found.length && !pages?.length) return;
 
@@ -66,7 +68,7 @@ async function run(root: HTMLElement) {
 			count: pages.length,
 			html: `<h2 class="ome-tab-heading">Full text</h2>
 				<p class="ome-results-line">The entries whose pages hold every word, their text included, best first. This search takes whole words, so a Japanese name, which has no spaces, is best searched by name.</p>
-				<div class="ome-list-box"><table class="ome-list"><thead><tr><th scope="col" class="ome-num">ID</th><th scope="col">Name</th><th scope="col">Kind</th><th scope="col">Where it says so</th></tr></thead><tbody></tbody></table></div>
+				<div class="ome-list-box"><table class="ome-list"><thead><tr><th scope="col" class="ome-num">ID</th><th scope="col">Name, and where its page says so</th><th scope="col">Kind</th></tr></thead><tbody></tbody></table></div>
 				<p class="ome-results-more" hidden><button type="button" data-ome-more>Show more</button></p>`,
 		});
 	const box = root.querySelector<HTMLElement>('[data-ome-tabs]')!;
@@ -164,7 +166,10 @@ async function showKind(index: Index, kind: string, matches: Match[], panel: HTM
 	});
 }
 
-/** The full text's table: each result's entry, its kind and Pagefind's excerpt, a page at a time. */
+/**
+ * The full text's table: each result's entry with Pagefind's excerpt under its name, so it is read whole on a phone too
+ * (site plan §13, C7), and its kind, a page at a time.
+ */
 function showText(index: Index, results: PagefindResult[], panel: HTMLElement) {
 	const body = panel.querySelector('tbody')!;
 	const more = panel.querySelector<HTMLElement>('.ome-results-more')!;
@@ -180,9 +185,9 @@ function showText(index: Index, results: PagefindResult[], panel: HTMLElement) {
 				const path = new URL(data.url, location.href).pathname.match(/^\/[^/]+\/([^/]+)\/(\d+)\//);
 				const entry = path ? byPath.get(`${path[1]}/${path[2]}`) : undefined;
 				if (!entry)
-					return `<tr><td></td><td><a href="${esc(data.url)}">${esc(data.meta.title ?? data.url)}</a></td><td></td><td class="ome-wrap ome-excerpt">${data.excerpt}</td></tr>`;
+					return `<tr><td></td><td class="ome-wrap"><a href="${esc(data.url)}">${esc(data.meta.title ?? data.url)}</a><div class="ome-excerpt">${data.excerpt}</div></td><td></td></tr>`;
 				const match = { entry, score: 0, tag: shownTag(entry.names) };
-				return `<tr><td class="ome-num">${entry.id}</td><td><a href="${esc(entry.url)}" class="ome-thumbed">${entryHtml(index, match)}</a></td><td>${esc(index.kinds[entry.kind].one)}</td><td class="ome-wrap ome-excerpt">${data.excerpt}</td></tr>`;
+				return `<tr><td class="ome-num">${entry.id}</td><td class="ome-wrap"><a href="${esc(entry.url)}" class="ome-thumbed">${entryHtml(index, match)}</a><div class="ome-excerpt">${data.excerpt}</div></td><td>${esc(index.kinds[entry.kind].one)}</td></tr>`;
 			}),
 		);
 		body.insertAdjacentHTML('beforeend', rows.join(''));

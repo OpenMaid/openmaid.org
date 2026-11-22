@@ -5,6 +5,7 @@ import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { kindLabel, label } from './labels.mjs';
 import { SOURCE_LANGUAGE } from './language.mjs';
+import { isNone } from './format.mjs';
 import { qualify } from './values.mjs';
 
 /** The export format this site reads (the database's `format_version`). */
@@ -69,7 +70,9 @@ export function readExport({ game, revision, dir, thumbnails = {}, cards = {}, c
 		const reads = (kindId, key, field) => {
 			const format = formats.get(`${kindId}:${key}`);
 			field.label = fieldLabels.get(`${kindId}:${key}`)?.text ?? label(field.name);
-			field.format = format ? { scale: format.scale, offset: format.offset, unit: format.unit, bits: Boolean(format.bits) } : null;
+			field.format = format
+				? { scale: format.scale, offset: format.offset, unit: format.unit, bits: Boolean(format.bits), none: format.none ?? null }
+				: null;
 			field.names = valueNames.get(`${kindId}:${key}`) ?? null;
 			field.columnNames = columnNames.get(`${kindId}:${key}`) ?? null;
 			return field;
@@ -249,6 +252,17 @@ export function readExport({ game, revision, dir, thumbnails = {}, cards = {}, c
 					field.columnEntities = new Map(
 						Array.from({ length: field.width }, (_, c) => [c, byKey.get(`${field.columnKind}:${c}`)]).filter(([, e]) => e),
 					);
+		// Such a row refers to the entity of each column whose cell is not none, for that entity's "Related" (site plan
+		// §13, C2): a skill's condition levels list it on each condition it inflicts, its level beside it.
+		for (const kind of kinds)
+			for (const field of kind.fields)
+				if (field.published && field.columnEntities?.size)
+					for (const entity of kind.entities)
+						(entity.values[field.name] ?? []).forEach((v, c) => {
+							const target = field.columnEntities.get(c);
+							if (target && v != null && !isNone(field, v))
+								target.referencedBy.push({ from: entity, field: field.name, idx: c, part: null, column: true });
+						});
 		// The entry whose picture a kind's card shows (site.config.mjs `cards`), else none chosen.
 		for (const kind of kinds) kind.card = cards[kind.id] === undefined ? null : (byKey.get(`${kind.id}:${cards[kind.id]}`) ?? null);
 		// Entities of a kind that share a name are told apart (OME's export plan §5, `qualify`). A kind whose title is a

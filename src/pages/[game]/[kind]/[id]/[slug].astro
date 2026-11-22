@@ -17,7 +17,7 @@ import Picture from '../../../../components/Picture.astro';
 import Tabs from '../../../../components/Tabs.astro';
 import Value from '../../../../components/Value.astro';
 import WidePage from '../../../../components/WidePage.astro';
-import { databaseSidebar, game, games } from '../../../../lib/database.mjs';
+import { databaseSidebar, game, games, pictureUrl } from '../../../../lib/database.mjs';
 import { label } from '../../../../lib/labels.mjs';
 import { SOURCE_LANGUAGE } from '../../../../lib/language.mjs';
 import { infobox, loadedTables, referencedBy, texts, translated } from '../../../../lib/values.mjs';
@@ -54,8 +54,9 @@ const pictures = [...Map.groupBy(entity.pictures, (p: { file: string }) => p.fil
 	names: same.map((p: { name: string }) => label(p.name)).join(', '),
 }));
 
+// A section with nothing in it has no heading (site plan §13, B2): an entity whose fields are all none has no details.
 const headings = [
-	{ depth: 2, slug: 'details', text: 'Details' },
+	...(rows.length ? [{ depth: 2, slug: 'details', text: 'Details' }] : []),
 	...(text.length ? [{ depth: 2, slug: 'text', text: 'Text' }] : []),
 	...loaded.map((t) => ({ depth: 2, slug: t.id, text: t.label })),
 	...(incoming.length ? [{ depth: 2, slug: 'related', text: 'Related' }] : []),
@@ -85,11 +86,12 @@ const altOf = (caption: string) =>
 			{ tag: 'meta', attrs: { property: 'og:title', content: pageTitle } },
 			...(titles ? [{ tag: 'meta' as const, attrs: { name: 'ome-titles', content: JSON.stringify(titles) } }] : []),
 		],
-		tableOfContents: { minHeadingLevel: 2, maxHeadingLevel: 2 },
+		// No contents rail: its room goes to the tables, and the sections are a line of links (site plan §13, C1).
+		tableOfContents: false,
 		prev: false,
 		next: false,
 	}}
-	sidebar={databaseSidebar(data)}
+	sidebar={databaseSidebar(data, kind.id)}
 	headings={headings}
 >
 	<span data-pagefind-filter={`game:${data.title}`}></span>
@@ -98,13 +100,30 @@ const altOf = (caption: string) =>
 		<a href={`/${data.game}/${kind.id}/`}>{kind.label.one}</a> {entity.id} of {data.title}
 	</p>
 	<DatabaseSwitches languages={data.languages} />
+	{
+		headings.length > 1 && (
+			<nav class="ome-sections" aria-label="On this page" data-pagefind-ignore>
+				<span>On this page:</span>
+				{headings.map((heading) => (
+					<a href={`#${heading.slug}`}>{heading.text}</a>
+				))}
+				<a href="#modder-data" class="ome-modder-link">Modder data</a>
+			</nav>
+		)
+	}
 
 	{
 		pictures.length > 0 && (
 			<div class="ome-pictures not-content" data-pagefind-ignore>
 				{pictures.map((picture) => (
 					<figure>
-						<Picture data={data} picture={picture} alt={altOf(picture.names)} lang={shownFirst} />
+						{picture.explicit ? (
+							<Picture data={data} picture={picture} alt={altOf(picture.names)} lang={shownFirst} />
+						) : (
+							<a href={pictureUrl(data, picture)}>
+								<Picture data={data} picture={picture} alt={altOf(picture.names)} lang={shownFirst} />
+							</a>
+						)}
 						<figcaption>{picture.names}</figcaption>
 					</figure>
 				))}
@@ -112,30 +131,34 @@ const altOf = (caption: string) =>
 		)
 	}
 
-	<h2 id="details" data-pagefind-ignore>Details</h2>
-	<table class="ome-infobox" data-pagefind-ignore>
-		<tbody>
-			{
-				rows.map((row) => (
-					<tr>
-						<th scope="row"><Label text={row.label} note={row.note} /></th>
-						<td>
-							{row.table ? (
-								<DataTable variant="nested" columns={row.table.columns} rows={row.table.rows} />
-							) : (
-								row.items.map((item, i) => (
-									<>
-										{i > 0 && ', '}
-										<Value item={item} />
-									</>
-								))
-							)}
-						</td>
-					</tr>
-				))
-			}
-		</tbody>
-	</table>
+	{
+		rows.length > 0 && (
+			<>
+				<h2 id="details" data-pagefind-ignore>Details</h2>
+				<table class="ome-infobox" data-pagefind-ignore>
+					<tbody>
+						{rows.map((row) => (
+							<tr>
+								<th scope="row"><Label text={row.label} note={row.note} /></th>
+								<td>
+									{row.table ? (
+										<DataTable variant="nested" columns={row.table.columns} rows={row.table.rows} />
+									) : (
+										row.items.map((item, i) => (
+											<>
+												{i > 0 && ', '}
+												<Value item={item} />
+											</>
+										))
+									)}
+								</td>
+							</tr>
+						))}
+					</tbody>
+				</table>
+			</>
+		)
+	}
 
 	{
 		text.length > 0 && (

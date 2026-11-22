@@ -1,5 +1,13 @@
 /* The site's own styles, over Starlight's. */
 
+/* The header's search box in one place on every page (site plan §13, P1). Starlight centres it over the content
+   column, which a contents rail moves; here every page places it as a page without the rail does. */
+@media (min-width: 50rem) {
+	:root {
+		--__toc-width: 0rem;
+	}
+}
+
 .ome-games {
 	width: 100%;
 }
@@ -9,6 +17,13 @@
 }
 
 /* The database (site design §8). */
+
+/* An entity page's kind in the sidebar (lib/database.mjs databaseSidebar): where the page is, if not the page itself. */
+.sidebar-content a[aria-current='location'] {
+	font-weight: 600;
+	color: var(--sl-color-white);
+	background-color: var(--sl-color-gray-6);
+}
 
 .ome-entity-line {
 	color: var(--sl-color-gray-3);
@@ -52,21 +67,31 @@
 	margin: 0;
 	max-width: 100%;
 }
+/* No taller than this, so a unit's details start on the first screen (site plan §13, C6); each links to its full size. */
 .ome-pictures img {
 	max-width: 100%;
+	max-height: 15rem;
+	width: auto;
 	height: auto;
+}
+@media (max-width: 40rem) {
+	.ome-pictures img {
+		max-height: 10rem;
+	}
 }
 .ome-pictures figcaption {
 	font-size: var(--sl-text-xs);
 	color: var(--sl-color-gray-3);
 }
 
-/* An explicit picture's stand-in (§8.11): the build's tiny copy, shown large and blurred, with its label over it. */
+/* An explicit picture's stand-in (§8.11): the build's tiny copy, shown large and blurred, with its label over it. The
+   label is white on a dark scrim in either theme, so it reads over the lightest picture (4.7:1 over white; site plan
+   §13, B3): the theme's text colour is dark in the light theme. */
 .ome-explicit {
 	position: relative;
 	display: inline-block;
 	overflow: hidden;
-	color: var(--sl-color-white);
+	color: #fff;
 	text-decoration: none;
 	cursor: pointer;
 }
@@ -83,7 +108,8 @@
 	text-align: center;
 	font-weight: 600;
 	font-size: var(--sl-text-sm);
-	background: rgb(0 0 0 / 0.35);
+	text-shadow: 0 1px 2px rgb(0 0 0 / 0.6);
+	background: rgb(0 0 0 / 0.55);
 }
 .ome-explicit.ome-revealed span {
 	display: none;
@@ -175,11 +201,15 @@
 .ome-table.ome-wide td {
 	white-space: nowrap;
 }
+.ome-table.ome-wide td.ome-wrap {
+	min-width: 14rem;
+	white-space: normal;
+}
 /* A table that scrolls sideways shows it (public/scroll-edges.js; site plan §10.3): the edge with more past it fades,
    and a database table keeps the column that names its rows in place, with the record number before it where the
    rows are numbered, shadowed while the rest scrolls under it. */
 .sl-markdown-content table[data-ome-more-end] {
-	mask-image: linear-gradient(to left, transparent, #000 3rem);
+	mask-image: linear-gradient(to left, transparent, #000 var(--ome-fade, 3rem));
 }
 .ome-table:is(.ome-wide, .ome-nested) > * > tr > :first-child,
 .ome-table.ome-numbered > * > tr > :nth-child(2) {
@@ -229,7 +259,8 @@
 	max-width: 22rem;
 	padding: 0.5rem 0.7rem;
 	border-radius: 0.4rem;
-	background: #17181c;
+	border: 1px solid rgb(255 255 255 / 0.16);
+	background: #24262c;
 	color: #f1f2f6;
 	font: 14px/1.4 system-ui, sans-serif;
 	box-shadow: 0 4px 16px rgb(0 0 0 / 0.35);
@@ -313,8 +344,8 @@ img.ome-pixel {
 }
 @media (max-width: 40rem) {
 	.ome-tabs .ome-table.ome-wide td:first-child {
-		min-width: 7rem;
-		max-width: 9rem;
+		min-width: 9rem;
+		max-width: 12rem;
 	}
 }
 /* An entity's picture before its name in a table row (src/components/Value.astro), in a box of one size, so the names
@@ -343,6 +374,21 @@ img.ome-pixel {
 .ome-row-thumb img.ome-pixel {
 	width: 2rem;
 	height: auto;
+}
+
+/* An entity page's sections, as links under its title (site plan §13, C1): the page has no contents rail. The modder
+   panel's shows in modder mode, as the panel does. */
+.ome-sections {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.25rem 1rem;
+	font-size: var(--sl-text-sm);
+}
+.ome-sections > span {
+	color: var(--sl-color-gray-3);
+}
+:root:not([data-ome-modder]) .ome-sections .ome-modder-link {
+	display: none;
 }
 
 /* The modder panel (§8.7): in the page, shown only in modder mode. */
@@ -384,6 +430,16 @@ img.ome-pixel {
 	display: grid;
 	gap: 0.2rem;
 }
+/* One height for the row's boxes, menus and buttons, so their labels line up over them (site plan §13, P8). */
+.ome-filters :is(input:not([type='checkbox']), select, button),
+.ome-choose summary {
+	box-sizing: border-box;
+	height: 2rem;
+}
+.ome-choose summary {
+	display: inline-flex;
+	align-items: center;
+}
 /* The list's filters: the name, the quick selects, the filters added on other columns, the menus and the count, in one
    row that wraps (src/scripts/list-table.ts; site plan §9.1). */
 .ome-added,
@@ -418,7 +474,8 @@ img.ome-pixel {
 	background: var(--sl-color-gray-6);
 }
 /* The columns menu: the columns by group, a box for each, in columns of its own, as wide as the filters' row and
-   under it, so it stays on the page wherever its button wraps to. */
+   under it, so it stays on the page wherever its button wraps to. The groups' columns have no height limit, so they
+   balance and never run sideways; the panel round them scrolls down (site plan §13, B1). */
 .ome-filters {
 	position: relative;
 }
@@ -443,10 +500,12 @@ img.ome-pixel {
 	border-radius: 0.5rem;
 	background: var(--sl-color-bg);
 	box-shadow: 0 8px 24px rgb(0 0 0 / 0.25);
+}
+.ome-choose-groups {
 	columns: 13rem;
+	column-gap: 1.5rem;
 }
 .ome-choose-panel p {
-	column-span: all;
 	margin: 0 0 0.6rem;
 }
 .ome-choose-panel fieldset {
@@ -480,7 +539,7 @@ img.ome-pixel {
 	margin-top: 1rem;
 }
 .ome-list-box[data-ome-more-end] {
-	mask-image: linear-gradient(to left, transparent, #000 3rem);
+	mask-image: linear-gradient(to left, transparent, #000 var(--ome-fade, 3rem));
 }
 .ome-list-box > table.ome-list {
 	display: table;
@@ -505,10 +564,11 @@ table.ome-list td:nth-child(2) {
 	min-width: 10rem;
 	white-space: normal;
 }
+/* On a phone a name has room for a few words beside its picture (site plan §13, C7). */
 @media (max-width: 40rem) {
 	table.ome-list td:nth-child(2) {
-		min-width: 7rem;
-		max-width: 9rem;
+		min-width: 9rem;
+		max-width: 12rem;
 	}
 }
 table.ome-list td.ome-wrap {
@@ -771,9 +831,13 @@ th[aria-sort] .ome-sort-mark::after {
 .ome-results-more button:hover {
 	background-color: var(--sl-color-gray-6);
 }
-table.ome-list td.ome-excerpt {
-	min-width: 20rem;
+table.ome-list .ome-excerpt {
+	margin-top: 0.3rem;
 	color: var(--sl-color-gray-2);
+}
+table.ome-list td.ome-wrap:has(.ome-excerpt) {
+	min-width: min(28rem, 70vw);
+	max-width: none;
 }
 .ome-excerpt mark {
 	background-color: var(--sl-color-accent-low);
@@ -781,6 +845,11 @@ table.ome-list td.ome-excerpt {
 }
 
 /* The reference pages (site design §7.2). */
+
+/* A link's underline clears the text, so an identifier's underscores show (site plan §13, P11). */
+.sl-markdown-content a {
+	text-underline-offset: 0.22em;
+}
 
 /* OME's notes keep their own line breaks, so they scroll rather than wrap a second time. */
 .ome-details {

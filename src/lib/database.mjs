@@ -25,14 +25,21 @@ export function game(id) {
 export const pictureUrl = (data, picture) => `/pictures/${data.game}/${data.revision}/${picture.file}`;
 export const standInUrl = (data, picture) => `/pictures/${data.game}/${data.revision}/standin/${picture.file}`;
 
-/** The sidebar of a game's database pages: its front page and its kinds. */
-export function databaseSidebar(data) {
+/**
+ * The sidebar of a game's database pages: its front page and its kinds. An entity's page marks its kind as where it is
+ * (`aria-current="location"`; site plan §13, P5), its list being the page Starlight marks as current.
+ */
+export function databaseSidebar(data, current = null) {
 	return [
 		{
 			label: data.title,
 			items: [
 				{ label: 'Overview', link: `/${data.game}/` },
-				...data.kinds.map((kind) => ({ label: kind.label.many, link: `/${data.game}/${kind.id}/` })),
+				...data.kinds.map((kind) => ({
+					label: kind.label.many,
+					link: `/${data.game}/${kind.id}/`,
+					...(kind.id === current ? { attrs: { 'aria-current': 'location' } } : {}),
+				})),
 			],
 		},
 	];

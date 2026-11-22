@@ -28,7 +28,8 @@ const columnsOf = new WeakMap();
  * Left out: text (the title is the table's name column, and the rest is long); the field whose value is the title (a
  * recipe's item); an array whose elements have no names (a drop's chance, which an entity's page shows beside its
  * item); the fields of a group whose rows hold several elements of a field (a condition's levels); and a column that
- * is empty for every entry. `key` names a column in a page's address: the field's name, and for an element OME's word
+ * is empty for every entry, or the same in every entry (a unit's resistance to an element every unit has alike; site
+ * plan §13, P9), unless the site's config shows it. `key` names a column in a page's address: the field's name, and for an element OME's word
  * for it, else its index (`stats.max_hp`). `quick` marks the fields OME's declarations filter on, which a list filters
  * by a select of their values even where they are numbers (a quest's stars); `default` the columns a table shows
  * first: the site's config's (`columns`, by key), else the quick ones.
@@ -61,7 +62,15 @@ export function listColumns(kind) {
 					note: null,
 				});
 	}
-	const columns = all.filter((column) => kind.entities.some((entity) => cellItems(column, entity).length));
+	const configured = new Set(kind.defaultColumns ?? []);
+	const cellKey = (items) => JSON.stringify(items.map((item) => item.text ?? item.title ?? item.entity?.url ?? item.missing ?? ''));
+	const columns = all.filter((column) => {
+		const cells = kind.entities.map((entity) => cellItems(column, entity));
+		if (!cells.some((items) => items.length)) return false;
+		if (configured.has(column.key) || cells.length < 2) return true;
+		const first = cellKey(cells[0]);
+		return cells.some((items) => cellKey(items) !== first);
+	});
 	const keys = new Set(columns.map((column) => column.key));
 	if (keys.size !== columns.length) throw new Error(`${kind.id}: two list columns share a key`);
 	const chosen = kind.defaultColumns ?? columns.filter((column) => column.quick).map((column) => column.key);

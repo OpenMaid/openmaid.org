@@ -193,7 +193,8 @@ export function listTable(file: ListFile, table: HTMLTableElement, options: Opti
 			return typeof item === 'number' ? named(links[item].t, links[item].n) : null;
 		}
 		const v = valueOf(column, row);
-		if (emptyValue(column.field, column.type, v)) return column.type === 'number' && v === 0 ? 0 : null;
+		if (emptyValue(column.field, column.type, v))
+			return column.type === 'number' && v === 0 && column.field.format?.none !== 0 ? 0 : null;
 		return column.type === 'number' ? shownNumber(column.field, v) : v;
 	};
 	const sorted = (list: Row[]) => {

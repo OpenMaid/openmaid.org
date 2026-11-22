@@ -36,6 +36,8 @@ const ome = {
 	version: bundle.version,
 	commit: bundle.commit,
 	repository: config.ome.repository,
+	// The site's page for each of OME's generated references, by its path in OME (guide-links.mjs referenceTargets).
+	references: Object.fromEntries(linkSource.references),
 	games: omeGames,
 	databases,
 	bundle: located.zip,

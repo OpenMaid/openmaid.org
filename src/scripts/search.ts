@@ -135,8 +135,8 @@ function searchBox(form: HTMLFormElement) {
 		items.push(
 			`<li role="option" id="${list.id}-all" aria-selected="false" class="ome-found-all"><a href="${esc(results)}" tabindex="-1">${
 				found.length
-					? `All ${found.length.toLocaleString('en')} ${found.length === 1 ? 'entry' : 'entries'} named “${esc(text.trim())}”`
-					: `No entry is named “${esc(text.trim())}”: search the text`
+					? `All results for “${esc(text.trim())}” (${found.length.toLocaleString('en')} by name)`
+					: `No name holds “${esc(text.trim())}”: search the text`
 			}</a></li>`,
 		);
 		list.innerHTML = items.join('');

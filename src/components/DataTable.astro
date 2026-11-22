@@ -8,7 +8,7 @@
 // box keeps its first column in place while the rest scrolls, and its second too where the first holds record numbers
 // (src/styles/site.css). A name may have its entity's picture beside it (a "Related" table), which takes `data`. A
 // column of a kind's list (lib/columns.mjs) has its group's label over its own, which may be the game's name for it in
-// each language (an element).
+// each language (an element). A column that lists entries (a recipe's ingredients) wraps, as a list's does.
 import Label from './Label.astro';
 import Name from './Name.astro';
 import Value from './Value.astro';
@@ -28,6 +28,7 @@ interface Props {
 		group?: string | null;
 		note?: string | null;
 		stack?: boolean;
+		wrap?: boolean;
 	}[];
 	rows: { label?: string | number | Item | null; cells: Item[][] }[];
 	/** The heading of the row labels' column, when the rows have labels. */
@@ -76,7 +77,7 @@ const numeric = columns.map(
 				<tr>
 					{labelled && <th scope="row">{typeof row.label === 'object' && row.label ? <Value item={row.label} data={data} /> : row.label}</th>}
 					{row.cells.map((items, c) => (
-						<td class:list={{ 'ome-num': numeric[c] }}>
+						<td class:list={{ 'ome-num': numeric[c], 'ome-wrap': columns[c].wrap }}>
 							{items.map((item, i) => (
 								<>
 									{i > 0 && (columns[c].stack ? <br /> : ', ')}
