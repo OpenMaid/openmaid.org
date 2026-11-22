@@ -4,7 +4,9 @@
 // and its address, then the cells of the tables the game's loaders build for it (a stage's enemies), and gives a data
 // file that sets what the page shows. A string field the kind does not publish shows no value. The scripts that use
 // the table are listed once, on the kind's page; the calls that name this entity, each at its offset (OME's export
-// §6.7), are listed here. Each table, field and script name links to its reference page (§8.7).
+// §6.7), are listed here. Each table, field and script name links to its reference page (§8.7). A run of an array's
+// cells that one script wrote alike is one row (site plan §10), so every cell is still listed: a unit's title changes
+// write 1,000 skill flags each, most of them 0, which were 11,000 rows on one page.
 interface Field { name: string; isArray: boolean; width: number | null; columns: (string | null)[] | null }
 interface Cell { field: string; idx: number; bank: string; address: number; raw: string | null; writer: string | null }
 interface Props {
@@ -14,7 +16,7 @@ interface Props {
 		table: string;
 		label: { one: string; many: string };
 		fields: Field[];
-		loaded: { name: string; table: string; scope: string; label: { one: string; many: string }; fields: Field[] }[];
+		loaded: { name: string; table: string; scope: string | null; label: { one: string; many: string }; fields: Field[] }[];
 		scriptUse: unknown[];
 	};
 	entity: {
@@ -41,32 +43,72 @@ const key = (field: string, idx: number) => {
 const hex = (n: number) => `0x${n.toString(16)}`;
 const pictures = [...new Map(entity.pictures.map((p) => [p.file, p])).values()];
 
+// Cells in rows: a cell joins the row before it when both are elements without a column name of one field (in one
+// record), the next element at the next cell, with the same value and writer. A named column or a single value stands
+// alone.
+interface Shown { name: string; element: number | null; group: string }
+interface Row<C> { cell: C; first: string; last: string | null; lastElement: number | null; lastAddress: number; count: number; group: string }
+function rows<C extends Cell>(cells: C[], shown: (cell: C) => Shown): Row<C>[] {
+	const out: Row<C>[] = [];
+	for (const cell of cells) {
+		const s = shown(cell);
+		const prev = out.at(-1);
+		if (
+			prev &&
+			s.element !== null &&
+			prev.lastElement !== null &&
+			prev.group === s.group &&
+			s.element === prev.lastElement + 1 &&
+			cell.address === prev.lastAddress + 1 &&
+			cell.bank === prev.cell.bank &&
+			cell.raw === prev.cell.raw &&
+			cell.writer === prev.cell.writer
+		) {
+			prev.last = s.name;
+			prev.lastElement = s.element;
+			prev.lastAddress = cell.address;
+			prev.count++;
+		} else {
+			out.push({ cell, first: s.name, last: null, lastElement: s.element, lastAddress: cell.address, count: 1, group: s.group });
+		}
+	}
+	return out;
+}
 // A loaded table's cell is written <table>.<field>, its index the record times the field's width plus the element
 // (OME's export plan §4.3).
-const loadedFields = new Map(
+const byField = new Map(
 	kind.loaded.flatMap((table) => table.fields.map((field, order) => [`${table.name}.${field.name}`, { table, field, order }])),
 );
-const own = entity.cells.filter((cell) => !loadedFields.has(cell.field));
+const own = rows(entity.cells.filter((cell) => !byField.has(cell.field)), (cell) => {
+	const f = fields.get(cell.field);
+	const unnamed = f?.isArray && f.columns?.[cell.idx] == null;
+	return { name: key(cell.field, cell.idx), element: unnamed ? cell.idx : null, group: cell.field };
+});
 const loaded = kind.loaded
 	.map((table) => ({
 		table,
 		cells: entity.cells
-			.filter((cell) => loadedFields.get(cell.field)?.table === table)
+			.filter((cell) => byField.get(cell.field)?.table === table)
 			.map((cell) => {
-				const { field, order } = loadedFields.get(cell.field)!;
+				const { field, order } = byField.get(cell.field)!;
 				const width = field.isArray ? (field.width ?? 1) : 1;
 				const element = cell.idx % width;
 				return {
 					...cell,
 					order,
 					element,
+					unnamed: field.isArray && field.columns?.[element] == null,
 					record: Math.floor(cell.idx / width),
 					name: field.isArray ? `${field.name}.${field.columns?.[element] ?? element}` : field.name,
 				};
 			})
 			.sort((a, b) => a.record - b.record || a.order - b.order || a.element - b.element),
 	}))
-	.filter((t) => t.cells.length > 0);
+	.filter((t) => t.cells.length > 0)
+	.map(({ table, cells }) => ({
+		table,
+		cells: rows(cells, (cell) => ({ name: cell.name, element: cell.unnamed ? cell.element : null, group: `${cell.record}.${cell.field}` })),
+	}));
 ---
 
 <section class="ome-modder" aria-labelledby="modder-data" data-pagefind-ignore>
@@ -74,18 +116,21 @@ const loaded = kind.loaded
 	<p>
 		Record {entity.id} of the table <a href={tableLink(kind.table)}><code>{kind.table}</code></a>: <code>{kind.table}[{entity.id}]</code> in OMS and Lua,
 		<code>[{kind.table}.{entity.id}]</code> in a data file. Each cell below is one a script wrote; a cell no script
-		wrote holds its default.
+		wrote holds its default. A run of an array's cells that one script wrote alike is one row.
 	</p>
 	<table class="ome-cells">
 		<thead><tr><th>Field</th><th>Value</th><th>Written by</th><th>Cell</th></tr></thead>
 		<tbody>
 			{
-				own.map((cell) => (
+				own.map(({ cell, first, last, lastAddress, count }) => (
 					<tr>
-						<td>{globalOf(kind.table, cell.field) ? <a href={href.global(game, globalOf(kind.table, cell.field)!)}><code>{key(cell.field, cell.idx)}</code></a> : <code>{key(cell.field, cell.idx)}</code>}</td>
+						<td>
+							{globalOf(kind.table, cell.field) ? <a href={href.global(game, globalOf(kind.table, cell.field)!)}><code>{first}</code></a> : <code>{first}</code>}
+							{last && <> to <code>{last}</code> ({count} cells)</>}
+						</td>
 						<td>{cell.raw ?? <em>not published</em>}</td>
 						<td>{scriptLink(cell.writer) ? <a href={scriptLink(cell.writer)}>{cell.writer}</a> : (cell.writer ?? '—')}</td>
-						<td><code>{cell.bank}:{hex(cell.address)}</code></td>
+						<td><code>{cell.bank}:{hex(cell.address)}</code>{last && <> to <code>{hex(lastAddress)}</code></>}</td>
 					</tr>
 				))
 			}
@@ -95,20 +140,31 @@ const loaded = kind.loaded
 		loaded.map(({ table, cells }) => (
 			<>
 				<h3>Cells of its {table.label.many.toLowerCase()}</h3>
-				<p>
-					The table <a href={tableLink(table.table)}><code>{table.table}</code></a>, which the game builds when it loads this {kind.label.one.toLowerCase()}:
-					its record <var>r</var> is <code>[{table.scope}.{entity.id}.{table.name}.<var>r</var>]</code> in a data file.
-				</p>
+				{table.scope ? (
+					<p>
+						The table <a href={tableLink(table.table)}><code>{table.table}</code></a>, which the game builds when it loads this {kind.label.one.toLowerCase()}:
+						its record <var>r</var> is <code>[{table.scope}.{entity.id}.{table.name}.<var>r</var>]</code> in a data file.
+					</p>
+				) : (
+					<p>
+						The table <a href={tableLink(table.table)}><code>{table.table}</code></a>, which the game's scripts fill again for each
+						row of this {kind.label.one.toLowerCase()}'s {table.label.many.toLowerCase()}, numbered here as on the page. A data
+						file does not edit it.
+					</p>
+				)}
 				<table class="ome-cells">
 					<thead><tr><th>Record</th><th>Field</th><th>Value</th><th>Written by</th><th>Cell</th></tr></thead>
 					<tbody>
-						{cells.map((cell) => (
+						{cells.map(({ cell, first, last, lastAddress, count }) => (
 							<tr>
 								<td>{cell.record}</td>
-								<td>{globalOf(table.table, cell.field.slice(table.name.length + 1)) ? <a href={href.global(game, globalOf(table.table, cell.field.slice(table.name.length + 1))!)}><code>{cell.name}</code></a> : <code>{cell.name}</code>}</td>
+								<td>
+									{globalOf(table.table, cell.field.slice(table.name.length + 1)) ? <a href={href.global(game, globalOf(table.table, cell.field.slice(table.name.length + 1))!)}><code>{first}</code></a> : <code>{first}</code>}
+									{last && <> to <code>{last}</code> ({count} cells)</>}
+								</td>
 								<td>{cell.raw ?? <em>not published</em>}</td>
 								<td>{scriptLink(cell.writer) ? <a href={scriptLink(cell.writer)}>{cell.writer}</a> : (cell.writer ?? '—')}</td>
-								<td><code>{cell.bank}:{hex(cell.address)}</code></td>
+								<td><code>{cell.bank}:{hex(cell.address)}</code>{last && <> to <code>{hex(lastAddress)}</code></>}</td>
 							</tr>
 						))}
 					</tbody>
@@ -173,7 +229,7 @@ const loaded = kind.loaded
 					It sets each value this page shows to the value it has now, in the names the game's base mod gives them. Copy
 					it into a mod's data file and change what you need (<a href="/docs/data-files/">data files</a>).
 				</p>
-				<pre><code>{entity.snippet}</code></pre>
+				<pre class="ome-snippet"><code>{entity.snippet}</code></pre>
 			</>
 		)
 	}

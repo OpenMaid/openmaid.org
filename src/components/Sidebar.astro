@@ -1,0 +1,72 @@
+---
+// Starlight's sidebar, with the site's sections above it where the header does not show them (below 72rem): in the
+// sidebar beside the page, and in the phone's menu, which is the sidebar. Without them a phone reader in the guide had
+// no way to the databases, nor back (the usability review, site plan §10).
+import Default from '@astrojs/starlight/components/Sidebar.astro';
+import { databases, guide } from '../lib/sections.mjs';
+
+const here = Astro.url.pathname;
+const games = databases();
+---
+
+<nav class="ome-sidebar-sections" aria-label="Sections">
+	<a href={guide.href} aria-current={here.startsWith(guide.href) ? 'page' : undefined}>{guide.label}</a>
+	{
+		games.length > 0 && (
+			<>
+				<span class="ome-sidebar-heading">Game databases</span>
+				<ul>
+					{games.map(({ label, href }) => (
+						<li>
+							<a href={href} aria-current={here.startsWith(href) ? 'page' : undefined}>
+								{label}
+							</a>
+						</li>
+					))}
+				</ul>
+			</>
+		)
+	}
+</nav>
+<Default />
+
+<style>
+	.ome-sidebar-sections {
+		display: grid;
+		gap: 0.3rem;
+		margin-bottom: 1rem;
+		padding-bottom: 1rem;
+		border-bottom: 1px solid var(--sl-color-hairline-light);
+		font-size: var(--sl-text-sm);
+	}
+	.ome-sidebar-sections a {
+		color: var(--sl-color-gray-2);
+		text-decoration: none;
+	}
+	.ome-sidebar-sections a:hover,
+	.ome-sidebar-sections a[aria-current] {
+		color: var(--sl-color-white);
+	}
+	.ome-sidebar-sections a[aria-current] {
+		font-weight: 600;
+	}
+	.ome-sidebar-heading {
+		margin-top: 0.4rem;
+		color: var(--sl-color-gray-3);
+		font-size: var(--sl-text-xs);
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+	}
+	.ome-sidebar-sections ul {
+		margin: 0;
+		padding: 0;
+		list-style: none;
+		display: grid;
+		gap: 0.3rem;
+	}
+	@media (min-width: 72rem) {
+		.ome-sidebar-sections {
+			display: none;
+		}
+	}
+</style>

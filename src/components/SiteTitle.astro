@@ -2,13 +2,11 @@
 // Starlight's site title, with the site's sections beside it (site design §1.1): the guides, and a menu of the game
 // databases (the user, 2026-11-22: "instead of kamidori being a top level link, it should be 'Game Databases' or
 // something, with a dropdown").
+// Below 72rem the sidebar shows them instead (Sidebar.astro), and the phone's menu with it.
 import Default from '@astrojs/starlight/components/SiteTitle.astro';
-import ome from 'virtual:ome';
+import { databases as listDatabases, guide } from '../lib/sections.mjs';
 
-const databases = ome.databases.map(({ game }) => ({
-	label: ome.games.find((g) => g.id === game)?.title ?? game,
-	href: `/${game}/`,
-}));
+const databases = listDatabases();
 const here = Astro.url.pathname;
 const inDatabase = databases.some(({ href }) => here.startsWith(href));
 ---
@@ -16,7 +14,7 @@ const inDatabase = databases.some(({ href }) => here.startsWith(href));
 <div class="ome-site-title">
 	<Default />
 	<nav aria-label="Sections" class="ome-sections">
-		<a href="/docs/" aria-current={here.startsWith('/docs/') ? 'true' : undefined}>Modding guide</a>
+		<a href={guide.href} aria-current={here.startsWith(guide.href) ? 'true' : undefined}>{guide.label}</a>
 		{
 			databases.length > 0 && (
 				<details class="ome-menu" data-ome-menu>

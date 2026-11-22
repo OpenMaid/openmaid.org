@@ -2,10 +2,14 @@
 // The site's 404 page, in place of Starlight's (astro.config.mjs). An entity's address without its slug, or with a
 // wrong one (site design §4), is sent to the right page: the kind's tooltip file knows each entity's address.
 import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import { databases, guide } from '../lib/sections.mjs';
 ---
 
 <StarlightPage frontmatter={{ title: 'Page not found', template: 'splash', pagefind: false }}>
-	<p>There is no page at this address. <a href="/">The home page</a> and the search above lead everywhere.</p>
+	<p>
+		There is no page at this address. Try <a href="/">the home page</a>, the <a href={guide.href}>{guide.label.toLowerCase()}</a>
+		{databases().map((d) => <>, the <a href={d.href}>{d.label} database</a></>)} or the search above.
+	</p>
 </StarlightPage>
 
 <script is:inline>

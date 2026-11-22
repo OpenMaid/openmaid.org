@@ -1,9 +1,13 @@
 ---
-// Home (site design §6): what OME is, its games and their support levels, where to get it and the games.
+// Home (site design §6): what OME is, its games and their support levels, where to get it and the games' databases.
+// It has no sidebar, so it is the phone's only way to the databases: the hero and the games table link each one.
 import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
 import ome from 'virtual:ome';
+import { databases as listDatabases, guide } from '../lib/sections.mjs';
 
 const releases = `${ome.repository}/releases/latest`;
+const databases = listDatabases();
+const databaseOf = new Map(databases.map((d) => [d.game, d]));
 ---
 
 <StarlightPage
@@ -14,7 +18,8 @@ const releases = `${ome.repository}/releases/latest`;
 		hero: {
 			tagline: 'An open reimplementation of AGE, the engine of Eushully’s games, built for modding.',
 			actions: [
-				{ text: 'Read the modding guide', link: '/docs/', icon: 'right-arrow' },
+				{ text: 'Read the modding guide', link: guide.href, icon: 'right-arrow' },
+				...databases.map((d) => ({ text: `The ${d.label} database`, link: d.href, icon: 'right-arrow', variant: 'secondary' })),
 				{ text: 'Get OME', link: releases, icon: 'external', variant: 'minimal' },
 			],
 		},
@@ -39,7 +44,7 @@ const releases = `${ome.repository}/releases/latest`;
 	</p>
 	<table class="ome-games">
 		<thead>
-			<tr><th>Game</th><th>Play</th><th>Modding</th><th>Modding guide</th><th>The game</th></tr>
+			<tr><th>Game</th><th>Play</th><th>Modding</th><th>Pages</th></tr>
 		</thead>
 		<tbody>
 			{
@@ -48,8 +53,11 @@ const releases = `${ome.repository}/releases/latest`;
 						<td>{game.title}</td>
 						<td>{game.play ?? '—'}</td>
 						<td>{game.modding ?? '—'}</td>
-						<td><a href={`/docs/games/${game.id}/`}>{game.id}</a></td>
-						<td>{game.site ? <a href={game.site}>The maker’s site</a> : '—'}</td>
+						<td>
+							<a href={`/docs/games/${game.id}/`}>Modding guide</a>
+							{databaseOf.has(game.id) && <>{' · '}<a href={databaseOf.get(game.id)!.href}>Database</a></>}
+							{game.site && <>{' · '}<a href={game.site}>The maker’s site</a></>}
+						</td>
 					</tr>
 				))
 			}
@@ -62,9 +70,22 @@ const releases = `${ome.repository}/releases/latest`;
 		launcher, which keeps a profile for each game you play, with its mods.
 	</p>
 
-	<h2>The game database</h2>
-	<p>
-		A page for each item, unit and skill of a game, mined from the game by OME: Kamidori Alchemy Meister first.
-		It is not built yet.
-	</p>
+	{
+		databases.length > 0 && (
+			<>
+				<h2>The game databases</h2>
+				<p>
+					A page for each unit, item, skill, quest, recipe and the game’s other records, read by OME from the game’s own
+					data tables:{' '}
+					{databases.map((d, i) => (
+						<>
+							{i > 0 && ', '}
+							<a href={d.href}>{d.label}</a>
+						</>
+					))}
+					.
+				</p>
+			</>
+		)
+	}
 </StarlightPage>

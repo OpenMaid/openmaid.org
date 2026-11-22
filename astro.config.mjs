@@ -79,6 +79,7 @@ export default defineConfig({
 			components: {
 				SkipLink: './src/components/SkipLink.astro',
 				SiteTitle: './src/components/SiteTitle.astro',
+				Sidebar: './src/components/Sidebar.astro',
 				PageTitle: './src/components/PageTitle.astro',
 			},
 			// src/pages/404.astro sends an entity's address without its slug, or with a wrong one, to the right page.

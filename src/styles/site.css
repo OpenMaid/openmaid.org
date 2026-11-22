@@ -85,16 +85,40 @@
 	display: none;
 }
 
-/* The infobox and the text table span the column, so their labels line up from table to table. */
+/* The infobox and the text table span the column, so their labels line up from table to table. Their layout is fixed:
+   the column, not a row's content, sets the widths, so a table in a row that is wider than its cell scrolls in its
+   own box rather than widening the page. On a phone a row's label stands above its value. */
 .ome-infobox {
 	display: table;
 	width: 100%;
+	table-layout: fixed;
 }
-.ome-infobox th {
+.ome-infobox > tbody > tr > th {
 	width: 30%;
-	min-width: 10rem;
 	text-align: start;
 	vertical-align: top;
+}
+.ome-infobox > tbody > tr > td {
+	overflow-wrap: anywhere;
+}
+@media (max-width: 40rem) {
+	.ome-infobox,
+	.ome-infobox > tbody,
+	.ome-infobox > tbody > tr,
+	.ome-infobox > tbody > tr > th,
+	.ome-infobox > tbody > tr > td {
+		display: block;
+		width: auto;
+	}
+	.ome-infobox > tbody > tr > th {
+		border-bottom: none;
+		padding-bottom: 0;
+		font-size: var(--sl-text-sm);
+		color: var(--sl-color-gray-2);
+	}
+	.ome-infobox > tbody > tr > td {
+		padding-top: 0.25rem;
+	}
 }
 /* A table of values (src/components/DataTable.astro). Numbers align on the right, so they compare down a column. */
 .ome-table th,
@@ -157,7 +181,10 @@
 	white-space: pre-wrap;
 }
 /* A detail's label with a note (src/components/Label.astro): underlined, and a box under it shows the note. */
+/* Positioned, so its note's screen-reader copy (absolutely placed) stays in the label's box: placed by the page, it
+   escaped a table's scroll box and widened the page on a phone. */
 .ome-noted {
+	position: relative;
 	cursor: help;
 	text-decoration: underline dotted;
 	text-underline-offset: 0.2em;
@@ -212,6 +239,12 @@ img.ome-pixel {
 .ome-cells td {
 	font-size: var(--sl-text-xs);
 	white-space: nowrap;
+}
+/* A data file's lines are kept as they are, so a long one scrolls in the box rather than widening the page. */
+.ome-snippet {
+	overflow-x: auto;
+	max-width: 100%;
+	font-size: var(--sl-text-xs);
 }
 
 /* Lists (§8.3). */
