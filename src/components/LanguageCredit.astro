@@ -11,10 +11,17 @@ const { data } = Astro.props;
 ---
 
 {
-	data.packages.map((p) => (
-		<p class="ome-credit" data-pagefind-ignore>
-			{languageName(p.language)} game text from the language package “{p.name}”, version {p.version}
-			{p.authors.length > 0 ? `, translated by ${p.authors.join(', ')}` : ''}. The translation is its translators’ work.
-		</p>
-	))
+	data.packages.map((p) =>
+		p.authors.length > 0 ? (
+			<p class="ome-credit" data-pagefind-ignore>
+				{languageName(p.language)} game text translated by {p.authors.join(', ')}, from the language package “{p.name}”,
+				version {p.version}.
+			</p>
+		) : (
+			<p class="ome-credit" data-pagefind-ignore>
+				{languageName(p.language)} game text from the language package “{p.name}”, version {p.version}. The translation
+				is its translators’ work.
+			</p>
+		),
+	)
 }
