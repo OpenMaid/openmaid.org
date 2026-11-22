@@ -4,7 +4,7 @@
 // element's languages shows (Name.astro), when the export translates the text. The head script (astro.config.mjs)
 // restores them before the first paint as attributes on <html>, which the styles read; with none chosen, game text
 // shows in the first language the export translates it into.
-import { SOURCE_LANGUAGE } from '../lib/export.mjs';
+import { SOURCE_LANGUAGE } from '../lib/language.mjs';
 import { languageName } from '../lib/labels.mjs';
 
 interface Props {

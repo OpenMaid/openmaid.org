@@ -1,6 +1,7 @@
 ---
 // An entity page (site design §8.2): its name, pictures and kind; an infobox of its published fields; its text; the
-// tables the game's loaders build for it (a stage's enemies and its allies); what refers to it; the modder panel, which
+// tables the game's loaders build for it (a stage's enemies and its allies); what refers to it, each list under the
+// heading the export gives it ("Dropped by") and, where it names details, as a table of them; the modder panel, which
 // also lists the calls of the game's scripts that name it; and, at its foot, the game data revision it is from. Its
 // names and text are in each language the export translates them into, the switch showing one (§8.6). Search indexes
 // its name and text only, with the game and kind as filters (§8.4).
@@ -54,7 +55,7 @@ const headings = [
 	{ depth: 2, slug: 'details', text: 'Details' },
 	...(text.length ? [{ depth: 2, slug: 'text', text: 'Text' }] : []),
 	...loaded.map((t) => ({ depth: 2, slug: t.id, text: t.label })),
-	...(incoming.length ? [{ depth: 2, slug: 'referenced-by', text: 'Referenced by' }] : []),
+	...(incoming.length ? [{ depth: 2, slug: 'related', text: 'Related' }] : []),
 ];
 const version = data.manifest.game_version ? `, game version ${data.manifest.game_version}` : '';
 ---
@@ -152,17 +153,21 @@ const version = data.manifest.game_version ? `, game version ${data.manifest.gam
 	{
 		incoming.length > 0 && (
 			<div data-pagefind-ignore>
-				<h2 id="referenced-by">Referenced by</h2>
+				<h2 id="related">Related</h2>
 				{incoming.map((group) => (
 					<>
 						<h3>{group.label}</h3>
-						<ul class="ome-links">
-							{group.entities.map((e) => (
-								<li>
-									<a href={e.url}><Name entity={e} /></a>
-								</li>
-							))}
-						</ul>
+						{group.table ? (
+							<DataTable variant="wide" columns={group.table.columns} rows={group.table.rows} />
+						) : (
+							<ul class="ome-links">
+								{group.entities.map((e) => (
+									<li>
+										<a href={e.url}><Name entity={e} /></a>
+									</li>
+								))}
+							</ul>
+						)}
 					</>
 				))}
 			</div>

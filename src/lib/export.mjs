@@ -4,12 +4,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { kindLabel, label } from './labels.mjs';
+import { SOURCE_LANGUAGE } from './language.mjs';
+import { qualify } from './values.mjs';
 
 /** The export format this site reads (the database's `format_version`). */
 export const FORMAT_VERSION = 1;
-
-/** The language of the games' own text (OME's localization spec §4). */
-export const SOURCE_LANGUAGE = 'ja';
 
 /**
  * A game's export as the pages use it: its build facts, its kinds with their fields and entities, and its pictures.
@@ -53,6 +52,10 @@ export function readExport({ game, revision, dir, thumbnails = {} }) {
 			names.get(row.value)[row.lang] = row.text;
 		}
 		const parts = has('loaded_part') ? all('SELECT * FROM loaded_part ORDER BY kind, loaded, position') : [];
+		// The fields that tell apart a kind's entities with one name, and how its references read on their targets'
+		// pages (OME's export plan §5): a heading and the details beside each referring entity, by field and part.
+		const qualifiers = has('qualifier') ? all('SELECT kind, field FROM qualifier ORDER BY kind, position') : [];
+		const headings = has('referenced_as') ? all('SELECT kind, field, part, heading, details FROM referenced_as') : [];
 		const reads = (kindId, key, field) => {
 			const format = formats.get(`${kindId}:${key}`);
 			field.label = fieldLabels.get(`${kindId}:${key}`)?.text ?? label(field.name);
@@ -98,6 +101,12 @@ export function readExport({ game, revision, dir, thumbnails = {} }) {
 			scriptUse: all(
 				'SELECT script, reads, writes, addresses FROM script_use WHERE kind = ? ORDER BY reads + writes + addresses DESC, script',
 				row.id,
+			),
+			qualifiers: qualifiers.filter((q) => q.kind === row.id).map((q) => q.field),
+			referencedAs: new Map(
+				headings
+					.filter((h) => h.kind === row.id)
+					.map((h) => [`${h.field}:${h.part}`, { heading: h.heading, details: JSON.parse(h.details) }]),
 			),
 			// The tables the game's loaders build for each entity (OME's export plan §4.2): a stage's enemies.
 			loaded: all('SELECT name, table_name, scope, records FROM loaded WHERE kind = ? ORDER BY rowid', row.id).map((t) => ({
@@ -214,21 +223,26 @@ export function readExport({ game, revision, dir, thumbnails = {} }) {
 				ref.target = byKey.get(`${ref.kind}:${ref.id}`) ?? null;
 				ref.target?.referencedBy.push({ from: entity, field: ref.field, idx: ref.idx, part: partOf(entity, ref.field, ref.idx) });
 			}
-		// A kind whose title is a reference takes its target's title (OME's export plan §4.1): a recipe is named by the
-		// item it makes. It shows the target's thumbnail too when it has none of its own.
+		// Entities of a kind that share a name are told apart (OME's export plan §5, `qualify`). A kind whose title is a
+		// reference takes its target's title, told apart already (§4.1): a recipe is named by the item it makes, and is
+		// told apart from another making it after. It shows the target's thumbnail too when it has none of its own. A
+		// URL's slug is made from the name before it is told apart.
+		const titleRef = (kind) => kind.fields.find((f) => f.name === kind.titleField && f.refKind);
+		qualify(kinds.filter((kind) => !titleRef(kind)));
 		for (const kind of kinds) {
-			const field = kind.fields.find((f) => f.name === kind.titleField && f.refKind);
+			const field = titleRef(kind);
 			if (!field) continue;
 			for (const entity of kind.entities) {
 				const target = entity.refs.find((ref) => ref.field === field.name)?.target;
 				if (!target) continue;
 				entity.title = target.title;
 				entity.names = target.names;
-				entity.slug = slugify(target.title, kind.id);
+				entity.slug = slugify(target.baseTitle, kind.id);
 				entity.url = `/${game}/${kind.id}/${entity.id}/${entity.slug}/`;
 				entity.thumbnail ??= target.thumbnail;
 			}
 		}
+		qualify(kinds.filter(titleRef));
 		return { game, revision, info, manifest, languages, packages, kinds, byKey, pictures };
 	} finally {
 		db.close();

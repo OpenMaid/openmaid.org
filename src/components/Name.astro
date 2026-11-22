@@ -1,7 +1,7 @@
 ---
 // An entity's name (site design §8.6): in each language it has one, and the language switch (DatabaseSwitches.astro)
 // shows one of them; a name the export does not translate shows as the game has it.
-import { SOURCE_LANGUAGE } from '../lib/export.mjs';
+import { SOURCE_LANGUAGE } from '../lib/language.mjs';
 
 interface Props {
 	entity: { title: string; names: Record<string, string> };

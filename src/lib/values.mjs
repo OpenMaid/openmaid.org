@@ -1,7 +1,7 @@
 // How an entity's published values read on its page (site design §8.2): each field becomes a row of the infobox, as
 // plain values, links to other entities, or a list of an array's elements by name.
-import { SOURCE_LANGUAGE } from './export.mjs';
 import { label } from './labels.mjs';
+import { SOURCE_LANGUAGE } from './language.mjs';
 
 // 0 is none, and for a reference so is a negative value (the games write -1 for none too).
 const isNone = (field, v) => v === 0 || (field.refKind && v < 0);
@@ -342,20 +342,200 @@ export function translated(entities) {
 	);
 }
 
+/** A field the kind's page shows, by its name; a loaded table's is `table.field`. */
+function fieldNamed(kind, name) {
+	const dot = name.indexOf('.');
+	if (dot < 0) return { field: kind.fields.find((f) => f.name === name) ?? null, table: null };
+	const table = kind.loaded.find((t) => t.name === name.slice(0, dot)) ?? null;
+	return { field: table?.fields.find((f) => f.name === name.slice(dot + 1)) ?? null, table };
+}
+
 /**
- * Who refers to the entity, grouped by the referring kind and field: "Units: drop item". A reference from a loaded
- * table's row in a part is grouped by the part ("Stages: ally unit").
+ * A detail of a reference as items (OME's export plan §5): a field of the referring entity, one cell; the element of
+ * its group beside the reference (a drop's chance beside the drop); or a field of the loaded table's row the reference
+ * is in (an enemy's levels), the row being the reference's cell over its field's width.
+ */
+function detailItems(kind, by, detail) {
+	const { field, table } = fieldNamed(kind, detail);
+	const from = by.from;
+	if (!field) return [{ text: '—' }];
+	let at = field.isArray ? by.idx : 0;
+	let v;
+	if (table) {
+		const refField = fieldNamed(kind, by.field).field;
+		const record = Math.floor(by.idx / (refField?.width || 1));
+		at = record * (field.width || 1);
+		v = from.loaded[table.name]?.find((row) => row.record === record)?.values[field.name];
+	} else {
+		v = field.isArray ? from.values[detail]?.[at] : from.values[detail];
+	}
+	if (field.text) {
+		const text = textItem(from, detail, at);
+		return text ? [text] : [{ text: '—' }];
+	}
+	if (v === null || v === undefined || (field.refKind && isNone(field, v))) return [{ text: '—' }];
+	if (!field.refKind) return valueItems(field, v);
+	const ref = from.refs.find((r) => r.field === detail && r.idx === at);
+	return [ref?.target ? { entity: ref.target } : { missing: `${field.refKind} ${v}` }];
+}
+
+const itemKey = (item) => item.text ?? item.title ?? item.entity?.url ?? item.missing;
+
+/**
+ * What refers to the entity (OME's export plan §5): a list for each referring kind and field, under the heading the
+ * export gives it ("Dropped by"), else under the kind and field ("Units: drop item"). A reference from a loaded
+ * table's row in a part has the part's heading ("Ally on stages"), else the part's name ("Stages: ally unit"). Where
+ * the export names details, the list is a `table`: each referring entity with its details beside it (a drop's chance,
+ * a stage's labyrinth and floor), its name leaving out the qualifiers they show, and a count where one refers so more
+ * than once (an enemy in several slots alike). Else it is a list of the referring `entities`.
  */
 export function referencedBy(data, entity) {
 	const groups = new Map();
-	for (const { from, field, part } of entity.referencedBy) {
-		const shown = part ? `${part}.${field.slice(field.indexOf('.') + 1)}` : field;
-		const key = `${from.kind}.${shown}`;
+	for (const by of entity.referencedBy) {
+		const key = `${by.from.kind}:${by.field}:${by.part ?? ''}`;
 		if (!groups.has(key)) {
-			const kind = data.kinds.find((k) => k.id === from.kind);
-			groups.set(key, { key, label: `${kind.label.many}: ${label(shown).toLowerCase()}`, entities: new Map() });
+			const kind = data.kinds.find((k) => k.id === by.from.kind);
+			const declared = kind.referencedAs.get(`${by.field}:${by.part ?? ''}`);
+			const shown = by.part ? `${by.part}.${by.field.slice(by.field.indexOf('.') + 1)}` : by.field;
+			groups.set(key, {
+				key,
+				kind,
+				label: declared?.heading ?? `${kind.label.many}: ${label(shown).toLowerCase()}`,
+				details: declared?.details ?? [],
+				refs: [],
+			});
 		}
-		groups.get(key).entities.set(from.id, from);
+		groups.get(key).refs.push(by);
 	}
-	return [...groups.values()].map((g) => ({ ...g, entities: [...g.entities.values()] }));
+	return [...groups.values()].map(({ key, kind, label: heading, details, refs }) => {
+		const entities = [...new Map(refs.map((by) => [by.from.id, by.from])).values()];
+		if (!details.length) return { key, label: heading, entities, table: null };
+		const rows = new Map();
+		for (const by of refs) {
+			const cells = details.map((detail) => detailItems(kind, by, detail));
+			const id = JSON.stringify([by.from.id, cells.map((items) => items.map(itemKey))]);
+			if (rows.has(id)) rows.get(id).count++;
+			else rows.set(id, { from: by.from, cells, count: 1 });
+		}
+		const counted = [...rows.values()].some((row) => row.count > 1);
+		return {
+			key,
+			label: heading,
+			entities,
+			table: {
+				columns: [
+					{ label: kind.label.one },
+					...details.map((detail) => {
+						const { field } = fieldNamed(kind, detail);
+						return { label: field?.label ?? label(detail) };
+					}),
+					...(counted ? [{ label: 'Count' }] : []),
+				],
+				rows: [...rows.values()].map((row) => ({
+					label: null,
+					cells: [
+						[{ entity: { ...row.from, ...nameWithout(row.from, details) } }],
+						...row.cells,
+						...(counted ? [[{ text: String(row.count) }]] : []),
+					],
+				})),
+			},
+		};
+	});
+}
+
+/** The items' text in each language that names one of them, and in the game's own. */
+function itemsText(items) {
+	const tags = new Set([SOURCE_LANGUAGE, ...items.flatMap((item) => Object.keys(item.names ?? {}))]);
+	return Object.fromEntries(
+		[...tags].map((tag) => [tag, items.map((item) => item.names?.[tag] ?? item.title ?? item.text).join(', ')]),
+	);
+}
+
+/**
+ * A qualifier's text for an entity (OME's export plan §5), in each language it has one: a text's first line; the name
+ * of the entity a reference names (a stage's labyrinth); a value's name, even 0's ("Innate attack"); or a number with
+ * its label ("Floor 3"). Null where the entity has none: no text, a reference to none, or a 0 with no name.
+ */
+function qualifierText(kind, entity, name) {
+	const field = kind.fields.find((f) => f.name === name);
+	if (!field) return null;
+	if (field.text) return textItem(entity, name, 0)?.names ?? null;
+	const v = entity.values[name];
+	if (v === null || v === undefined) return null;
+	if (field.refKind) {
+		const target = entity.refs.find((ref) => ref.field === name)?.target;
+		if (!target) return null;
+		return { ...(target.baseNames ?? target.names), [SOURCE_LANGUAGE]: target.baseTitle ?? target.title };
+	}
+	if (field.format?.bits) return v ? itemsText(valueItems(field, v)) : null;
+	if (field.names?.has(v)) return itemsText(valueItems(field, v));
+	return v === 0 ? null : { [SOURCE_LANGUAGE]: `${field.label} ${formatNumber(field, v)}` };
+}
+
+/** A name with the texts that tell it apart: "名前（武器）" in the game's own language, "Name (Weapon)" in another. */
+function withParts(name, parts, tag) {
+	if (!parts.length) return name;
+	return tag === SOURCE_LANGUAGE ? `${name}（${parts.join('、')}）` : `${name} (${parts.join(', ')})`;
+}
+
+/**
+ * The entity's names told apart (`qualify`), leaving out the qualifiers `omit` names: a table that shows a stage's
+ * labyrinth and floor beside it leaves them out of its name.
+ */
+export function nameWithout(entity, omit = []) {
+	const parts = (tag) =>
+		(entity.qualifiers?.[tag] ?? []).filter((part) => !omit.includes(part.field)).map((part) => part.text);
+	return {
+		title: withParts(entity.baseTitle, parts(SOURCE_LANGUAGE), SOURCE_LANGUAGE),
+		names: Object.fromEntries(Object.entries(entity.baseNames).map(([tag, name]) => [tag, withParts(name, parts(tag), tag)])),
+	};
+}
+
+/**
+ * Tells apart the entities of each kind that share a name (OME's export plan §5). Where entities share a name in a
+ * language, it takes the kind's qualifiers whose text differs among them, in the kind's order, until each reads apart
+ * ("Hammer (Weapon)" and "Hammer (Innate attack)"), and the id where none is left that does ("Bad craftsman A (#75)").
+ * A name is told apart only in the languages it is shared in. Sets each entity's `title` and `names` so, keeping what
+ * they were as `baseTitle` and `baseNames`, and its `qualifiers`, by language, for `nameWithout`.
+ */
+export function qualify(kinds) {
+	for (const kind of kinds)
+		for (const entity of kind.entities) {
+			entity.baseTitle = entity.title;
+			entity.baseNames = entity.names;
+			entity.qualifiers = {};
+		}
+	for (const kind of kinds) {
+		const tags = new Set([SOURCE_LANGUAGE, ...kind.entities.flatMap((entity) => Object.keys(entity.baseNames))]);
+		const texts = new Map(kind.entities.map((e) => [e, kind.qualifiers.map((name) => qualifierText(kind, e, name))]));
+		for (const tag of tags) {
+			const text = (entity, q) => {
+				const part = texts.get(entity)[q];
+				return part ? (part[tag] ?? part[SOURCE_LANGUAGE] ?? '') : '';
+			};
+			const shared = new Map();
+			for (const entity of kind.entities) {
+				const name = entity.baseNames[tag] ?? entity.baseTitle;
+				if (!shared.has(name)) shared.set(name, []);
+				shared.get(name).push(entity);
+			}
+			for (const group of shared.values()) {
+				if (group.length < 2) continue;
+				const chosen = [];
+				const key = (entity) => JSON.stringify(chosen.map((q) => text(entity, q)));
+				const apart = () => new Set(group.map(key)).size === group.length;
+				for (let q = 0; q < kind.qualifiers.length && !apart(); q++)
+					if (new Set(group.map((entity) => text(entity, q))).size > 1) chosen.push(q);
+				const counts = new Map();
+				for (const entity of group) counts.set(key(entity), (counts.get(key(entity)) ?? 0) + 1);
+				for (const entity of group) {
+					const parts = chosen.filter((q) => text(entity, q)).map((q) => ({ field: kind.qualifiers[q], text: text(entity, q) }));
+					if (counts.get(key(entity)) > 1) parts.push({ field: null, text: `#${entity.id}` });
+					entity.qualifiers[tag] = parts;
+				}
+			}
+		}
+		for (const entity of kind.entities) Object.assign(entity, nameWithout(entity));
+	}
 }
