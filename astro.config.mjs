@@ -32,6 +32,7 @@ const databases = listed.map((game) => ({ game, dir: path.join(here, 'data', gam
 
 // What the pages read of OME and the exports, as the module `virtual:ome` (typed in src/env.d.ts).
 const ome = {
+	title: config.title,
 	version: bundle.version,
 	commit: bundle.commit,
 	repository: config.ome.repository,
@@ -72,7 +73,7 @@ export default defineConfig({
 	},
 	integrations: [
 		starlight({
-			title: 'Open Maid Engine',
+			title: config.title,
 			sidebar: [...guides.sidebar, referenceSidebar(omeGames)],
 			social: [{ icon: 'github', label: 'GitHub', href: config.ome.repository }],
 			head: [{ tag: 'script', content: headScript }],

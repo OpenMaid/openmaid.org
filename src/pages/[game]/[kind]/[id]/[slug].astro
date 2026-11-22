@@ -6,6 +6,7 @@
 // names and text are in each language the export translates them into, the switch showing one (§8.6). Search indexes
 // its name and text only, with the game and kind as filters (§8.4).
 import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import ome from 'virtual:ome';
 import DatabaseSwitches from '../../../../components/DatabaseSwitches.astro';
 import LanguageCredit from '../../../../components/LanguageCredit.astro';
 import DataTable from '../../../../components/DataTable.astro';
@@ -61,7 +62,14 @@ const version = data.manifest.game_version ? `, game version ${data.manifest.gam
 ---
 
 <StarlightPage
-	frontmatter={{ title: entity.title, tableOfContents: { minHeadingLevel: 2, maxHeadingLevel: 2 }, prev: false, next: false }}
+	frontmatter={{
+		title: entity.title,
+		// The tab and a search engine's result name the database the page is in.
+		head: [{ tag: 'title', content: `${entity.title} – ${data.title} database | ${ome.title}` }],
+		tableOfContents: { minHeadingLevel: 2, maxHeadingLevel: 2 },
+		prev: false,
+		next: false,
+	}}
 	sidebar={databaseSidebar(data)}
 	headings={headings}
 >

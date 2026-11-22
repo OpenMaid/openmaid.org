@@ -1,6 +1,7 @@
 ---
-// Home (site design §6): what OME is, its games and their support levels, where to get it and the games' databases.
-// It has no sidebar, so it is the phone's only way to the databases: the hero and the games table link each one.
+// Home (site design §6): what the Open Maid project is and its parts (site plan §11), its games and their support
+// levels, where to get OME and the games' databases. It has no sidebar, so it is the phone's only way to the databases:
+// the hero and the games table link each one.
 import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
 import ome from 'virtual:ome';
 import { databases as listDatabases, guide } from '../lib/sections.mjs';
@@ -12,11 +13,11 @@ const databaseOf = new Map(databases.map((d) => [d.game, d]));
 
 <StarlightPage
 	frontmatter={{
-		title: 'Open Maid Engine',
+		title: ome.title,
 		template: 'splash',
-		head: [{ tag: 'title', content: 'Open Maid Engine' }],
+		head: [{ tag: 'title', content: ome.title }],
 		hero: {
-			tagline: 'An open reimplementation of AGE, the engine of Eushully’s games, built for modding.',
+			tagline: 'An open engine, modding tools and game databases for Eushully’s games.',
 			actions: [
 				{ text: 'Read the modding guide', link: guide.href, icon: 'right-arrow' },
 				...databases.map((d) => ({ text: `The ${d.label} database`, link: d.href, icon: 'right-arrow', variant: 'secondary' })),
@@ -27,13 +28,18 @@ const databaseOf = new Map(databases.map((d) => [d.game, d]));
 >
 	<h2>What it is</h2>
 	<p>
-		Open Maid Engine (OME) runs Eushully’s games from your own copy of them. No game file is part of OME: you supply
-		an installed game, and OME reads it. It runs on Windows and Linux, and it is free software under the MIT License.
+		Open Maid is a project for Eushully’s games: an engine that runs them, tools to mod them, and databases of what
+		they hold.
 	</p>
 	<p>
-		Modding comes first. A mod is a package that patches a game’s scripts, adds scenes and assets, translates the
-		game’s text, runs Lua beside its scripts or changes its data tables. Script mods also export to the original
-		engine; translations, Lua and data files run in OME.
+		Its engine, Open Maid Engine (OME), runs the games from your own copy of them. No game file is part of OME: you
+		supply an installed game, and OME reads it. It runs on Windows and Linux, and it is free software under the MIT
+		License.
+	</p>
+	<p>
+		Modding comes first. A mod is an Open Maid Pack (OMP) that patches a game’s scripts, written in Open Maid Script
+		(OMS), adds scenes and assets, translates the game’s text, runs Lua beside its scripts or changes its data
+		tables. Script mods also export to the original engine; translations, Lua and data files run in OME.
 	</p>
 
 	<h2>The games</h2>

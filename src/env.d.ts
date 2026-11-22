@@ -1,6 +1,8 @@
 // What the build reads of OME (astro.config.mjs).
 declare module 'virtual:ome' {
 	const ome: {
+		// The project's name (site.config.mjs), which ends every page's title.
+		title: string;
 		version: string;
 		commit: string;
 		repository: string;

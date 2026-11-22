@@ -4,8 +4,10 @@
 // OME_BUNDLE (a zip, or a folder holding one); else OME_CHECKOUT, an OME checkout whose tools/reference_bundle.py the
 // build runs into bundle/checkout/ (Python from OME_PYTHON); else a zip in bundle/; else the checkout below.
 export default {
-	// The site's address: a placeholder until the deploy milestone (site design §14, decision 2).
-	site: 'https://ome.example',
+	// The project's name, which every page's title ends with, and the site's address (the user, 2026-11-22; site plan
+	// §11): the project is Open Maid, and Open Maid Engine (OME) is its engine.
+	title: 'Open Maid',
+	site: 'https://openmaid.org',
 	ome: {
 		// The OME checkout a bundle is built from when no other source is given, relative to this file.
 		checkout: '../age-reimpl',

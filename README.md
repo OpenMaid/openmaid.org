@@ -1,8 +1,9 @@
 # ome-site
 
-The website of the Open Maid Engine (OME), on one domain:
+The website of the Open Maid project, at <https://openmaid.org>: the project is Open Maid, and Open Maid Engine
+(OME) is its engine (site plan §11).
 
-- **Home:** what OME is, the games it supports, downloads.
+- **Home:** what Open Maid is and its parts, the games OME supports, downloads.
 - **The modding reference:** OME's guides, and a page for each opcode, global, record table, patch point, event
   and game script.
 - **The game database:** a page for each item, unit, skill, quest and the rest of a game's data, mined from the
@@ -11,7 +12,7 @@ The website of the Open Maid Engine (OME), on one domain:
 The design is `docs/specs/2026-11-21-site-design.md`, accepted on 2026-11-21. Its plan,
 `docs/plans/2026-11-21-site-plan.md`, keeps what each milestone built and where the build departs from the design.
 Built so far: milestone 1, the home page, the guides and search, on Astro and Starlight; milestone 2, Kamidori's
-items, units and skills; two parts of milestone 5, Kamidori's quests, recipes, conditions, stages, dig tables,
+items, units and skills; two parts of milestone 5, Kamidori's quests, recipes, conditions, stages, world areas,
 character profiles, objectives and glossary, then each stage's enemies; and milestone 3, the reference pages.
 
 ## Building
