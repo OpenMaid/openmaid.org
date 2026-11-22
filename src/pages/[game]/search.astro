@@ -16,6 +16,9 @@ export function getStaticPaths() {
 }
 
 const data = game(Astro.params.game!);
+// The languages a name may be searched in: each translation's, then the game's own ("in English or in Japanese").
+const names = new Intl.DisplayNames(['en'], { type: 'language' });
+const languages = [...data.languages, SOURCE_LANGUAGE].map((tag) => `in ${names.of(tag) ?? tag}`).join(' or ');
 ---
 
 <StarlightPage
@@ -30,7 +33,7 @@ const data = game(Astro.params.game!);
 	sidebar={databaseSidebar(data)}
 >
 	<p>
-		Find an entry of {data.title} by its name, in English or in Japanese: the box suggests entries as you type, and
+		Find an entry of {data.title} by its name, {languages}: the box suggests entries as you type, and
 		Enter shows every entry it finds, by kind, and the entries whose text has the words.
 	</p>
 	<DatabaseSearch game={data.game} title={data.title} variant="page" />
@@ -40,6 +43,7 @@ const data = game(Astro.params.game!);
 		data-ome-results
 		data-ome-index={`/${data.game}/search.json`}
 		data-lang={data.languages[0] ?? SOURCE_LANGUAGE}
+		data-ome-languages={languages}
 	>
 		<p class="ome-results-status" data-ome-status aria-live="polite"></p>
 		<noscript>

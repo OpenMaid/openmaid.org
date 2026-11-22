@@ -4,6 +4,7 @@
 // of Starlight's search (Search.astro), with Ctrl+K; on a phone the header has only its icon, a link to the results
 // page, which has a box of its own, as the game's front page has.
 import { Icon } from '@astrojs/starlight/components';
+import { game as gameData } from '../lib/database.mjs';
 
 interface Props {
 	game: string;
@@ -15,6 +16,12 @@ interface Props {
 const { game, title, variant } = Astro.props;
 const id = `ome-search-${variant}`;
 const label = `Search ${title}`;
+// The page box's hint names the game's first three kinds: "A name: an item, a unit, a skill…".
+const examples = gameData(game)
+	.kinds.slice(0, 3)
+	.map((kind) => kind.label.one.toLowerCase())
+	.map((one) => `${/^[aeiou]/.test(one) ? 'an' : 'a'} ${one}`);
+const hint = examples.length ? `A name: ${examples.join(', ')}…` : 'A name…';
 ---
 
 <div class:list={['ome-search', `ome-search-${variant}`]}>
@@ -41,7 +48,7 @@ const label = `Search ${title}`;
 			name="q"
 			autocomplete="off"
 			spellcheck="false"
-			placeholder={variant === 'header' ? label : 'A name: an item, a unit, a quest…'}
+			placeholder={variant === 'header' ? label : hint}
 			aria-label={`${label} by name`}
 			role="combobox"
 			aria-autocomplete="list"

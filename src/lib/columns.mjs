@@ -39,7 +39,7 @@ export function listColumns(kind) {
 	const grid = (group) => Boolean(group) && new Set(group.fields.map((field) => field.width)).size > 1;
 	const all = [];
 	for (const field of kind.fields) {
-		if (!field.published || field.text || field.name === kind.titleField) continue;
+		if (!field.published || field.text || kind.titleFields.includes(field.name)) continue;
 		const group = groupOf.get(field.name);
 		const note = kind.notes.get(field.name) ?? null;
 		const whole = { field, index: null, label: field.label, note, quick: field.filter && !field.isArray };

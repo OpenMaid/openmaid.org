@@ -82,6 +82,9 @@ export function readExport({ game, revision, dir, thumbnails = {}, cards = {}, c
 			id: row.id,
 			table: row.table_name,
 			titleField: row.title_field,
+			// The fields that may name an entity, in turn (OME's export plan §5): the title field, then the references
+			// it falls back on when it names no record (an Arterial recipe makes an item or a card).
+			titleFields: [row.title_field, ...JSON.parse(row.title_fallbacks ?? '[]')].filter(Boolean),
 			aliases: JSON.parse(row.aliases),
 			label: kindLabel(row.id),
 			// What its entities are, in one line (OME's declarations, `about`), which its card and its list show.
@@ -250,15 +253,17 @@ export function readExport({ game, revision, dir, thumbnails = {}, cards = {}, c
 		for (const kind of kinds) kind.card = cards[kind.id] === undefined ? null : (byKey.get(`${kind.id}:${cards[kind.id]}`) ?? null);
 		// Entities of a kind that share a name are told apart (OME's export plan §5, `qualify`). A kind whose title is a
 		// reference takes its target's title, told apart already (§4.1): a recipe is named by the item it makes, and is
-		// told apart from another making it after. It shows the target's thumbnail too when it has none of its own. A
-		// URL's slug is made from the name before it is told apart.
-		const titleRef = (kind) => kind.fields.find((f) => f.name === kind.titleField && f.refKind);
-		qualify(kinds.filter((kind) => !titleRef(kind)));
+		// told apart from another making it after. A title of several references takes the first that names a record. It
+		// shows the target's thumbnail too when it has none of its own. A URL's slug is made from the name before it is
+		// told apart.
+		const titleRefs = (kind) =>
+			kind.titleFields.map((name) => kind.fields.find((f) => f.name === name && f.refKind)).filter(Boolean);
+		qualify(kinds.filter((kind) => !titleRefs(kind).length));
 		for (const kind of kinds) {
-			const field = titleRef(kind);
-			if (!field) continue;
+			const fields = titleRefs(kind);
+			if (!fields.length) continue;
 			for (const entity of kind.entities) {
-				const target = entity.refs.find((ref) => ref.field === field.name)?.target;
+				const target = fields.map((field) => entity.refs.find((ref) => ref.field === field.name)?.target).find(Boolean);
 				if (!target) continue;
 				entity.title = target.title;
 				entity.names = target.names;
@@ -267,7 +272,7 @@ export function readExport({ game, revision, dir, thumbnails = {}, cards = {}, c
 				entity.thumbnail ??= target.thumbnail;
 			}
 		}
-		qualify(kinds.filter(titleRef));
+		qualify(kinds.filter((kind) => titleRefs(kind).length));
 		return { game, revision, info, manifest, languages, packages, kinds, byKey, pictures };
 	} finally {
 		db.close();

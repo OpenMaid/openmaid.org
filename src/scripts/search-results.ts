@@ -41,7 +41,7 @@ async function run(root: HTMLElement) {
 	const byText = pages === null ? '' : `${found.length ? ', and' : ';'} ${number(pages.length)} by their text`;
 	status.innerHTML =
 		!found.length && !pages?.length
-			? `Nothing matches ${quoted}, by name or by text. A name matches when it holds every word searched for, in English or in Japanese.`
+			? `Nothing matches ${quoted}, by name or by text. A name matches when it holds every word searched for, ${esc(root.dataset.omeLanguages ?? '')}.`
 			: `${byName}${byText}.`;
 	if (!found.length && !pages?.length) return;
 
