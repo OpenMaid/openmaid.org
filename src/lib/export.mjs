@@ -95,6 +95,20 @@ export function readExport({ game, revision, dir, thumbnails = {} }) {
 				ref.target = byKey.get(`${ref.kind}:${ref.id}`) ?? null;
 				ref.target?.referencedBy.push({ from: entity, field: ref.field, idx: ref.idx });
 			}
+		// A kind whose title is a reference takes its target's title (OME's export plan §4.1): a recipe is named by the
+		// item it makes. It shows the target's thumbnail too when it has none of its own.
+		for (const kind of kinds) {
+			const field = kind.fields.find((f) => f.name === kind.titleField && f.refKind);
+			if (!field) continue;
+			for (const entity of kind.entities) {
+				const target = entity.refs.find((ref) => ref.field === field.name)?.target;
+				if (!target) continue;
+				entity.title = target.title;
+				entity.slug = slugify(target.title, kind.id);
+				entity.url = `/${game}/${kind.id}/${entity.id}/${entity.slug}/`;
+				entity.thumbnail ??= target.thumbnail;
+			}
+		}
 		return { game, revision, info, manifest, kinds, byKey, pictures };
 	} finally {
 		db.close();

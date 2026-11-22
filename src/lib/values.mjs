@@ -15,7 +15,9 @@ export function infobox(kind, entity) {
 		if (!field.published) continue;
 		const value = entity.values[field.name];
 		const elements = field.isArray ? (value ?? []) : [value];
-		if (elements.every((v) => v === 0)) {
+		// 0 is none, and for a reference so is a negative value (the games write -1 for none too).
+		const none = (v) => v === 0 || (field.refKind && v < 0);
+		if (elements.every(none)) {
 			zero.push(label(field.name));
 			continue;
 		}
@@ -33,7 +35,7 @@ export function infobox(kind, entity) {
 		const items = elements.map((v, idx) => ({
 			...item(v, idx),
 			label: field.columns?.[idx] ? label(field.columns[idx]) : field.columns ? `#${idx}` : null,
-			zero: v === 0,
+			zero: none(v),
 		}));
 		const zeros = items.filter((i) => i.zero).length;
 		const sparse = field.refKind || zeros * 2 > items.length;
