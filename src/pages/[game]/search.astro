@@ -1,0 +1,56 @@
+---
+// A game database's search results (site plan §9.2): a box to search again, and what the address's search finds, as
+// Wowhead has it: a tab for each kind with the entries whose names match, each a table of the kind's list, and a tab of
+// the entries whose text holds the words. The page is the same for every search; its script
+// (src/scripts/search-results.ts) finds the results in the browser. Not in the search index.
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import ome from 'virtual:ome';
+import DatabaseSearch from '../../components/DatabaseSearch.astro';
+import DatabaseSwitches from '../../components/DatabaseSwitches.astro';
+import WidePage from '../../components/WidePage.astro';
+import { databaseSidebar, game, games } from '../../lib/database.mjs';
+import { SOURCE_LANGUAGE } from '../../lib/language.mjs';
+
+export function getStaticPaths() {
+	return games().map((data) => ({ params: { game: data.game } }));
+}
+
+const data = game(Astro.params.game!);
+---
+
+<StarlightPage
+	frontmatter={{
+		title: 'Search',
+		head: [{ tag: 'title', content: `Search – ${data.title} database | ${ome.title}` }],
+		pagefind: false,
+		tableOfContents: false,
+		prev: false,
+		next: false,
+	}}
+	sidebar={databaseSidebar(data)}
+>
+	<p>
+		Find an entry of {data.title} by its name, in English or in Japanese: the box suggests entries as you type, and
+		Enter shows every entry it finds, by kind, and the entries whose text has the words.
+	</p>
+	<DatabaseSearch game={data.game} title={data.title} variant="page" />
+	<DatabaseSwitches languages={data.languages} />
+	<div
+		class="ome-results"
+		data-ome-results
+		data-ome-index={`/${data.game}/search.json`}
+		data-lang={data.languages[0] ?? SOURCE_LANGUAGE}
+	>
+		<p class="ome-results-status" data-ome-status aria-live="polite"></p>
+		<noscript>
+			<p>The search runs in your browser, which needs JavaScript. Each kind's list can be read without it.</p>
+		</noscript>
+		<div class="ome-tabs" data-ome-tabs></div>
+	</div>
+	<script is:inline src="/tooltips.js" defer></script>
+	<WidePage />
+</StarlightPage>
+
+<script>
+	import '../../scripts/search-results.ts';
+</script>

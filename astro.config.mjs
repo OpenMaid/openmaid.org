@@ -86,6 +86,8 @@ export default defineConfig({
 				SiteTitle: './src/components/SiteTitle.astro',
 				Sidebar: './src/components/Sidebar.astro',
 				PageTitle: './src/components/PageTitle.astro',
+				// A game database's pages search it by name (site plan §9.2).
+				Search: './src/components/Search.astro',
 			},
 			// src/pages/404.astro sends an entity's address without its slug, or with a wrong one, to the right page.
 			disable404Route: true,

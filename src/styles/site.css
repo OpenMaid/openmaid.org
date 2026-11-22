@@ -580,6 +580,206 @@ th[aria-sort] .ome-sort-mark::after {
 	font-size: 0.7em;
 }
 
+/* A game database's search (src/components/DatabaseSearch.astro; site plan §9.2): a box drawn as Starlight's search
+   button is, in the header from 50rem up (below that the header has its icon, a link to the results page), and a
+   larger one on the results page and the game's front page; under it, the suggestions as one types. */
+.ome-search {
+	position: relative;
+	display: flex;
+	align-items: center;
+	width: 100%;
+}
+.ome-search-header {
+	max-width: 22rem;
+}
+.ome-search-link {
+	display: flex;
+	align-items: center;
+	height: 2.5rem;
+	color: var(--sl-color-gray-1);
+	font-size: var(--sl-text-xl);
+}
+.ome-search-header .ome-search-form {
+	display: none;
+}
+@media (min-width: 50rem) {
+	.ome-search-header .ome-search-link {
+		display: none;
+	}
+	.ome-search-header .ome-search-form {
+		display: flex;
+	}
+}
+.ome-search-form {
+	position: relative;
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	width: 100%;
+	height: 2.5rem;
+	padding-inline: 0.75rem 0.5rem;
+	border: 1px solid var(--sl-color-gray-5);
+	border-radius: 0.5rem;
+	background-color: var(--sl-color-black);
+	color: var(--sl-color-gray-2);
+	font-size: var(--sl-text-sm);
+}
+.ome-search-form:hover {
+	border-color: var(--sl-color-gray-2);
+}
+.ome-search-form:focus-within {
+	border-color: var(--sl-color-accent);
+}
+.ome-search-icon {
+	flex: none;
+}
+.ome-search-form input {
+	flex: 1;
+	min-width: 0;
+	padding: 0;
+	border: 0;
+	outline: none;
+	background: none;
+	color: var(--sl-color-white);
+	font: inherit;
+}
+.ome-search-form input::placeholder {
+	color: var(--sl-color-gray-3);
+}
+.ome-search-keys {
+	display: flex;
+	gap: 0.25em;
+	padding-inline: 0.375rem;
+	border-radius: 0.25rem;
+	background-color: var(--sl-color-gray-6);
+	font-family: var(--__sl-font);
+	font-size: var(--sl-text-2xs);
+}
+.ome-search-keys kbd {
+	font-family: inherit;
+}
+.ome-search-form:focus-within .ome-search-keys {
+	display: none;
+}
+.ome-search-page {
+	max-width: 40rem;
+	margin-top: 1.25rem;
+}
+.ome-search-page .ome-search-form {
+	height: 3rem;
+	padding-inline-end: 0.35rem;
+	font-size: var(--sl-text-base);
+}
+.ome-search-page button[type='submit'] {
+	padding: 0.35rem 1rem;
+	border: 1px solid var(--sl-color-gray-5);
+	border-radius: 0.35rem;
+	background-color: var(--sl-color-gray-6);
+	color: var(--sl-color-white);
+	font: inherit;
+	font-size: var(--sl-text-sm);
+	cursor: pointer;
+}
+.ome-search-page button[type='submit']:hover {
+	border-color: var(--sl-color-gray-3);
+}
+.ome-suggestions {
+	position: absolute;
+	z-index: 30;
+	top: calc(100% + 0.3rem);
+	inset-inline-start: -1px;
+	width: max(calc(100% + 2px), 24rem);
+	max-width: calc(100vw - 2rem);
+	max-height: 70vh;
+	overflow-y: auto;
+	margin: 0;
+	padding: 0.3rem;
+	list-style: none;
+	border: 1px solid var(--sl-color-gray-5);
+	border-radius: 0.5rem;
+	background-color: var(--sl-color-bg);
+	box-shadow: 0 8px 24px rgb(0 0 0 / 0.25);
+	font-size: var(--sl-text-sm);
+}
+.ome-suggestions[hidden] {
+	display: none;
+}
+.ome-suggestions a {
+	display: flex;
+	align-items: center;
+	padding: 0.3rem 0.5rem;
+	border-radius: 0.35rem;
+	color: var(--sl-color-white);
+	text-decoration: none;
+}
+.ome-suggestions a:hover,
+.ome-suggestions [aria-selected='true'] a {
+	background-color: var(--sl-color-gray-6);
+}
+.ome-suggestions [aria-selected='true'] a {
+	outline: 1px solid var(--sl-color-accent);
+	outline-offset: -1px;
+}
+.ome-found-name {
+	display: inline-flex;
+	flex-direction: column;
+	min-width: 0;
+}
+.ome-found-also {
+	color: var(--sl-color-gray-3);
+	font-size: var(--sl-text-xs);
+}
+.ome-found-kind {
+	flex: none;
+	margin-inline-start: auto;
+	padding-inline-start: 1rem;
+	color: var(--sl-color-gray-3);
+	font-size: var(--sl-text-xs);
+}
+.ome-suggestions .ome-found-all a {
+	margin-top: 0.2rem;
+	color: var(--sl-color-text-accent);
+}
+/* The results (src/scripts/search-results.ts): what was found, then the tabs. */
+.ome-results-status {
+	margin-top: 1rem;
+}
+.ome-results-status:empty {
+	display: none;
+}
+.ome-results-line {
+	margin-top: 0.75rem;
+	color: var(--sl-color-gray-2);
+	font-size: var(--sl-text-sm);
+}
+.ome-results-line button,
+.ome-results-more button {
+	margin-inline-start: 0.3rem;
+	padding: 0.1rem 0.6rem;
+	border: 1px solid var(--sl-color-gray-5);
+	border-radius: 0.3rem;
+	background: none;
+	color: inherit;
+	font: inherit;
+	cursor: pointer;
+}
+.ome-results-line button[hidden],
+.ome-results-more[hidden] {
+	display: none;
+}
+.ome-results-line button:hover,
+.ome-results-more button:hover {
+	background-color: var(--sl-color-gray-6);
+}
+table.ome-list td.ome-excerpt {
+	min-width: 20rem;
+	color: var(--sl-color-gray-2);
+}
+.ome-excerpt mark {
+	background-color: var(--sl-color-accent-low);
+	color: var(--sl-color-white);
+}
+
 /* The reference pages (site design §7.2). */
 
 /* OME's notes keep their own line breaks, so they scroll rather than wrap a second time. */

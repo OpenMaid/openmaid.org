@@ -13,7 +13,9 @@ The design is `docs/specs/2026-11-21-site-design.md`, accepted on 2026-11-21. It
 `docs/plans/2026-11-21-site-plan.md`, keeps what each milestone built and where the build departs from the design.
 Built so far: milestone 1, the home page, the guides and search, on Astro and Starlight; milestone 2, Kamidori's
 items, units and skills; two parts of milestone 5, Kamidori's quests, recipes, conditions, stages, world areas,
-character profiles, objectives and glossary, then each stage's enemies; and milestone 3, the reference pages.
+character profiles, objectives and glossary, then each stage's enemies; milestone 3, the reference pages; and the
+design pass (plan §9, §10): the usability review's fixes, "Related" in tabs, list tables with columns to choose, and
+the databases' own search.
 
 ## Building
 

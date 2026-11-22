@@ -1,0 +1,12 @@
+---
+// The header's search (overrides Starlight's): on a game database's pages, the database's own search, by name, as
+// Wowhead has it (DatabaseSearch.astro; site plan §9.2); elsewhere Starlight's, Pagefind's full text over the whole
+// site. A database's full text is a tab of its results page, from the same index.
+import Default from '@astrojs/starlight/components/Search.astro';
+import DatabaseSearch from './DatabaseSearch.astro';
+import { databases } from '../lib/sections.mjs';
+
+const database = databases().find(({ href }) => Astro.url.pathname.startsWith(href));
+---
+
+{database ? <DatabaseSearch game={database.game} title={database.label} variant="header" /> : <Default {...Astro.props} />}

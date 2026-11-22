@@ -1,8 +1,9 @@
 ---
-// A game's front page in the database (site design §4): what the data is, its kinds as cards (each with a picture of
-// one of its entries and how many it has), and where the data comes from.
+// A game's front page in the database (site design §4): what the data is, its search (site plan §9.2), its kinds as
+// cards (each with a picture of one of its entries and how many it has), and where the data comes from.
 import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
 import ome from 'virtual:ome';
+import DatabaseSearch from '../../components/DatabaseSearch.astro';
 import LanguageCredit from '../../components/LanguageCredit.astro';
 import Picture from '../../components/Picture.astro';
 import { databaseSidebar, game, games } from '../../lib/database.mjs';
@@ -36,6 +37,7 @@ const kinds = data.kinds.map((kind) => ({
 		The data of <span lang="ja">{data.info.title}</span>, read from the game by Open Maid Engine’s exporter: what the
 		game holds for each entry, with its own text and pictures. The story’s scenes are not here.
 	</p>
+	<DatabaseSearch game={data.game} title={data.title} variant="page" />
 	<ul class="ome-kinds not-content">
 		{
 			kinds.map(({ kind, thumbnail }) => (

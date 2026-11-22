@@ -6,6 +6,8 @@
 // - every entity of a game's database has its page, in the search index, and its picture: each kind's tooltip file
 //   (/<game>/tooltips/<kind>.json) lists every entity of the export (site design §10.2), and the page of each whose
 //   name or text the export translates credits the translation's packages (§8.6);
+// - a game database's search (site plan §9.2) has its page, and its index (/<game>/search.json) lists every entity the
+//   tooltip files do, each at its page's address, and only those, with its thumbnail built;
 // - every entry of the reference bundle the build read has its page, in the search index: each opcode, and each game's
 //   named globals, record tables, patch points, events and scripts (site plan §6.1);
 // - every link of a page to a file in OME's repository names the bundle's commit, so a guide rendered for another
@@ -73,11 +75,13 @@ for (const [url] of pages) {
 	const game = url.match(/^\/([^/]+)\/$/)?.[1];
 	const dir = game && path.join(dist, game, 'tooltips');
 	if (!dir || !fs.existsSync(dir)) continue;
+	const addresses = new Map(); // "item 12" -> its page's address, from the tooltip files
 	for (const name of fs.readdirSync(dir)) {
 		const tooltips = JSON.parse(fs.readFileSync(path.join(dir, name), 'utf8'));
 		for (const [id, entity] of Object.entries(tooltips.entities)) {
 			entities++;
 			const where = `${game} ${name.replace(/\.json$/, '')} ${id}`;
+			addresses.set(`${name.replace(/\.json$/, '')} ${id}`, entity.u);
 			if (!pages.has(entity.u)) failures.push(`${where}: its page ${entity.u} is not built`);
 			else if (!indexed.has(entity.u)) failures.push(`${where}: its page ${entity.u} is not in the search index`);
 			if (entity.tr && pages.get(entity.u) && !pages.get(entity.u).credited)
@@ -85,6 +89,24 @@ for (const [url] of pages) {
 			if (entity.p && !fs.existsSync(path.join(dist, decodeURI(entity.p)))) failures.push(`${where}: its picture ${entity.p} is not built`);
 		}
 	}
+	if (!pages.has(`/${game}/search/`)) failures.push(`${game}: its search page is not built`);
+	const indexFile = path.join(dist, game, 'search.json');
+	if (!fs.existsSync(indexFile)) {
+		failures.push(`${game}: its search index (search.json) is not built`);
+		continue;
+	}
+	const index = JSON.parse(fs.readFileSync(indexFile, 'utf8'));
+	const listed = new Set();
+	for (const [k, id, slug, , , picture] of index.entries) {
+		const key = `${index.kinds[k].id} ${id}`;
+		const address = `/${game}/${index.kinds[k].id}/${id}/${slug}/`;
+		listed.add(key);
+		if (!addresses.has(key)) failures.push(`${game}: the search index lists ${key}, which no tooltip file does`);
+		else if (addresses.get(key) !== address) failures.push(`${game}: the search index has ${key} at ${address}, not ${addresses.get(key)}`);
+		if (picture && !fs.existsSync(path.join(dist, decodeURI(index.pictures), picture[0])))
+			failures.push(`${game}: the search index's picture of ${key}, ${picture[0]}, is not built`);
+	}
+	for (const key of addresses.keys()) if (!listed.has(key)) failures.push(`${game}: the search index does not list ${key}`);
 }
 
 // The bundle the build read: the same source, without building it again.

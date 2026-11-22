@@ -1,0 +1,66 @@
+---
+// A game database's search box (site plan §9.2; src/scripts/search.ts): a combobox that suggests entries by name as
+// one types, and sends its words to the results page on Enter. The header shows it on the database's pages, in place
+// of Starlight's search (Search.astro), with Ctrl+K; on a phone the header has only its icon, a link to the results
+// page, which has a box of its own, as the game's front page has.
+import { Icon } from '@astrojs/starlight/components';
+
+interface Props {
+	game: string;
+	/** The game's title, for the box's label. */
+	title: string;
+	variant: 'header' | 'page';
+}
+
+const { game, title, variant } = Astro.props;
+const id = `ome-search-${variant}`;
+const label = `Search ${title}`;
+---
+
+<div class:list={['ome-search', `ome-search-${variant}`]}>
+	{
+		variant === 'header' && (
+			<a class="ome-search-link" href={`/${game}/search/`} aria-label={label}>
+				<Icon name="magnifier" />
+			</a>
+		)
+	}
+	<form
+		class="ome-search-form not-content"
+		role="search"
+		aria-label={label}
+		action={`/${game}/search/`}
+		method="get"
+		data-ome-search={`/${game}/search.json`}
+		data-ome-shortcut={variant === 'header' ? '' : undefined}
+	>
+		<Icon name="magnifier" class="ome-search-icon" />
+		<input
+			id={`${id}-input`}
+			type="search"
+			name="q"
+			autocomplete="off"
+			spellcheck="false"
+			placeholder={variant === 'header' ? label : 'A name: an item, a unit, a quest…'}
+			aria-label={`${label} by name`}
+			role="combobox"
+			aria-autocomplete="list"
+			aria-expanded="false"
+			aria-controls={`${id}-list`}
+		/>
+		{
+			variant === 'header' && (
+				<kbd class="ome-search-keys" aria-hidden="true">
+					<kbd data-ome-modifier>Ctrl</kbd>
+					<kbd>K</kbd>
+				</kbd>
+			)
+		}
+		{variant === 'page' && <button type="submit">Search</button>}
+		<ul role="listbox" id={`${id}-list`} class="ome-suggestions" aria-label="Suggestions" hidden></ul>
+	</form>
+</div>
+
+<script>
+	import '../scripts/search.ts';
+</script>
