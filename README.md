@@ -11,8 +11,8 @@ The website of the Open Maid Engine (OME), on one domain:
 The design is `docs/specs/2026-11-21-site-design.md`, accepted on 2026-11-21. Its plan,
 `docs/plans/2026-11-21-site-plan.md`, keeps what each milestone built and where the build departs from the design.
 Built so far: milestone 1, the home page, the guides and search, on Astro and Starlight; milestone 2, Kamidori's
-items, units and skills; and the first part of milestone 5, Kamidori's quests, recipes, conditions, stages, dig
-tables, character profiles, objectives and glossary.
+items, units and skills; and two parts of milestone 5, Kamidori's quests, recipes, conditions, stages, dig tables,
+character profiles, objectives and glossary, then each stage's enemies.
 
 ## Building
 

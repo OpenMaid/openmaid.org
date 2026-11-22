@@ -107,6 +107,20 @@
 .ome-links {
 	columns: 16rem;
 }
+/* A loaded table (a stage's enemies): wide, so it scrolls in its own box. */
+.ome-loaded {
+	display: block;
+	overflow-x: auto;
+}
+.ome-loaded th,
+.ome-loaded td {
+	font-size: var(--sl-text-sm);
+	white-space: nowrap;
+}
+.ome-loaded thead th {
+	white-space: normal;
+	vertical-align: bottom;
+}
 
 /* The modder panel (§8.7): in the page, shown only in modder mode. */
 .ome-modder {

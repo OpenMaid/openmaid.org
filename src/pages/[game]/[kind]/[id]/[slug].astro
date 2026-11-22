@@ -1,6 +1,7 @@
 ---
 // An entity page (site design §8.2): its name, pictures, kind and game revision; an infobox of its published fields;
-// its text; what refers to it; what the game's scripts do with it; and the modder panel. Search indexes its name and
+// its text; the tables the game's loaders build for it (a stage's enemies); what refers to it; what the game's scripts
+// do with it; and the modder panel. Search indexes its name and
 // text only, with the game and kind as filters (§8.4).
 import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
 import DatabaseSwitches from '../../../../components/DatabaseSwitches.astro';
@@ -8,7 +9,7 @@ import ModderPanel from '../../../../components/ModderPanel.astro';
 import Picture from '../../../../components/Picture.astro';
 import { databaseSidebar, game, games } from '../../../../lib/database.mjs';
 import { label } from '../../../../lib/labels.mjs';
-import { infobox, referencedBy, texts } from '../../../../lib/values.mjs';
+import { infobox, loadedTables, referencedBy, texts } from '../../../../lib/values.mjs';
 
 export function getStaticPaths() {
 	return games().flatMap((data) =>
@@ -27,6 +28,7 @@ const entity = data.byKey.get(`${kind.id}:${Astro.props.id}`)!;
 const { rows, zero } = infobox(kind, entity);
 const text = texts(kind, entity);
 const incoming = referencedBy(data, entity);
+const loaded = loadedTables(kind, entity);
 
 // One picture shown once, under every name it has (a unit's battle_1 and battle_2 are often the same file).
 const pictures = [...Map.groupBy(entity.pictures, (p: { file: string }) => p.file).values()].map((same) => ({
@@ -37,6 +39,7 @@ const pictures = [...Map.groupBy(entity.pictures, (p: { file: string }) => p.fil
 const headings = [
 	{ depth: 2, slug: 'details', text: 'Details' },
 	...(text.length ? [{ depth: 2, slug: 'text', text: 'Text' }] : []),
+	...loaded.map((t) => ({ depth: 2, slug: t.id, text: t.label })),
 	...(incoming.length ? [{ depth: 2, slug: 'referenced-by', text: 'Referenced by' }] : []),
 	...(entity.relations.length ? [{ depth: 2, slug: 'found-in-scripts', text: 'Found in scripts' }] : []),
 ];
@@ -118,6 +121,52 @@ const version = data.manifest.game_version ? `, game version ${data.manifest.gam
 				))}
 			</>
 		)
+	}
+
+	{
+		loaded.map((t) => (
+			<div data-pagefind-ignore>
+				<h2 id={t.id}>{t.label}</h2>
+				<p>
+					What the game's scripts build when it loads this {kind.label.one.toLowerCase()}: {t.rows.length} of the
+					table's {t.table.records} records, by record number.
+				</p>
+				<table class="ome-loaded">
+					<thead>
+						<tr>
+							<th scope="col">#</th>
+							{t.columns.map((c) => (
+								<th scope="col">{c.label}</th>
+							))}
+						</tr>
+					</thead>
+					<tbody>
+						{t.rows.map((row) => (
+							<tr>
+								<td>{row.record}</td>
+								{row.cells.map((items) => (
+									<td>
+										{items.map((item, i) => (
+											<>
+												{i > 0 && ', '}
+												{item.entity ? (
+													<a href={item.entity.url}>{item.entity.title}</a>
+												) : item.missing ? (
+													<span class="ome-missing">{item.missing} (no such entry)</span>
+												) : (
+													item.text
+												)}
+											</>
+										))}
+									</td>
+								))}
+							</tr>
+						))}
+					</tbody>
+				</table>
+				{t.zero.length > 0 && <p class="ome-zero">At 0 or none in every row: {t.zero.join(', ')}.</p>}
+			</div>
+		))
 	}
 
 	{

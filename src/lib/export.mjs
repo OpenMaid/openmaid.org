@@ -37,6 +37,15 @@ export function readExport({ game, revision, dir, thumbnails = {} }) {
 			label: kindLabel(row.id),
 			fields: all('SELECT * FROM field WHERE kind = ? ORDER BY rowid', row.id).map(fieldOf),
 			scriptUse: all('SELECT script, reads, writes FROM script_use WHERE kind = ? ORDER BY script', row.id),
+			// The tables the game's loaders build for each entity (OME's export plan §4.2): a stage's enemies.
+			loaded: all('SELECT name, table_name, scope, records FROM loaded WHERE kind = ? ORDER BY rowid', row.id).map((t) => ({
+				name: t.name,
+				table: t.table_name,
+				scope: t.scope,
+				records: t.records,
+				label: kindLabel(t.name),
+				fields: all('SELECT * FROM loaded_field WHERE kind = ? AND loaded = ? ORDER BY rowid', row.id, t.name).map(fieldOf),
+			})),
 			entities: [],
 		}));
 
@@ -49,6 +58,18 @@ export function readExport({ game, revision, dir, thumbnails = {} }) {
 			const cells = grouped('SELECT id, field, idx, bank, address, raw, writer FROM cell WHERE kind = ? ORDER BY id, field, idx');
 			const relations = grouped('SELECT id, relation, script, offset, count FROM relation WHERE kind = ? ORDER BY id, relation, script, offset');
 			const snippets = new Map(all('SELECT id, text FROM snippet WHERE kind = ?', kind.id).map((r) => [r.id, r.text]));
+			const loadedRows = kind.loaded.map((table) => {
+				const published = table.fields.filter((field) => field.published);
+				const rows = all(`SELECT * FROM "${kind.id}.${table.name}" ORDER BY id, record`).map((row) => ({
+					id: row.id,
+					record: row.record,
+					values: Object.fromEntries(published.map((field) => {
+						const raw = row[field.name];
+						return [field.name, field.isArray && typeof raw === 'string' ? JSON.parse(raw) : raw];
+					})),
+				}));
+				return [table.name, groupBy(rows, (row) => row.id)];
+			});
 
 			for (const row of all(`SELECT * FROM "${kind.id}" ORDER BY id`)) {
 				const id = row.id;
@@ -83,6 +104,7 @@ export function readExport({ game, revision, dir, thumbnails = {} }) {
 					relations: relations.get(id) ?? [],
 					cells: cells.get(id) ?? [],
 					snippet: snippets.get(id) ?? null,
+					loaded: Object.fromEntries(loadedRows.map(([name, rows]) => [name, rows.get(id) ?? []])),
 					contentHash: row.content_hash,
 				};
 				entity.url = `/${game}/${kind.id}/${id}/${entity.slug}/`;

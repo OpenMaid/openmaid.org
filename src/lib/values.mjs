@@ -46,6 +46,49 @@ export function infobox(kind, entity) {
 	return { rows, zero };
 }
 
+/**
+ * The tables the game's loaders built for the entity (OME's export plan §4.2), each with its rows: a stage's enemies,
+ * one row a record. A reference column comes first, since it names what the row is (an enemy's unit); a column
+ * that is 0 or none in every row is left out and named in `zero`. A cell's `items` are as an
+ * infobox row's; an array shows its elements that are not 0 when most are, and an empty array cell shows nothing.
+ */
+export function loadedTables(kind, entity) {
+	return kind.loaded
+		.map((table) => {
+			const rows = entity.loaded[table.name] ?? [];
+			const published = table.fields.filter((field) => field.published);
+			const refs = new Map(
+				entity.refs.filter((r) => r.field.startsWith(`${table.name}.`)).map((r) => [`${r.field}:${r.idx}`, r]),
+			);
+			const none = (field, v) => v === 0 || (field.refKind && v < 0);
+			const elements = (field, row) => (field.isArray ? (row.values[field.name] ?? []) : [row.values[field.name]]);
+			const columns = published
+				.filter((field) => rows.some((row) => elements(field, row).some((v) => !none(field, v))))
+				.sort((a, b) => Boolean(b.refKind) - Boolean(a.refKind));
+			const cell = (field, row) => {
+				const values = elements(field, row);
+				const item = (v, idx) => {
+					if (v === null || v === undefined) return { text: '—' };
+					if (!field.refKind) return { text: String(v) };
+					const ref = refs.get(`${table.name}.${field.name}:${row.record * values.length + idx}`);
+					return ref?.target ? { entity: ref.target } : { missing: `${field.refKind} ${v}` };
+				};
+				const items = values.map((v, idx) => ({ ...item(v, idx), zero: none(field, v) }));
+				const zeros = items.filter((i) => i.zero).length;
+				return zeros === items.length ? [] : field.refKind || zeros * 2 > items.length ? items.filter((i) => !i.zero) : items;
+			};
+			return {
+				table,
+				id: table.label.many.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+				label: table.label.many,
+				columns: columns.map((field) => ({ field, label: label(field.name) })),
+				rows: rows.map((row) => ({ record: row.record, cells: columns.map((field) => cell(field, row)) })),
+				zero: published.filter((field) => !columns.includes(field)).map((field) => label(field.name)),
+			};
+		})
+		.filter((table) => table.rows.length > 0);
+}
+
 /** The entity's text by field, apart from its title: each a list of lines (site design §8.2). */
 export function texts(kind, entity) {
 	return kind.fields
