@@ -6,8 +6,11 @@
 // text of the game (a stage's objective), in each language it has; a column's label may have a note. A column whose
 // cells list items that each name themselves ("Max HP +5", a link) stacks them one to a line. A table wider than its
 // box keeps its first column in place while the rest scrolls, and its second too where the first holds record numbers
-// (src/styles/site.css). A name may have its entity's picture beside it (a "Related" table), which takes `data`.
+// (src/styles/site.css). A name may have its entity's picture beside it (a "Related" table), which takes `data`. A
+// column of a kind's list (lib/columns.mjs) has its group's label over its own, which may be the game's name for it in
+// each language (an element).
 import Label from './Label.astro';
+import Name from './Name.astro';
 import Value from './Value.astro';
 
 type Item = {
@@ -20,7 +23,12 @@ type Item = {
 };
 
 interface Props {
-	columns: { label: string | null; note?: string | null; stack?: boolean }[];
+	columns: {
+		label: string | { title: string; names: Record<string, string> } | null;
+		group?: string | null;
+		note?: string | null;
+		stack?: boolean;
+	}[];
 	rows: { label?: string | number | Item | null; cells: Item[][] }[];
 	/** The heading of the row labels' column, when the rows have labels. */
 	rowHeader?: string;
@@ -50,7 +58,12 @@ const numeric = columns.map(
 					{labelled && <th scope="col">{rowHeader}</th>}
 					{columns.map((column, c) => (
 						<th scope="col" class:list={{ 'ome-num': numeric[c] }}>
-							<Label text={column.label} note={column.note} />
+							{column.group && <span class="ome-col-group">{column.group}</span>}
+							{column.label && typeof column.label === 'object' ? (
+								<Name entity={column.label} />
+							) : (
+								<Label text={column.label} note={column.note} />
+							)}
 						</th>
 					))}
 				</tr>

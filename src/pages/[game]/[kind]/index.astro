@@ -1,21 +1,23 @@
 ---
-// A kind's list (site design §8.3): every entity in a table, with a filter on each field the export marks filterable
-// and on the name. The rows are in the page, so it reads without scripts; a script filters them in the browser and
-// keeps the filters in the URL, so a filtered list can be linked. Lists are not in the search index. In modder mode
-// (§8.7) the page also lists the scripts that use the kind's table, which each entity's modder panel links to.
+// A kind's list (site design §8.3, site plan §9.1): every entity in a table. The build draws it with the kind's
+// default columns (src/lib/columns.mjs), so it reads without scripts; a script (src/scripts/list-table.ts) then draws
+// it from the kind's list file with the columns a visitor chooses, sorts it by any column whose heading they press, and
+// filters it by the name, by the fields OME's declarations filter on (the selects the build draws) and by any column
+// they add a filter on, keeping all of it in the URL, so a list can be linked. Lists are not in the search index. In
+// modder mode (§8.7) the page also lists the scripts that use the kind's table, which each entity's modder panel links
+// to.
 import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
-import Picture from '../../../components/Picture.astro';
 import DatabaseSwitches from '../../../components/DatabaseSwitches.astro';
 import LanguageCredit from '../../../components/LanguageCredit.astro';
 import Name from '../../../components/Name.astro';
 import Value from '../../../components/Value.astro';
 import WidePage from '../../../components/WidePage.astro';
+import { cellItems, defaultColumns, listColumns } from '../../../lib/columns.mjs';
 import { databaseSidebar, game, games } from '../../../lib/database.mjs';
-import { label } from '../../../lib/labels.mjs';
 import { referenceGame } from '../../../lib/reference.mjs';
 import { href } from '../../../lib/reference-model.mjs';
 import { SOURCE_LANGUAGE } from '../../../lib/language.mjs';
-import { listFields, translated, valueItems } from '../../../lib/values.mjs';
+import { translated } from '../../../lib/values.mjs';
 
 export function getStaticPaths() {
 	return games().flatMap((data) => data.kinds.map((kind) => ({ params: { game: data.game, kind: kind.id } })));
@@ -25,26 +27,12 @@ const data = game(Astro.params.game!);
 const kind = data.kinds.find((k) => k.id === Astro.params.kind)!;
 const reference = referenceGame(data.game);
 const tableLink = (name: string) => (reference.table(name) ? href.table(data.game, name) : null);
-const filters = listFields(kind).map((field) => {
-		const counts = new Map<number, number>();
-		for (const entity of kind.entities) {
-			const value = entity.values[field.name];
-			if (value !== null && value !== undefined) counts.set(value, (counts.get(value) ?? 0) + 1);
-		}
-		return {
-			field,
-			label: field.label ?? label(field.name),
-			// Each value with its count and its name: the game's in each language (an option's text follows the language
-			// switch, by the script below), else OME's word or the number as it reads.
-			values: [...counts]
-				.sort((a, b) => a[0] - b[0])
-				.map(([value, count]) => {
-					const items = valueItems(field, value);
-					const names = items.length === 1 && items[0].names ? items[0].names : null;
-					return { value, count, text: items.map((item) => item.text ?? item.title).join(', '), names };
-				}),
-		};
-	});
+const shown = defaultColumns(kind);
+// The quick filters: a select for each field OME's declarations filter on, of the values its entries have, each with
+// its count and its name (an option's text follows the language switch, by the list's script).
+const quick = listColumns(kind).filter((column) => column.quick && column.filter === 'select');
+const pictured = kind.entities.some((entity) => entity.thumbnail);
+const labelText = (label: string | { title: string }) => (typeof label === 'string' ? label : label.title);
 ---
 
 <StarlightPage
@@ -59,58 +47,72 @@ const filters = listFields(kind).map((field) => {
 	<form class="ome-filters not-content" data-ome-filters data-lang={data.languages[0] ?? SOURCE_LANGUAGE}>
 		<label>Name <input type="search" name="q" autocomplete="off" /></label>
 		{
-			filters.map((f) => (
+			quick.map((column) => (
 				<label>
-					{f.label}
-					<select name={f.field.name}>
+					{labelText(column.label)}
+					<select data-filter={column.key}>
 						<option value="">all</option>
-						{f.values.map((v) => (
-							<option value={String(v.value)} data-names={v.names ? JSON.stringify(v.names) : undefined} data-count={v.count}>
-								{v.text} ({v.count})
+						{column.options.map((o: { v: number; c: number; t?: string; n?: Record<string, string>; x?: string }) => (
+							<option value={String(o.v)} data-names={o.n ? JSON.stringify(o.n) : undefined} data-count={o.c}>
+								{o.t ?? o.x} ({o.c})
 							</option>
 						))}
 					</select>
 				</label>
 			))
 		}
+		<span class="ome-added" data-ome-added></span>
+		<span class="ome-list-tools" data-ome-tools hidden></span>
 		<output data-ome-count>{kind.entities.length} shown</output>
 	</form>
-	<table class="ome-list">
-		<thead>
-			<tr>
-				<th></th><th>ID</th><th>Name</th>
-				{filters.map((f) => <th>{f.label}</th>)}
-			</tr>
-		</thead>
-		<tbody>
-			{
-				kind.entities.map((entity) => (
-					<tr
-						data-name={[...new Set([entity.title, ...Object.values(entity.names)])].join(' ').toLowerCase()}
-						{...Object.fromEntries(filters.map((f) => [`data-f-${f.field.name}`, String(entity.values[f.field.name])]))}
-					>
-						<td class="ome-thumb">
-							{entity.thumbnail && <Picture data={data} picture={entity.thumbnail} alt="" />}
-						</td>
-						<td>{entity.id}</td>
-						<td>
-							<a href={entity.url}><Name entity={entity} /></a>
-						</td>
-						{filters.map((f) => (
+	<div class="ome-list-box">
+		<table class="ome-list" data-ome-list={`/${data.game}/${kind.id}/list.json`}>
+			<thead>
+				<tr>
+					<th scope="col" class="ome-num">ID</th>
+					<th scope="col">Name</th>
+					{
+						shown.map((column) => (
+							<th scope="col" class:list={{ 'ome-num': column.type === 'number' }}>
+								{column.group && <span class="ome-col-group">{column.group}</span>}
+								{column.note ? (
+									<span class="ome-noted" title={column.note}>
+										{typeof column.label === 'string' ? column.label : <Name entity={column.label} />}
+									</span>
+								) : typeof column.label === 'string' ? (
+									column.label
+								) : (
+									<Name entity={column.label} />
+								)}
+							</th>
+						))
+					}
+				</tr>
+			</thead>
+			<tbody>
+				{
+					kind.entities.map((entity) => (
+						<tr>
+							<td class="ome-num">{entity.id}</td>
 							<td>
-								{valueItems(f.field, entity.values[f.field.name]).map((item, i) => (
-									<>
-										{i > 0 && ', '}
-										<Value item={item} />
-									</>
-								))}
+								<Value item={{ entity, ...(pictured ? { thumb: entity.thumbnail } : {}) }} data={data} />
 							</td>
-						))}
-					</tr>
-				))
-			}
-		</tbody>
-	</table>
+							{shown.map((column) => (
+								<td class:list={{ 'ome-num': column.type === 'number', 'ome-wrap': ['entities', 'list'].includes(column.type) }}>
+									{cellItems(column, entity).map((item, i) => (
+										<>
+											{i > 0 && ', '}
+											<Value item={item} />
+										</>
+									))}
+								</td>
+							))}
+						</tr>
+					))
+				}
+			</tbody>
+		</table>
+	</div>
 	{
 		kind.scriptUse.length > 0 && (
 			<section class="ome-modder" aria-labelledby="scripts" data-pagefind-ignore>
@@ -145,55 +147,5 @@ const filters = listFields(kind).map((field) => {
 </StarlightPage>
 
 <script>
-	const form = document.querySelector<HTMLFormElement>('form[data-ome-filters]')!;
-	const rows = [...document.querySelectorAll<HTMLTableRowElement>('table.ome-list tbody tr')];
-	const count = form.querySelector('output[data-ome-count]')!;
-	const params = new URLSearchParams(location.search);
-	for (const control of form.querySelectorAll<HTMLInputElement | HTMLSelectElement>('input, select'))
-		if (params.has(control.name)) control.value = params.get(control.name)!;
-
-	const apply = () => {
-		const wanted = [...new FormData(form)].filter(([, value]) => value !== '') as [string, string][];
-		let shown = 0;
-		for (const row of rows) {
-			const match = wanted.every(([name, value]) =>
-				name === 'q' ? row.dataset.name!.includes(value.toLowerCase()) : row.getAttribute(`data-f-${name}`) === value,
-			);
-			row.hidden = !match;
-			if (match) shown++;
-		}
-		count.textContent = `${shown} shown`;
-		const url = new URL(location.href);
-		url.search = new URLSearchParams(wanted).toString();
-		history.replaceState(null, '', url);
-	};
-	form.addEventListener('input', apply);
-	form.addEventListener('submit', (event) => event.preventDefault());
-	apply();
-
-	// A filter's option names a value the game names in the game text's language (DatabaseSwitches.astro), as the
-	// list's cells do; with none chosen, in the first language the export translates the text into.
-	const relabel = () => {
-		const language = document.documentElement.getAttribute('data-ome-lang') ?? form.dataset.lang!;
-		for (const option of form.querySelectorAll<HTMLOptionElement>('option[data-names]')) {
-			const names: Record<string, string> = JSON.parse(option.dataset.names!);
-			option.textContent = `${names[language] ?? names.ja ?? Object.values(names)[0]} (${option.dataset.count})`;
-		}
-	};
-	relabel();
-	new MutationObserver(relabel).observe(document.documentElement, { attributes: true, attributeFilter: ['data-ome-lang'] });
+	import '../../../scripts/list-table.ts';
 </script>
-
-<style is:global>
-	/* Starlight lays a table out as a block that scrolls, as wide as its content; on a wide screen the list fills the
-	   page instead. */
-	@media (min-width: 50rem) {
-		table.ome-list {
-			display: table;
-			width: 100%;
-		}
-	}
-	table.ome-list td {
-		vertical-align: middle;
-	}
-</style>

@@ -14,7 +14,7 @@ export const FORMAT_VERSION = 1;
  * A game's export as the pages use it: its build facts, its kinds with their fields and entities, and its pictures.
  * Fails on what the site cannot show: a missing export, another format version, a picture file the export lacks.
  */
-export function readExport({ game, revision, dir, thumbnails = {}, cards = {} }) {
+export function readExport({ game, revision, dir, thumbnails = {}, cards = {}, columns = {} }) {
 	const file = path.join(dir, `${revision}.sqlite`);
 	if (!fs.existsSync(file))
 		throw new Error(`no export of ${game} revision ${revision} at ${file}: copy OME's export folder there (README.md)`);
@@ -86,6 +86,8 @@ export function readExport({ game, revision, dir, thumbnails = {}, cards = {} })
 			label: kindLabel(row.id),
 			// What its entities are, in one line (OME's declarations, `about`), which its card and its list show.
 			about: row.about ?? null,
+			// The columns its tables show first (site.config.mjs `columns`; lib/columns.mjs), else none chosen.
+			defaultColumns: columns[row.id] ?? null,
 			fields: all('SELECT * FROM field WHERE kind = ? ORDER BY rowid', row.id).map((f) => reads(row.id, f.name, fieldOf(f))),
 			// The kind's groups (OME's export plan §5): published rows of cells of one width, shown as one table. A group's
 			// labels name a loaded table's text field, table.field, whose record r names row r (a stage's objectives).

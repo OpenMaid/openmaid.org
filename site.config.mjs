@@ -35,6 +35,28 @@ export default {
 			// The entry whose picture a kind's card on the game's front page shows, by id (site plan §10.3, finding 18),
 			// where the first entry with a picture says less of the kind; a kind with no picture shows its initial.
 			cards: { item: 250, condition: 9 },
+			// The columns a kind's list shows before a visitor chooses others, and a "Related" table of its entries beside
+			// each name (site plan §9.1), by the list's keys: a field's name, and an array's element by the field's name and
+			// OME's word for the element (`stats.max_hp`). A kind not named shows the fields OME's declarations filter on.
+			columns: {
+				item: ['category', 'rank', 'attack_element', 'price.buy'],
+				unit: [
+					'race',
+					'sex',
+					'starting_level',
+					'stats.max_hp',
+					'stats.physical_attack',
+					'stats.physical_defense',
+					'stats.magic_attack',
+					'stats.magic_defense',
+					'stats.agility',
+				],
+				skill: ['category', 'equip_cost', 'attack_element_encoded'],
+				quest: ['difficulty_stars', 'deadline_days', 'reward_money', 'reward_item_ids'],
+				recipe: ['unlock_craftsman_rank', 'unlock_synthesis_rank', 'ingredient_item_ids'],
+				stage: ['labyrinth_id', 'floor_number', 'recommended_level', 'boss_flag'],
+				world_area: ['area_type', 'travel_days'],
+			},
 		},
 	},
 };

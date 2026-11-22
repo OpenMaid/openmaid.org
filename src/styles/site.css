@@ -303,6 +303,20 @@ img.ome-pixel {
 .ome-tabs .ome-table td {
 	vertical-align: middle;
 }
+/* As in a list (site plan §9.1): a heading on one line, and a long name that wraps instead. */
+.ome-tabs .ome-table.ome-wide thead th {
+	white-space: nowrap;
+}
+.ome-tabs .ome-table.ome-wide td:first-child {
+	min-width: 10rem;
+	white-space: normal;
+}
+@media (max-width: 40rem) {
+	.ome-tabs .ome-table.ome-wide td:first-child {
+		min-width: 7rem;
+		max-width: 9rem;
+	}
+}
 /* An entity's picture before its name in a table row (src/components/Value.astro), in a box of one size, so the names
    line up; a small picture fills it with its pixels kept sharp. */
 /* The link is a flex box, so the space between the picture and the name is not underlined. */
@@ -370,10 +384,200 @@ img.ome-pixel {
 	display: grid;
 	gap: 0.2rem;
 }
-.ome-thumb img,
-.ome-thumb .ome-explicit {
-	width: auto;
-	height: 2.5rem;
+/* The list's filters: the name, the quick selects, the filters added on other columns, the menus and the count, in one
+   row that wraps (src/scripts/list-table.ts; site plan §9.1). */
+.ome-added,
+.ome-list-tools:not([hidden]) {
+	display: contents;
+}
+.ome-filter {
+	display: inline-flex;
+	gap: 0.3rem;
+	align-items: end;
+}
+.ome-range {
+	display: inline-flex;
+	gap: 0.3rem;
+	align-items: center;
+}
+.ome-range input {
+	width: 5.5rem;
+}
+.ome-filters button,
+.ome-choose summary {
+	padding: 0.2rem 0.6rem;
+	border: 1px solid var(--sl-color-gray-5);
+	border-radius: 0.3rem;
+	background: none;
+	color: inherit;
+	font: inherit;
+	cursor: pointer;
+}
+.ome-filters button:hover,
+.ome-choose summary:hover {
+	background: var(--sl-color-gray-6);
+}
+/* The columns menu: the columns by group, a box for each, in columns of its own, as wide as the filters' row and
+   under it, so it stays on the page wherever its button wraps to. */
+.ome-filters {
+	position: relative;
+}
+.ome-choose summary {
+	list-style: none;
+}
+.ome-choose summary::-webkit-details-marker {
+	display: none;
+}
+.ome-choose summary::after {
+	content: ' ▾';
+}
+.ome-choose-panel {
+	position: absolute;
+	z-index: 20;
+	top: calc(100% + 0.3rem);
+	inset-inline: 0;
+	max-height: 70vh;
+	overflow: auto;
+	padding: 0.75rem 1rem;
+	border: 1px solid var(--sl-color-gray-5);
+	border-radius: 0.5rem;
+	background: var(--sl-color-bg);
+	box-shadow: 0 8px 24px rgb(0 0 0 / 0.25);
+	columns: 13rem;
+}
+.ome-choose-panel p {
+	column-span: all;
+	margin: 0 0 0.6rem;
+}
+.ome-choose-panel fieldset {
+	break-inside: avoid;
+	margin: 0 0 0.75rem;
+	padding: 0;
+	border: 0;
+}
+.ome-choose-panel legend {
+	font-weight: 600;
+}
+.ome-filters .ome-choose-panel label {
+	display: flex;
+	gap: 0.4rem;
+	align-items: center;
+}
+@media (max-width: 40rem) {
+	.ome-choose {
+		flex-basis: 100%;
+	}
+	.ome-choose-panel {
+		position: static;
+		margin-top: 0.4rem;
+		box-shadow: none;
+	}
+}
+/* The list's table: as wide as the page while it fits, else it scrolls in its box, keeping the id and the name in place
+   (public/scroll-edges.js). */
+.ome-list-box {
+	overflow-x: auto;
+	margin-top: 1rem;
+}
+.ome-list-box[data-ome-more-end] {
+	mask-image: linear-gradient(to left, transparent, #000 3rem);
+}
+.ome-list-box > table.ome-list {
+	display: table;
+	width: 100%;
+	margin: 0;
+	overflow: visible;
+}
+table.ome-list th,
+table.ome-list td {
+	font-size: var(--sl-text-sm);
+}
+table.ome-list thead th {
+	vertical-align: bottom;
+	white-space: nowrap;
+}
+table.ome-list td {
+	vertical-align: middle;
+	white-space: nowrap;
+}
+/* A long name wraps, rather than take the room of the columns beside it (a phone's most of all). */
+table.ome-list td:nth-child(2) {
+	min-width: 10rem;
+	white-space: normal;
+}
+@media (max-width: 40rem) {
+	table.ome-list td:nth-child(2) {
+		min-width: 7rem;
+		max-width: 9rem;
+	}
+}
+table.ome-list td.ome-wrap {
+	min-width: 14rem;
+	white-space: normal;
+}
+table.ome-list .ome-num {
+	text-align: end;
+	font-variant-numeric: tabular-nums;
+}
+table.ome-list > * > tr > :is(:first-child, :nth-child(2)) {
+	position: sticky;
+	z-index: 1;
+	background-color: var(--sl-color-bg);
+}
+table.ome-list > * > tr > :first-child {
+	inset-inline-start: 0;
+	box-sizing: border-box;
+	width: 3.5rem;
+	min-width: 3.5rem;
+}
+table.ome-list > * > tr > :nth-child(2) {
+	inset-inline-start: 3.5rem;
+}
+.ome-list-box[data-ome-more-start] table.ome-list > * > tr > :nth-child(2) {
+	box-shadow: 8px 0 8px -8px rgb(0 0 0 / 0.45);
+}
+table.ome-list tbody tr:hover > * {
+	background-color: var(--sl-color-gray-6);
+}
+/* A column's heading: its group's label over its own (src/lib/columns.mjs), and a button that sorts by it. */
+.ome-col-group {
+	display: block;
+	color: var(--sl-color-gray-3);
+	font-size: var(--sl-text-xs);
+	font-weight: 400;
+	white-space: nowrap;
+}
+.ome-sort {
+	padding: 0;
+	border: 0;
+	background: none;
+	color: inherit;
+	font: inherit;
+	text-align: inherit;
+	cursor: pointer;
+}
+.ome-sort:hover {
+	color: var(--sl-color-text-accent);
+}
+.ome-sort:focus-visible {
+	outline: 2px solid var(--sl-color-text-accent);
+	outline-offset: 2px;
+}
+.ome-sort-mark::after {
+	display: inline-block;
+	width: 1em;
+	content: '';
+	text-align: center;
+}
+th[aria-sort='ascending'] .ome-sort-mark::after {
+	content: '▲';
+}
+th[aria-sort='descending'] .ome-sort-mark::after {
+	content: '▼';
+}
+th[aria-sort] .ome-sort-mark::after {
+	color: var(--sl-color-text-accent);
+	font-size: 0.7em;
 }
 
 /* The reference pages (site design §7.2). */

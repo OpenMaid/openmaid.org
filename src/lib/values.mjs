@@ -3,61 +3,10 @@
 import { label } from './labels.mjs';
 import { SOURCE_LANGUAGE } from './language.mjs';
 import { flow, textShape } from './text-flow.mjs';
+import { cellItems, defaultColumns } from './columns.mjs';
+import { formatNumber, isChange, isNone, valueItems, valueText } from './format.mjs';
 
-// 0 is none, and for a reference so is a negative value (the games write -1 for none too).
-const isNone = (field, v) => v === 0 || (field.refKind && v < 0);
-
-/**
- * A value's name (OME's export plan §5): the game's own, in each language the export has it in, which `Name` draws
- * (`{ title, names }`), else OME's word (`{ text }`); null when the value has neither.
- */
-function nameOf(field, v) {
-	const names = field.names?.get(v);
-	if (!names) return null;
-	const game = Object.entries(names).filter(([tag]) => tag !== '');
-	if (game.length) return { title: names[SOURCE_LANGUAGE] ?? game[0][1], names: Object.fromEntries(game) };
-	return names[''] ? { text: names[''] } : null;
-}
-
-/**
- * Whether a field's values are changes, which show their sign ("+5", "-1"): a field named for what it changes by (its
- * deltas, its modifiers, its bonus), so every page shows one alike (site plan §10.3, finding 14).
- */
-export const isChange = (field) => /(^|_)(deltas?|modifiers|bonus)$/.test(field.name.slice(field.name.indexOf('.') + 1));
-
-/** A number as the registry says it reads: times its scale, plus its offset, in its unit ("25%", "3 days", "1 turn"). */
-export function formatNumber(field, v, signed = isChange(field)) {
-	const format = field.format;
-	const shown = format ? Number((v * (format.scale ?? 1) + (format.offset ?? 0)).toFixed(6)) : v;
-	const sign = signed && shown > 0 ? '+' : '';
-	const unit = format?.unit;
-	if (!unit) return `${sign}${shown}`;
-	if (unit === '%') return `${sign}${shown}%`;
-	return `${sign}${shown} ${Math.abs(shown) === 1 && unit.endsWith('s') ? unit.slice(0, -1) : unit}`;
-}
-
-/**
- * The items a value that is not a reference shows as: its name, or for a mask the name of each value whose bit it has
- * set, or the number as it reads. A mask's bit for a value with no name is left out when it sets a named one: the
- * named values are those its global takes (a difficulty is 1 or 2, so bit 0 of the enemy difficulty mask never counts).
- */
-export function valueItems(field, v, signed = isChange(field)) {
-	if (v === null || v === undefined) return [{ text: '—' }];
-	if (field.format?.bits) {
-		const set = [];
-		for (let k = 0; k < 31; k++) if (v & (1 << k)) set.push(k);
-		const named = set.map((k) => nameOf(field, k)).filter(Boolean);
-		return named.length ? named : set.length ? set.map((k) => ({ text: String(k) })) : [{ text: '—' }];
-	}
-	return [nameOf(field, v) ?? { text: formatNumber(field, v, signed) }];
-}
-
-/** A value as plain text, in the game's language where the game names it: a list page's column, a filter's option. */
-export function valueText(field, v, signed = isChange(field)) {
-	return valueItems(field, v, signed)
-		.map((item) => item.text ?? item.title)
-		.join(', ');
-}
+export { formatNumber, isChange, valueItems, valueText };
 
 /**
  * One element of a field as a page shows it: `{ text }`, `{ title, names }` (a value the game names), `{ entity }` (a
@@ -109,16 +58,8 @@ function distinct(labels) {
 	});
 }
 
-/**
- * The fields a kind's list shows beside each name (src/pages/[game]/[kind]/index.astro), which a "Related" table of its
- * entities shows too (`referencedBy`): its filters that are one cell of a record.
- */
-export function listFields(kind) {
-	return kind.fields.filter((field) => field.filter && !field.isArray);
-}
-
 /** Whether an array field's elements have names that say more than a number, so a table can name its rows. */
-function named(field) {
+export function named(field) {
 	if (field.columnEntities?.size || field.columnNames?.size) return true;
 	return Boolean(field.columns) && !field.columns.every((name) => !name || GENERIC.test(name));
 }
@@ -128,7 +69,7 @@ function named(field) {
  * item's condition levels name conditions), else the game's name for it in each language it has (`{ title, names }`:
  * an element), else OME's word as a label, else null.
  */
-function columnLabel(field, c) {
+export function columnLabel(field, c) {
 	const entity = field.columnEntities?.get(c);
 	if (entity) return { entity };
 	const names = field.columnNames?.get(c);
@@ -140,7 +81,7 @@ function columnLabel(field, c) {
  * A column's name followed by a value, as one item ("Fire +1"), in each language either has: a loaded table's named
  * row of cells shows each element so.
  */
-function labelled(head, items) {
+export function labelled(head, items) {
 	const tail = (tag) => items.map((item) => (tag && item.names?.[tag]) ?? item.title ?? item.text).join(', ');
 	if (typeof head === 'string') return { text: `${head} ${tail(null)}` };
 	const source = head.entity ?? head;
@@ -460,10 +401,11 @@ const itemKey = (item) => item.text ?? item.title ?? item.entity?.url ?? item.mi
 /**
  * What refers to the entity (OME's export plan §5): a list for each referring kind and field, under the heading the
  * export gives it ("Dropped by"), else under the kind and field ("Units: drop item"). A reference from a loaded
- * table's row in a part has the part's heading ("Ally on stages"), else the part's name ("Stages: ally unit"). Where
- * the export names details, the list is a `table`: each referring entity with its details beside it (a drop's chance,
- * a stage's labyrinth and floor), its name leaving out the qualifiers they show, and a count where one refers so more
- * than once (an enemy in several slots alike). Else it is a list of the referring `entities`.
+ * table's row in a part has the part's heading ("Ally on stages"), else the part's name ("Stages: ally unit"). Each is
+ * a `table` of the referring entities: each with its picture, then the details the export names beside it (a drop's
+ * chance, a stage's labyrinth and floor), then the columns its kind's list shows first (lib/columns.mjs) but those the
+ * details show, and a count where one refers so more than once (an enemy in several slots alike); its name leaves out
+ * the qualifiers the details and columns show.
  */
 export function referencedBy(data, entity) {
 	const groups = new Map();
@@ -485,8 +427,8 @@ export function referencedBy(data, entity) {
 	}
 	const ids = new Set();
 	return [...groups.values()].map(({ key, kind, label: heading, details, refs }) => {
-		// The columns the kind's list shows (`listFields`), but those the reference's details show already.
-		const listed = listFields(kind).filter((field) => !details.includes(field.name));
+		// The columns the kind's list shows first (lib/columns.mjs), but those the reference's details show already.
+		const listed = defaultColumns(kind).filter((column) => !details.includes(column.field.name));
 		const rows = new Map();
 		for (const by of refs) {
 			const cells = details.map((detail) => detailItems(kind, by, detail));
@@ -497,7 +439,7 @@ export function referencedBy(data, entity) {
 		const counted = [...rows.values()].some((row) => row.count > 1);
 		// A kind whose entities have pictures shows each one's beside its name, an empty box where one has none.
 		const pictured = [...rows.values()].some((row) => row.from.thumbnail);
-		const omit = [...details, ...listed.map((field) => field.name)];
+		const omit = [...details, ...listed.map((column) => column.field.name)];
 		const base = `related-${heading.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'entries'}`;
 		let id = base;
 		for (let n = 2; ids.has(id); n++) id = `${base}-${n}`;
@@ -510,11 +452,11 @@ export function referencedBy(data, entity) {
 			table: {
 				columns: [
 					{ label: kind.label.one },
-					...listed.map((field) => ({ label: field.label ?? label(field.name) })),
 					...details.map((detail) => {
 						const { field } = fieldNamed(kind, detail);
 						return { label: field?.label ?? label(detail) };
 					}),
+					...listed.map((column) => ({ label: column.label, group: column.group, note: column.note })),
 					...(counted ? [{ label: 'Count' }] : []),
 				],
 				rows: [...rows.values()].map((row) => ({
@@ -526,8 +468,8 @@ export function referencedBy(data, entity) {
 								...(pictured ? { thumb: row.from.thumbnail ?? null } : {}),
 							},
 						],
-						...listed.map((field) => valueItems(field, row.from.values[field.name])),
 						...row.cells,
+						...listed.map((column) => cellItems(column, row.from)),
 						...(counted ? [[{ text: String(row.count) }]] : []),
 					],
 				})),
