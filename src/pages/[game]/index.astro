@@ -14,8 +14,12 @@ export function getStaticPaths() {
 
 const data = game(Astro.params.game!);
 const version = data.manifest.game_version ? ` (game version ${data.manifest.game_version})` : '';
-// A card's picture: the first entry's of the kind that has one (a thumbnail is never an explicit picture).
-const kinds = data.kinds.map((kind) => ({ kind, thumbnail: kind.entities.find((entity) => entity.thumbnail)?.thumbnail }));
+// A card's picture: its chosen entry's (site.config.mjs `cards`), else the first entry's of the kind that has one (a
+// thumbnail is never an explicit picture); a kind with none shows its initial.
+const kinds = data.kinds.map((kind) => ({
+	kind,
+	thumbnail: kind.card?.thumbnail ?? kind.entities.find((entity) => entity.thumbnail)?.thumbnail,
+}));
 ---
 
 <StarlightPage
@@ -44,6 +48,7 @@ const kinds = data.kinds.map((kind) => ({ kind, thumbnail: kind.entities.find((e
 						<span class="ome-kind-count">
 							{kind.entities.length.toLocaleString('en')} {kind.entities.length === 1 ? 'entry' : 'entries'}
 						</span>
+						{kind.about && <span class="ome-kind-about">{kind.about}</span>}
 					</a>
 				</li>
 			))
@@ -66,7 +71,7 @@ const kinds = data.kinds.map((kind) => ({ kind, thumbnail: kind.entities.find((e
 <style>
 	.ome-kinds {
 		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+		grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
 		gap: 0.75rem;
 		margin: 1.5rem 0 2rem;
 		padding: 0;
@@ -75,9 +80,10 @@ const kinds = data.kinds.map((kind) => ({ kind, thumbnail: kind.entities.find((e
 	.ome-kinds a {
 		display: grid;
 		grid-template-columns: 3.5rem 1fr;
-		grid-template-rows: auto auto;
+		grid-template-rows: auto auto 1fr;
 		column-gap: 0.9rem;
 		align-items: center;
+		align-content: start;
 		height: 100%;
 		padding: 0.75rem;
 		border: 1px solid var(--sl-color-gray-5);
@@ -109,6 +115,11 @@ const kinds = data.kinds.map((kind) => ({ kind, thumbnail: kind.entities.find((e
 		height: auto;
 		object-fit: contain;
 	}
+	/* A small picture (a condition's icon) fills the box, its pixels kept sharp (Picture.astro). */
+	.ome-kind-picture :global(img.ome-pixel) {
+		width: 3rem;
+		height: auto;
+	}
 	.ome-kind-name {
 		align-self: end;
 		font-weight: 600;
@@ -117,5 +128,12 @@ const kinds = data.kinds.map((kind) => ({ kind, thumbnail: kind.entities.find((e
 		align-self: start;
 		color: var(--sl-color-gray-3);
 		font-size: var(--sl-text-sm);
+	}
+	.ome-kind-about {
+		grid-column: 1 / -1;
+		margin-top: 0.6rem;
+		color: var(--sl-color-gray-2);
+		font-size: var(--sl-text-sm);
+		line-height: 1.45;
 	}
 </style>

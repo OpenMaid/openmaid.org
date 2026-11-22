@@ -14,7 +14,7 @@ export const FORMAT_VERSION = 1;
  * A game's export as the pages use it: its build facts, its kinds with their fields and entities, and its pictures.
  * Fails on what the site cannot show: a missing export, another format version, a picture file the export lacks.
  */
-export function readExport({ game, revision, dir, thumbnails = {} }) {
+export function readExport({ game, revision, dir, thumbnails = {}, cards = {} }) {
 	const file = path.join(dir, `${revision}.sqlite`);
 	if (!fs.existsSync(file))
 		throw new Error(`no export of ${game} revision ${revision} at ${file}: copy OME's export folder there (README.md)`);
@@ -51,6 +51,16 @@ export function readExport({ game, revision, dir, thumbnails = {} }) {
 			if (!names.has(row.value)) names.set(row.value, {});
 			names.get(row.value)[row.lang] = row.text;
 		}
+		// The game's names for a row of cells' columns (OME's `columns_from`): an element's resistances by the game's
+		// element names, by language, keyed as the value names are.
+		const columnNames = new Map();
+		for (const row of has('column_name') ? all('SELECT kind, field, column_index, lang, text FROM column_name') : []) {
+			const key = `${row.kind}:${row.field}`;
+			if (!columnNames.has(key)) columnNames.set(key, new Map());
+			const names = columnNames.get(key);
+			if (!names.has(row.column_index)) names.set(row.column_index, {});
+			names.get(row.column_index)[row.lang] = row.text;
+		}
 		const parts = has('loaded_part') ? all('SELECT * FROM loaded_part ORDER BY kind, loaded, position') : [];
 		// The fields that tell apart a kind's entities with one name, and how its references read on their targets'
 		// pages (OME's export plan §5): a heading and the details beside each referring entity, by field and part.
@@ -61,18 +71,21 @@ export function readExport({ game, revision, dir, thumbnails = {} }) {
 			field.label = fieldLabels.get(`${kindId}:${key}`)?.text ?? label(field.name);
 			field.format = format ? { scale: format.scale, offset: format.offset, unit: format.unit, bits: Boolean(format.bits) } : null;
 			field.names = valueNames.get(`${kindId}:${key}`) ?? null;
+			field.columnNames = columnNames.get(`${kindId}:${key}`) ?? null;
 			return field;
 		};
 		const notes = has('note') ? all('SELECT kind, name, text FROM note') : [];
 		const blocks = has('text_block') ? all('SELECT kind, field, name, first, last FROM text_block ORDER BY kind, field, position') : [];
 		const pictures = new Map(); // file name -> picture
 		const byKey = new Map(); // "item:12" -> entity
-		const kinds = all('SELECT id, table_name, title_field, aliases, entities FROM kind ORDER BY rowid').map((row) => ({
+		const kinds = all('SELECT * FROM kind ORDER BY rowid').map((row) => ({
 			id: row.id,
 			table: row.table_name,
 			titleField: row.title_field,
 			aliases: JSON.parse(row.aliases),
 			label: kindLabel(row.id),
+			// What its entities are, in one line (OME's declarations, `about`), which its card and its list show.
+			about: row.about ?? null,
 			fields: all('SELECT * FROM field WHERE kind = ? ORDER BY rowid', row.id).map((f) => reads(row.id, f.name, fieldOf(f))),
 			// The kind's groups (OME's export plan §5): published rows of cells of one width, shown as one table. A group's
 			// labels name a loaded table's text field, table.field, whose record r names row r (a stage's objectives).
@@ -223,6 +236,16 @@ export function readExport({ game, revision, dir, thumbnails = {} }) {
 				ref.target = byKey.get(`${ref.kind}:${ref.id}`) ?? null;
 				ref.target?.referencedBy.push({ from: entity, field: ref.field, idx: ref.idx, part: partOf(entity, ref.field, ref.idx) });
 			}
+		// A row of cells whose column k is entity k of a kind (OME's `columns_ref`: an item's condition levels, by
+		// condition) names its columns by those entities, by column.
+		for (const kind of kinds)
+			for (const field of [...kind.fields, ...kind.loaded.flatMap((table) => table.fields)])
+				if (field.columnKind)
+					field.columnEntities = new Map(
+						Array.from({ length: field.width }, (_, c) => [c, byKey.get(`${field.columnKind}:${c}`)]).filter(([, e]) => e),
+					);
+		// The entry whose picture a kind's card shows (site.config.mjs `cards`), else none chosen.
+		for (const kind of kinds) kind.card = cards[kind.id] === undefined ? null : (byKey.get(`${kind.id}:${cards[kind.id]}`) ?? null);
 		// Entities of a kind that share a name are told apart (OME's export plan §5, `qualify`). A kind whose title is a
 		// reference takes its target's title, told apart already (§4.1): a recipe is named by the item it makes, and is
 		// told apart from another making it after. It shows the target's thumbnail too when it has none of its own. A
@@ -264,6 +287,7 @@ function fieldOf(row) {
 		width: row.width,
 		column: row.column_index,
 		columns: row.columns ? JSON.parse(row.columns) : null,
+		columnKind: row.column_kind ?? null,
 		isArray: /\[\d+\]$/.test(row.type),
 	};
 }

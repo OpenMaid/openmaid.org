@@ -19,8 +19,14 @@ function nameOf(field, v) {
 	return names[''] ? { text: names[''] } : null;
 }
 
+/**
+ * Whether a field's values are changes, which show their sign ("+5", "-1"): a field named for what it changes by (its
+ * deltas, its modifiers, its bonus), so every page shows one alike (site plan §10.3, finding 14).
+ */
+export const isChange = (field) => /(^|_)(deltas?|modifiers|bonus)$/.test(field.name.slice(field.name.indexOf('.') + 1));
+
 /** A number as the registry says it reads: times its scale, plus its offset, in its unit ("25%", "3 days", "1 turn"). */
-export function formatNumber(field, v, signed = false) {
+export function formatNumber(field, v, signed = isChange(field)) {
 	const format = field.format;
 	const shown = format ? Number((v * (format.scale ?? 1) + (format.offset ?? 0)).toFixed(6)) : v;
 	const sign = signed && shown > 0 ? '+' : '';
@@ -35,7 +41,7 @@ export function formatNumber(field, v, signed = false) {
  * set, or the number as it reads. A mask's bit for a value with no name is left out when it sets a named one: the
  * named values are those its global takes (a difficulty is 1 or 2, so bit 0 of the enemy difficulty mask never counts).
  */
-export function valueItems(field, v, signed = false) {
+export function valueItems(field, v, signed = isChange(field)) {
 	if (v === null || v === undefined) return [{ text: '—' }];
 	if (field.format?.bits) {
 		const set = [];
@@ -47,7 +53,7 @@ export function valueItems(field, v, signed = false) {
 }
 
 /** A value as plain text, in the game's language where the game names it: a list page's column, a filter's option. */
-export function valueText(field, v, signed = false) {
+export function valueText(field, v, signed = isChange(field)) {
 	return valueItems(field, v, signed)
 		.map((item) => item.text ?? item.title)
 		.join(', ');
@@ -105,7 +111,35 @@ function distinct(labels) {
 
 /** Whether an array field's elements have names that say more than a number, so a table can name its rows. */
 function named(field) {
+	if (field.columnEntities?.size || field.columnNames?.size) return true;
 	return Boolean(field.columns) && !field.columns.every((name) => !name || GENERIC.test(name));
+}
+
+/**
+ * The name of a row of cells' column `c`, as a table's row label: the entity it stands for (`{ entity }`, a link: an
+ * item's condition levels name conditions), else the game's name for it in each language it has (`{ title, names }`:
+ * an element), else OME's word as a label, else null.
+ */
+function columnLabel(field, c) {
+	const entity = field.columnEntities?.get(c);
+	if (entity) return { entity };
+	const names = field.columnNames?.get(c);
+	if (names) return { title: names[SOURCE_LANGUAGE] ?? Object.values(names)[0], names };
+	return field.columns?.[c] ? label(field.columns[c]) : null;
+}
+
+/**
+ * A column's name followed by a value, as one item ("Fire +1"), in each language either has: a loaded table's named
+ * row of cells shows each element so.
+ */
+function labelled(head, items) {
+	const tail = (tag) => items.map((item) => (tag && item.names?.[tag]) ?? item.title ?? item.text).join(', ');
+	if (typeof head === 'string') return { text: `${head} ${tail(null)}` };
+	const source = head.entity ?? head;
+	const tags = new Set([...Object.keys(source.names ?? {}), ...items.flatMap((item) => Object.keys(item.names ?? {}))]);
+	if (!tags.size) return { text: `${source.title} ${tail(null)}` };
+	const names = Object.fromEntries([...tags].map((tag) => [tag, `${source.names?.[tag] ?? source.title} ${tail(tag)}`]));
+	return { title: `${source.title} ${tail(SOURCE_LANGUAGE)}`, names };
 }
 
 /**
@@ -148,7 +182,7 @@ function cellTable(entity, fields, labels = null) {
 			return shared.length ? label(shared.join('_')) : `#${r}`;
 		};
 	} else if (named(fields[0])) {
-		rowLabel = (r) => (fields[0].columns[r] ? label(fields[0].columns[r]) : `#${r}`);
+		rowLabel = (r) => columnLabel(fields[0], r) ?? `#${r}`;
 	}
 	const at = (col, r) => r * col.k + col.offset;
 	const value = (col, r) => entity.values[col.field.name]?.[at(col, r)];
@@ -255,17 +289,14 @@ export function loadedTables(kind, entity) {
 			const columns = published
 				.filter((field) => rows.some((row) => elements(field, row).some((v) => !isNone(field, v))))
 				.sort((a, b) => Boolean(b.refKind) - Boolean(a.refKind));
-			// A change shows its sign: "Max HP +5", "Fire -1".
-			const signed = (field) => /(^|_)deltas?$/.test(field.name);
 			const cell = (field, row) => {
 				const values = elements(field, row);
+				// A change shows its sign (`isChange`): "Max HP +5", "Fire -1".
 				if (named(field))
 					return values
 						.map((v, idx) => ({ v, idx }))
 						.filter(({ v }) => v != null && !isNone(field, v))
-						.map(({ v, idx }) => ({
-							text: `${field.columns[idx] ? label(field.columns[idx]) : `#${idx}`} ${valueText(field, v, signed(field))}`,
-						}));
+						.map(({ v, idx }) => labelled(columnLabel(field, idx) ?? `#${idx}`, valueItems(field, v)));
 				const item = (v, idx) => {
 					if (v === null || v === undefined) return [{ text: '—' }];
 					if (!field.refKind) return valueItems(field, v);

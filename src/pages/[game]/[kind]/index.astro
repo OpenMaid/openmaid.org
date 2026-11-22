@@ -54,7 +54,8 @@ const filters = kind.fields
 	sidebar={databaseSidebar(data)}
 >
 	<p>
-		{kind.entities.length} {kind.label.many.toLowerCase()} of {data.title}.
+		{kind.about && <>{kind.about} </>}{data.title} has {kind.entities.length.toLocaleString('en')}{' '}
+		{kind.entities.length === 1 ? kind.label.one.toLowerCase() : kind.label.many.toLowerCase()}.
 	</p>
 	<DatabaseSwitches languages={data.languages} />
 	<form class="ome-filters not-content" data-ome-filters data-lang={data.languages[0] ?? SOURCE_LANGUAGE}>

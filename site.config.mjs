@@ -28,10 +28,13 @@ export default {
 				item: ['icon'],
 				skill: ['icon'],
 				unit: ['battle_face', 'face', 'sprite'],
-				quest: ['requester'],
+				quest: ['journal_icon'],
 				condition: ['icon'],
 				world_area: ['picture'],
 			},
+			// The entry whose picture a kind's card on the game's front page shows, by id (site plan §10.3, finding 18),
+			// where the first entry with a picture says less of the kind; a kind with no picture shows its initial.
+			cards: { item: 250, condition: 9 },
 		},
 	},
 };

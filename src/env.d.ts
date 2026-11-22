@@ -18,7 +18,13 @@ declare module 'virtual:ome' {
 			baseMod: { id: string; version: string };
 			scriptIndex: boolean;
 		}[];
-		databases: { game: string; revision: string; dir: string; thumbnails: Record<string, string[]> }[];
+		databases: {
+			game: string;
+			revision: string;
+			dir: string;
+			thumbnails: Record<string, string[]>;
+			cards?: Record<string, number>;
+		}[];
 		// The reference bundle's zip (src/lib/bundle.mjs), which src/lib/reference.mjs reads.
 		bundle: string;
 	};
