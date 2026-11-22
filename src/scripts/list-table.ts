@@ -1,6 +1,6 @@
 // A kind's list in the browser (site plan §9.1): draws the list page's table from the kind's list file
 // (src/lib/columns.mjs `listData`) with the columns a visitor chooses, sorted by the column whose heading they pressed,
-// and filtered by the name and by any column. The page's table, drawn by the build with the default columns, shows
+// and filtered by the name and by the filters they add on any column ("Filter on", the columns shown first). The page's table, drawn by the build with the default columns, shows
 // until the file is in, and without scripts. The columns, the sorting and the filters are kept in the page's address,
 // so a list as a visitor made it can be linked.
 import { emptyValue, shownNumber, valueItems } from '../lib/format.mjs';
@@ -77,7 +77,7 @@ function start(table: HTMLTableElement, form: HTMLFormElement, file: ListFile) {
 		sortParam && (byKey.has(sortParam.replace(/^-/, '')) || ['id', 'name'].includes(sortParam.replace(/^-/, '')))
 			? { key: sortParam.replace(/^-/, ''), desc: sortParam.startsWith('-') }
 			: { key: 'id', desc: false };
-	const added = [...params.keys()].filter((key) => !OWN.has(key) && byKey.has(key) && !byKey.get(key)!.quick);
+	const added = [...params.keys()].filter((key) => !OWN.has(key) && byKey.has(key));
 
 	// What an entry's cell shows, as markup and as the text a filter searches.
 	const items = (column: Column, row: Row): Item[] => row.v[column.position] as Item[];
@@ -219,21 +219,20 @@ function start(table: HTMLTableElement, form: HTMLFormElement, file: ListFile) {
 		return valueOf(column, row) === wanted;
 	};
 
-	// The controls: the name and the quick filters the build drew, a filter added for any other column, the columns to
-	// show, and the count.
+	// The controls: the name, which the build drew, the filters added on columns, the menu that adds one, the columns to
+	// show, and the count. A number reads with its thousands grouped, as the cells' do (format.mjs).
 	const nameInput = form.querySelector<HTMLInputElement>('input[name="q"]')!;
 	const count = form.querySelector<HTMLOutputElement>('output[data-ome-count]')!;
 	const tools = form.querySelector<HTMLElement>('[data-ome-tools]')!;
 	const addedBox = form.querySelector<HTMLElement>('[data-ome-added]')!;
+	const number = (n: number) => n.toLocaleString('en');
 	nameInput.value = params.get('q') ?? '';
-	for (const select of form.querySelectorAll<HTMLSelectElement>('select[data-filter]'))
-		select.value = params.get(select.dataset.filter!) ?? '';
 
 	const optionsHtml = (column: Column) =>
 		`<option value="">all</option>${column
 			.options!.map(
 				(o) =>
-					`<option value="${o.v}" data-count="${o.c}"${o.n ? ` data-names="${esc(JSON.stringify(o.n))}"` : ''}>${esc(o.t ?? o.x)} (${o.c})</option>`,
+					`<option value="${o.v}" data-count="${number(o.c)}"${o.n ? ` data-names="${esc(JSON.stringify(o.n))}"` : ''}>${esc(o.t ?? o.x)} (${number(o.c)})</option>`,
 			)
 			.join('')}`;
 	const textOf = (column: Column) => (typeof column.label === 'string' ? column.label : column.label.title);
@@ -257,7 +256,7 @@ function start(table: HTMLTableElement, form: HTMLFormElement, file: ListFile) {
 		relabel(box);
 	};
 
-	// The tools: a menu of the columns to filter on, and the columns to show.
+	// The tools: the menu of the columns to filter on, and the columns to show, each by group.
 	const groups = new Map<string, Column[]>();
 	for (const column of columns) {
 		const group = column.group ?? 'Details';
@@ -267,24 +266,7 @@ function start(table: HTMLTableElement, form: HTMLFormElement, file: ListFile) {
 	const details = groups.get('Details');
 	const grouped = details ? [['Details', details] as const, ...[...groups].filter(([group]) => group !== 'Details')] : [...groups];
 	if (columns.length) {
-		const filterable = grouped
-			.map(([group, list]) => [group, list.filter((column) => !column.quick)] as const)
-			.filter(([, list]) => list.length);
-		tools.innerHTML = `${
-			filterable.length
-				? `<label>Filter on <select data-ome-add><option value="">a column…</option>${filterable
-						.map(
-							([group, list]) =>
-								`<optgroup label="${esc(group)}">${list
-									.map(
-										(column) =>
-											`<option value="${esc(column.key)}"${typeof column.label === 'string' ? '' : ` data-names="${esc(JSON.stringify(column.label.names))}"`}>${esc(textOf(column))}</option>`,
-									)
-									.join('')}</optgroup>`,
-						)
-						.join('')}</select></label>`
-				: ''
-		}<details class="ome-choose"><summary>Columns</summary><div class="ome-choose-panel">
+		tools.innerHTML = `<label>Filter on <select data-ome-add></select></label><details class="ome-choose"><summary>Columns</summary><div class="ome-choose-panel">
 			<p><button type="button" data-cols="default">Default columns</button> <button type="button" data-cols="none">None</button></p>
 			${grouped
 				.map(
@@ -306,6 +288,22 @@ function start(table: HTMLTableElement, form: HTMLFormElement, file: ListFile) {
 	const addSelect = tools.querySelector<HTMLSelectElement>('select[data-ome-add]');
 	const chooser = tools.querySelector<HTMLDetailsElement>('details.ome-choose');
 	const clear = tools.querySelector<HTMLButtonElement>('[data-ome-clear]')!;
+	// The menu that adds a filter: the columns shown first, in the table's order, then the others by group; a column
+	// filtered on already is greyed.
+	const optionHtml = (column: Column) =>
+		`<option value="${esc(column.key)}"${typeof column.label === 'string' ? '' : ` data-names="${esc(JSON.stringify(column.label.names))}"`}${
+			addedBox.querySelector(`[data-box="${CSS.escape(column.key)}"]`) ? ' disabled' : ''
+		}>${esc(column.group && shown.includes(column.key) ? `${column.group}: ${textOf(column)}` : textOf(column))}</option>`;
+	const drawAddMenu = () => {
+		if (!addSelect) return;
+		const others = grouped
+			.map(([group, list]) => [group, list.filter((column) => !shown.includes(column.key))] as const)
+			.filter(([, list]) => list.length);
+		addSelect.innerHTML = `<option value="">a column…</option>${
+			shown.length ? `<optgroup label="Shown columns">${visible().map(optionHtml).join('')}</optgroup>` : ''
+		}${others.map(([group, list]) => `<optgroup label="${esc(group)}">${list.map(optionHtml).join('')}</optgroup>`).join('')}`;
+		relabel(addSelect);
+	};
 
 	// An option of a select names a value in the language of the game text shown (DatabaseSwitches.astro), as the cells
 	// do, with its count.
@@ -334,15 +332,14 @@ function start(table: HTMLTableElement, form: HTMLFormElement, file: ListFile) {
 		table.tBodies[0].innerHTML = sorted(found).map(rowHtml).join('');
 		// The box the table scrolls in marks its edges again (public/scroll-edges.js).
 		table.parentElement?.dispatchEvent(new Event('scroll'));
-		count.textContent = found.length === rows.length ? `${rows.length} shown` : `${found.length} of ${rows.length} shown`;
+		count.textContent =
+			found.length === rows.length ? `${number(rows.length)} shown` : `${number(found.length)} of ${number(rows.length)} shown`;
 		clear.hidden = !q && !filters.length;
 		if (chooser) {
 			for (const box of chooser.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')) box.checked = shown.includes(box.value);
 			chooser.querySelector('summary')!.textContent = `Columns (${shown.length})`;
 		}
-		if (addSelect)
-			for (const option of addSelect.querySelectorAll<HTMLOptionElement>('option[value]:not([value=""])'))
-				option.disabled = Boolean(addedBox.querySelector(`[data-box="${CSS.escape(option.value)}"]`));
+		drawAddMenu();
 		// The address keeps the list as it is shown.
 		const next = new URLSearchParams();
 		if (q) next.set('q', nameInput.value.trim());
@@ -386,7 +383,6 @@ function start(table: HTMLTableElement, form: HTMLFormElement, file: ListFile) {
 			update({ head: true });
 		} else if (button === clear) {
 			nameInput.value = '';
-			for (const select of form.querySelectorAll<HTMLSelectElement>('select[data-filter]')) select.value = '';
 			addedBox.replaceChildren();
 			update();
 		}

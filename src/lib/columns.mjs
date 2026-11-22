@@ -29,9 +29,9 @@ const columnsOf = new WeakMap();
  * recipe's item); an array whose elements have no names (a drop's chance, which an entity's page shows beside its
  * item); the fields of a group whose rows hold several elements of a field (a condition's levels); and a column that
  * is empty for every entry. `key` names a column in a page's address: the field's name, and for an element OME's word
- * for it, else its index (`stats.max_hp`). `quick` marks the fields OME's declarations filter on, which a list offers
- * filters on at once; `default` the columns a table shows first: the site's config's (`columns`, by key), else the
- * quick ones.
+ * for it, else its index (`stats.max_hp`). `quick` marks the fields OME's declarations filter on, which a list filters
+ * by a select of their values even where they are numbers (a quest's stars); `default` the columns a table shows
+ * first: the site's config's (`columns`, by key), else the quick ones.
  */
 export function listColumns(kind) {
 	if (columnsOf.has(kind)) return columnsOf.get(kind);

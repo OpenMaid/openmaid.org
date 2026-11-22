@@ -41,15 +41,22 @@ export function emptyValue(field, type, v) {
 	return v === 0 && (type === 'mask' || isChange(field) || (type === 'name' && !field.names?.has(0)));
 }
 
-/** A number as the registry says it reads: times its scale, plus its offset, in its unit ("25%", "3 days", "1 turn"). */
+// A number with its thousands grouped ("40,000"), as the site's English reads them (the user, 2026-11-22).
+const grouped = new Intl.NumberFormat('en', { maximumFractionDigits: 6 });
+
+/**
+ * A number as the registry says it reads: times its scale, plus its offset, its thousands grouped, in its unit
+ * ("40,000", "25%", "3 days", "1 turn").
+ */
 export function formatNumber(field, v, signed = isChange(field)) {
 	const format = field.format;
 	const shown = shownNumber(field, v);
 	const sign = signed && shown > 0 ? '+' : '';
+	const text = `${sign}${grouped.format(shown)}`;
 	const unit = format?.unit;
-	if (!unit) return `${sign}${shown}`;
-	if (unit === '%') return `${sign}${shown}%`;
-	return `${sign}${shown} ${Math.abs(shown) === 1 && unit.endsWith('s') ? unit.slice(0, -1) : unit}`;
+	if (!unit) return text;
+	if (unit === '%') return `${text}%`;
+	return `${text} ${Math.abs(shown) === 1 && unit.endsWith('s') ? unit.slice(0, -1) : unit}`;
 }
 
 /**

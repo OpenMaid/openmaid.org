@@ -2,8 +2,8 @@
 // A kind's list (site design §8.3, site plan §9.1): every entity in a table. The build draws it with the kind's
 // default columns (src/lib/columns.mjs), so it reads without scripts; a script (src/scripts/list-table.ts) then draws
 // it from the kind's list file with the columns a visitor chooses, sorts it by any column whose heading they press, and
-// filters it by the name, by the fields OME's declarations filter on (the selects the build draws) and by any column
-// they add a filter on, keeping all of it in the URL, so a list can be linked. Lists are not in the search index. In
+// filters it by the name and by any column they add a filter on, keeping all of it in the URL, so a list can be
+// linked. Lists are not in the search index. In
 // modder mode (§8.7) the page also lists the scripts that use the kind's table, which each entity's modder panel links
 // to.
 import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
@@ -12,7 +12,7 @@ import LanguageCredit from '../../../components/LanguageCredit.astro';
 import Name from '../../../components/Name.astro';
 import Value from '../../../components/Value.astro';
 import WidePage from '../../../components/WidePage.astro';
-import { cellItems, defaultColumns, listColumns } from '../../../lib/columns.mjs';
+import { cellItems, defaultColumns } from '../../../lib/columns.mjs';
 import { databaseSidebar, game, games } from '../../../lib/database.mjs';
 import { referenceGame } from '../../../lib/reference.mjs';
 import { href } from '../../../lib/reference-model.mjs';
@@ -28,11 +28,7 @@ const kind = data.kinds.find((k) => k.id === Astro.params.kind)!;
 const reference = referenceGame(data.game);
 const tableLink = (name: string) => (reference.table(name) ? href.table(data.game, name) : null);
 const shown = defaultColumns(kind);
-// The quick filters: a select for each field OME's declarations filter on, of the values its entries have, each with
-// its count and its name (an option's text follows the language switch, by the list's script).
-const quick = listColumns(kind).filter((column) => column.quick && column.filter === 'select');
 const pictured = kind.entities.some((entity) => entity.thumbnail);
-const labelText = (label: string | { title: string }) => (typeof label === 'string' ? label : label.title);
 ---
 
 <StarlightPage
@@ -46,24 +42,9 @@ const labelText = (label: string | { title: string }) => (typeof label === 'stri
 	<DatabaseSwitches languages={data.languages} />
 	<form class="ome-filters not-content" data-ome-filters data-lang={data.languages[0] ?? SOURCE_LANGUAGE}>
 		<label>Name <input type="search" name="q" autocomplete="off" /></label>
-		{
-			quick.map((column) => (
-				<label>
-					{labelText(column.label)}
-					<select data-filter={column.key}>
-						<option value="">all</option>
-						{column.options.map((o: { v: number; c: number; t?: string; n?: Record<string, string>; x?: string }) => (
-							<option value={String(o.v)} data-names={o.n ? JSON.stringify(o.n) : undefined} data-count={o.c}>
-								{o.t ?? o.x} ({o.c})
-							</option>
-						))}
-					</select>
-				</label>
-			))
-		}
 		<span class="ome-added" data-ome-added></span>
 		<span class="ome-list-tools" data-ome-tools hidden></span>
-		<output data-ome-count>{kind.entities.length} shown</output>
+		<output data-ome-count>{kind.entities.length.toLocaleString('en')} shown</output>
 	</form>
 	<div class="ome-list-box">
 		<table class="ome-list" data-ome-list={`/${data.game}/${kind.id}/list.json`}>
