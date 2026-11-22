@@ -9,7 +9,9 @@ import ModderPanel from '../../../../components/ModderPanel.astro';
 import Picture from '../../../../components/Picture.astro';
 import { databaseSidebar, game, games } from '../../../../lib/database.mjs';
 import { label } from '../../../../lib/labels.mjs';
-import { infobox, loadedTables, referencedBy, texts } from '../../../../lib/values.mjs';
+import { referenceGame } from '../../../../lib/reference.mjs';
+import { href, scriptName } from '../../../../lib/reference-model.mjs';
+import { infobox, loadedTables, referencedBy, scriptRelations, texts } from '../../../../lib/values.mjs';
 
 export function getStaticPaths() {
 	return games().flatMap((data) =>
@@ -29,6 +31,14 @@ const { rows, zero } = infobox(kind, entity);
 const text = texts(kind, entity);
 const incoming = referencedBy(data, entity);
 const loaded = loadedTables(kind, entity);
+const relations = scriptRelations(entity);
+const reference = referenceGame(data.game);
+const scriptLink = (key: string) => (reference.script(key) ? href.script(data.game, key) : null);
+// A script's calls in a line: the counts they set, or how many calls when the relation has no count.
+const calls = (list: { count: number | null }[]) =>
+	list.every((call) => call.count === null)
+		? list.length > 1 ? ` (${list.length} calls)` : ''
+		: ` (${list.map((call) => call.count ?? '?').join(', ')})`;
 
 // One picture shown once, under every name it has (a unit's battle_1 and battle_2 are often the same file).
 const pictures = [...Map.groupBy(entity.pictures, (p: { file: string }) => p.file).values()].map((same) => ({
@@ -41,7 +51,7 @@ const headings = [
 	...(text.length ? [{ depth: 2, slug: 'text', text: 'Text' }] : []),
 	...loaded.map((t) => ({ depth: 2, slug: t.id, text: t.label })),
 	...(incoming.length ? [{ depth: 2, slug: 'referenced-by', text: 'Referenced by' }] : []),
-	...(entity.relations.length ? [{ depth: 2, slug: 'found-in-scripts', text: 'Found in scripts' }] : []),
+	...(relations.length ? [{ depth: 2, slug: 'found-in-scripts', text: 'Found in scripts' }] : []),
 ];
 const version = data.manifest.game_version ? `, game version ${data.manifest.game_version}` : '';
 ---
@@ -190,15 +200,25 @@ const version = data.manifest.game_version ? `, game version ${data.manifest.gam
 	}
 
 	{
-		entity.relations.length > 0 && (
+		relations.length > 0 && (
 			<div data-pagefind-ignore>
 				<h2 id="found-in-scripts">Found in scripts</h2>
-				<p>Found by reading the game's scripts, not shown by the game as data.</p>
+				<p>
+					Found by reading the game's scripts, not shown by the game as data: each script names this
+					{' '}{kind.label.one.toLowerCase()} in a call.
+					{entity.relations.some((r: { count: number | null }) => r.count !== null) && ' A number in brackets is the count one call sets.'}
+				</p>
 				<ul>
-					{entity.relations.map((r: { relation: string; script: string; offset: number; count: number | null }) => (
+					{relations.map((group) => (
 						<li>
-							{label(r.relation)}: <code>{r.script}</code>
-							{r.count !== null && ` (${r.count})`}
+							{group.label}:{' '}
+							{group.scripts.map((s, i) => (
+								<>
+									{i > 0 && ', '}
+									{scriptLink(s.script) ? <a href={scriptLink(s.script)}><code>{scriptName(s.script)}</code></a> : <code>{scriptName(s.script)}</code>}
+									{calls(s.calls)}
+								</>
+							))}
 						</li>
 					))}
 				</ul>

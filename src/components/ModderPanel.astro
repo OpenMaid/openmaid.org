@@ -3,7 +3,8 @@
 // names the record as OMS and data files do, lists every cell a script wrote, with its value, its writer (so its layer)
 // and its address, then the cells of the tables the game's loaders build for it (a stage's enemies), and gives a data
 // file that sets what the page shows. A string field the kind does not publish shows no value. The scripts that use
-// the table are listed once, on the kind's page. Each table, field and script name links to its reference page (§8.7).
+// the table are listed once, on the kind's page; the calls that name this entity, each at its offset (OME's export
+// §6.7), are listed here. Each table, field and script name links to its reference page (§8.7).
 interface Field { name: string; isArray: boolean; width: number | null; columns: (string | null)[] | null }
 interface Cell { field: string; idx: number; bank: string; address: number; raw: string | null; writer: string | null }
 interface Props {
@@ -16,7 +17,13 @@ interface Props {
 		loaded: { name: string; table: string; scope: string; label: { one: string; many: string }; fields: Field[] }[];
 		scriptUse: unknown[];
 	};
-	entity: { id: number; cells: Cell[]; pictures: { name: string; file: string }[]; snippet: string | null };
+	entity: {
+		id: number;
+		cells: Cell[];
+		pictures: { name: string; file: string }[];
+		snippet: string | null;
+		relations: { relation: string; script: string; offset: number; count: number | null }[];
+	};
 }
 import { referenceGame } from '../lib/reference.mjs';
 import { href } from '../lib/reference-model.mjs';
@@ -130,6 +137,32 @@ const loaded = kind.loaded
 				{kind.loaded.length > 0 && ' or the tables its loaders build'}:{' '}
 				<a href={`/${game}/${kind.id}/#scripts`}>the list is on the {kind.label.many.toLowerCase()} page</a>.
 			</p>
+		)
+	}
+	{
+		entity.relations.length > 0 && (
+			<>
+				<h3>The calls that name it</h3>
+				<p>
+					Each call a script makes with this {kind.label.one.toLowerCase()} in its arguments, at the call's offset in the
+					script, with the count as the script sets it.
+				</p>
+				<table class="ome-cells">
+					<thead><tr><th>Relation</th><th>At</th><th>Count</th></tr></thead>
+					<tbody>
+						{entity.relations.map((r) => (
+							<tr>
+								<td><code>{r.relation}</code></td>
+								<td>
+									{scriptLink(r.script) ? <a href={scriptLink(r.script)}><code>{r.script}</code></a> : <code>{r.script}</code>}
+									<code>@{hex(r.offset)}</code>
+								</td>
+								<td>{r.count ?? '—'}</td>
+							</tr>
+						))}
+					</tbody>
+				</table>
+			</>
 		)
 	}
 	{

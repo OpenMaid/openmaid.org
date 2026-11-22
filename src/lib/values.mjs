@@ -113,3 +113,18 @@ export function referencedBy(data, entity) {
 	}
 	return [...groups.values()].map((g) => ({ ...g, entities: [...g.entities.values()] }));
 }
+
+/**
+ * Where the game's scripts name the entity (OME's export spec §6.7): its relations by name, each script once, with the
+ * counts its calls set, as numbers given or taken (a taking relation's count is negative in the export).
+ */
+export function scriptRelations(entity) {
+	const groups = new Map();
+	for (const { relation, script, offset, count } of entity.relations) {
+		if (!groups.has(relation)) groups.set(relation, { relation, label: label(relation), scripts: new Map() });
+		const scripts = groups.get(relation).scripts;
+		if (!scripts.has(script)) scripts.set(script, { script, calls: [] });
+		scripts.get(script).calls.push({ offset, count: count === null ? null : Math.abs(count) });
+	}
+	return [...groups.values()].map((g) => ({ ...g, scripts: [...g.scripts.values()] }));
+}
