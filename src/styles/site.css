@@ -234,6 +234,18 @@
 .ome-missing {
 	color: var(--sl-color-gray-3);
 }
+/* A linked entity's mark (src/components/Value.astro): a boss's "Boss", a small tag after its name. */
+.ome-mark {
+	display: inline-block;
+	margin-inline-start: 0.4rem;
+	padding: 0 0.4rem;
+	border-radius: 999px;
+	background: var(--sl-color-gray-6);
+	color: var(--sl-color-gray-2);
+	font-size: var(--sl-text-xs);
+	line-height: 1.4;
+	vertical-align: 0.1em;
+}
 /* An entity's text (lib/values.mjs texts): a row for each field or block, its paragraphs (lib/text-flow.mjs). */
 /* One language's lines show at a time, so none takes the margin Starlight gives a block after another. */
 .ome-text td div {

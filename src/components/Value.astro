@@ -1,14 +1,15 @@
 ---
 // One value of an entity's field as the infobox, a group or a loaded table shows it (lib/values.mjs): a link to the
 // entity it refers to, an id no entity has, a text of the game in each language it has, or the value as text. A link
-// may have its entity's picture before the name (`thumb`; null keeps the picture's room empty, so names line up).
+// may have its entity's picture before the name (`thumb`; null keeps the picture's room empty, so names line up), and
+// its entity's marks after it (OME's export plan §5: a boss is marked "Boss").
 import Name from './Name.astro';
 import Picture from './Picture.astro';
 
 interface Props {
 	item: {
 		text?: string;
-		entity?: { url: string; title: string; names: Record<string, string> };
+		entity?: { url: string; title: string; names: Record<string, string>; marks?: string[] };
 		missing?: string;
 		title?: string;
 		names?: Record<string, string>;
@@ -29,6 +30,7 @@ const { item, data } = Astro.props;
 				</span>
 			)}
 			<Name entity={item.entity} />
+			{item.entity.marks?.map((word) => <span class="ome-mark">{word}</span>)}
 		</a>
 	) : item.missing ? (
 		<span class="ome-missing">{item.missing} (no such entry)</span>

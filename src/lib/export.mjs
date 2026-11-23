@@ -75,6 +75,8 @@ export function readExport({ game, revision, dir, thumbnails = {}, cards = {}, c
 		// The fields that tell apart a kind's entities with one name, and how its references read on their targets'
 		// pages (OME's export plan §5): a heading and the details beside each referring entity, by field and part.
 		const qualifiers = has('qualifier') ? all('SELECT kind, field FROM qualifier ORDER BY kind, position') : [];
+		// The words shown beside a link to an entity whose field is not none (OME's export plan §5): a boss's "Boss".
+		const marks = has('mark') ? all('SELECT kind, field, word FROM mark ORDER BY kind, position') : [];
 		const headings = has('referenced_as') ? all('SELECT kind, field, part, heading, details FROM referenced_as') : [];
 		const reads = (kindId, key, field) => {
 			const format = formats.get(`${kindId}:${key}`);
@@ -135,6 +137,7 @@ export function readExport({ game, revision, dir, thumbnails = {}, cards = {}, c
 				row.id,
 			),
 			qualifiers: qualifiers.filter((q) => q.kind === row.id).map((q) => q.field),
+			marks: marks.filter((m) => m.kind === row.id).map((m) => ({ field: m.field, word: m.word })),
 			referencedAs: new Map(
 				headings
 					.filter((h) => h.kind === row.id)
@@ -146,7 +149,8 @@ export function readExport({ game, revision, dir, thumbnails = {}, cards = {}, c
 				table: t.table_name,
 				scope: t.scope,
 				records: t.records,
-				label: kindLabel(t.name),
+				// OME's label for the table, where the kind gives one (a stage's map objects, shown as its dig sites).
+				label: kindLabel(t.name, fieldLabels.get(`${row.id}:${t.name}`)?.text ?? null),
 				fields: all('SELECT * FROM loaded_field WHERE kind = ? AND loaded = ? ORDER BY rowid', row.id, t.name).map((f) =>
 					reads(row.id, `${t.name}.${f.name}`, fieldOf(f)),
 				),
@@ -235,6 +239,13 @@ export function readExport({ game, revision, dir, thumbnails = {}, cards = {}, c
 					contentHash: row.content_hash,
 				};
 				entity.url = `/${game}/${kind.id}/${id}/${entity.slug}/`;
+				// Its marks, the words a link to it shows (a unit that is a boss), in the export's order.
+				entity.marks = kind.marks
+					.filter((mark) => {
+						const field = kind.fields.find((f) => f.name === mark.field);
+						return field && values[mark.field] != null && !isNone(field, values[mark.field]);
+					})
+					.map((mark) => mark.word);
 				kind.entities.push(entity);
 				byKey.set(`${kind.id}:${id}`, entity);
 			}

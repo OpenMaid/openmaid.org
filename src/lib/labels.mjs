@@ -11,9 +11,12 @@ export function label(name) {
 		.join(' ');
 }
 
-/** A kind's name, one and many: `item` is "Item" and "Items". */
-export function kindLabel(id) {
-	const one = label(id);
+/**
+ * A kind's name, one and many: `item` is "Item" and "Items". With `given`, OME's label for it (a stage's map objects
+ * are its "Dig site"), its words are the label's.
+ */
+export function kindLabel(id, given = null) {
+	const one = given ?? label(id);
 	const many = /[^aeiou]y$/.test(one) ? `${one.slice(0, -1)}ies` : /(s|x|ch|sh)$/.test(one) ? `${one}es` : `${one}s`;
 	return { one, many };
 }

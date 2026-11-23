@@ -10,13 +10,19 @@ export { formatNumber, isChange, valueItems, valueText };
 
 /**
  * One element of a field as a page shows it: `{ text }`, `{ title, names }` (a value the game names), `{ entity }` (a
- * link) or `{ missing }` (an id no entity has); a mask's element is several of them.
+ * link) or `{ missing }` (an id no entity has); a mask's element is several of them, and so is a row reference's,
+ * which names every record of a row (OME's export plan §5: the cards that may carry an Arterial item).
  */
 function valueItem(entity, field, v, idx) {
 	if (v === null || v === undefined) return [{ text: '—' }];
 	if (!field.refKind) return valueItems(field, v);
-	const ref = entity.refs.find((r) => r.field === field.name && r.idx === idx);
-	return [ref?.target ? { entity: ref.target } : { missing: `${field.refKind} ${v}` }];
+	return refItems(entity.refs.filter((r) => r.field === field.name && r.idx === idx), field, v);
+}
+
+/** A reference's links, one for each record its element names: an id no entity has shows as missing. */
+function refItems(refs, field, v) {
+	if (!refs.length) return [{ missing: `${field.refKind} ${v}` }];
+	return refs.map((ref) => (ref.target ? { entity: ref.target } : { missing: `${field.refKind} ${ref.id}` }));
 }
 
 /**
@@ -235,9 +241,12 @@ export function loadedTables(kind, entity) {
 		})
 		.map(({ table, part, label: heading, note: about, rows }) => {
 			const published = table.fields.filter((field) => field.published);
-			const refs = new Map(
-				entity.refs.filter((r) => r.field.startsWith(`${table.name}.`)).map((r) => [`${r.field}:${r.idx}`, r]),
-			);
+			// By field and element: a row reference's element has several (OME's export plan §5).
+			const refs = new Map();
+			for (const r of entity.refs.filter((r) => r.field.startsWith(`${table.name}.`))) {
+				const key = `${r.field}:${r.idx}`;
+				refs.set(key, [...(refs.get(key) ?? []), r]);
+			}
 			const elements = (field, row) => (field.isArray ? (row.values[field.name] ?? []) : [row.values[field.name]]);
 			const text = (field, row) => textItem(entity, `${table.name}.${field.name}`, row.record * (field.width || 1));
 			const textColumns = table.fields.filter((field) => field.text && rows.some((row) => text(field, row)));
@@ -255,8 +264,7 @@ export function loadedTables(kind, entity) {
 				const item = (v, idx) => {
 					if (v === null || v === undefined) return [{ text: '—' }];
 					if (!field.refKind) return valueItems(field, v);
-					const ref = refs.get(`${table.name}.${field.name}:${row.record * values.length + idx}`);
-					return [ref?.target ? { entity: ref.target } : { missing: `${field.refKind} ${v}` }];
+					return refItems(refs.get(`${table.name}.${field.name}:${row.record * values.length + idx}`) ?? [], field, v);
 				};
 				// A mask of 0 in a row shows as none (an enemy slot placed on no difficulty), not as an empty cell.
 				const items = values.flatMap((v, idx) => item(v, idx).map((i) => ({ ...i, zero: isNone(field, v) && !field.format?.bits })));
@@ -398,8 +406,7 @@ function detailItems(kind, by, detail) {
 	}
 	if (v === null || v === undefined || (field.refKind && isNone(field, v))) return [{ text: '—' }];
 	if (!field.refKind) return valueItems(field, v);
-	const ref = from.refs.find((r) => r.field === detail && r.idx === at);
-	return [ref?.target ? { entity: ref.target } : { missing: `${field.refKind} ${v}` }];
+	return refItems(from.refs.filter((r) => r.field === detail && r.idx === at), field, v);
 }
 
 const itemKey = (item) => item.text ?? item.title ?? item.entity?.url ?? item.missing;

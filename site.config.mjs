@@ -83,5 +83,28 @@ export default {
 				area: ['place', 'battle_rule'],
 			},
 		},
+		// As small as OME's understood tables (the user, 2026-11-22): units, items, skills and stages.
+		himegari: {
+			revision: 'd8fe6068a5a5',
+			thumbnails: {
+				unit: ['face', 'sprite'],
+			},
+			columns: {
+				unit: [
+					'species_category',
+					'sex_category',
+					'starting_level',
+					'stats.max_hp',
+					'stats.physical_attack',
+					'stats.physical_defense',
+					'stats.magic_attack',
+					'stats.magic_defense',
+					'stats.speed',
+				],
+				item: ['category', 'attack_element', 'defense_element'],
+				skill: ['category', 'attack_element', 'max_range_encoded'],
+				stage: ['number_major', 'number_minor', 'clear_base_spendable_point_reward', 'extra_dungeon_flag'],
+			},
+		},
 	},
 };
