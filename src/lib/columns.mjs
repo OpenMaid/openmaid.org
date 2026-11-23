@@ -162,7 +162,10 @@ export function cellItems(column, entity) {
 	if (type === 'entity') {
 		// A row reference names every record of a row (OME's export plan §5): the cards that may carry an item.
 		const refs = entity.refs.filter((r) => r.field === field.name);
-		return refs.length ? refs.map((ref) => (ref.target ? { entity: ref.target } : missing(ref.id))) : [missing(v)];
+		// A value that names no record shows as the game names it, where it does (values.mjs refItems).
+		return refs.length
+			? refs.map((ref) => (ref.target ? { entity: ref.target } : missing(ref.id)))
+			: [nameOf(field, v) ?? missing(v)];
 	}
 	return valueItems(field, v);
 }

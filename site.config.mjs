@@ -56,6 +56,9 @@ export default {
 				recipe: ['unlock_craftsman_rank', 'unlock_synthesis_rank', 'ingredient_item_ids'],
 				stage: ['labyrinth_id', 'floor_number', 'recommended_level', 'boss_flag'],
 				world_area: ['area_type', 'travel_days'],
+				terrain: ['visibility_class', 'element_id', 'move_cost', 'required_skill_ids'],
+				map_object: ['use_limit', 'required_skill_id', 'immunity_skill_ids', 'allowed_unit_ids'],
+				card: ['type_id', 'awarded_item_id', 'minimum_money', 'maximum_money'],
 			},
 		},
 		arterial: {

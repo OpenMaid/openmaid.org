@@ -4,7 +4,7 @@ import { label } from './labels.mjs';
 import { SOURCE_LANGUAGE } from './language.mjs';
 import { flow, textShape } from './text-flow.mjs';
 import { cellItems, defaultColumns } from './columns.mjs';
-import { formatNumber, isChange, isNone, valueItems, valueText } from './format.mjs';
+import { formatNumber, isChange, isNone, nameOf, valueItems, valueText } from './format.mjs';
 
 export { formatNumber, isChange, valueItems, valueText };
 
@@ -19,9 +19,12 @@ function valueItem(entity, field, v, idx) {
 	return refItems(entity.refs.filter((r) => r.field === field.name && r.idx === idx), field, v);
 }
 
-/** A reference's links, one for each record its element names: an id no entity has shows as missing. */
+/**
+ * A reference's links, one for each record its element names: an id no entity has shows as missing, and a value that
+ * names no record shows as the game names it, where it does (a Kamidori skill's 無属, element 0, which no link reaches).
+ */
 function refItems(refs, field, v) {
-	if (!refs.length) return [{ missing: `${field.refKind} ${v}` }];
+	if (!refs.length) return [nameOf(field, v) ?? { missing: `${field.refKind} ${v}` }];
 	return refs.map((ref) => (ref.target ? { entity: ref.target } : { missing: `${field.refKind} ${ref.id}` }));
 }
 
