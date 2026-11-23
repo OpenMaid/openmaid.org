@@ -14,6 +14,14 @@ const meansNone = (field, v) => field.format?.none != null && v === field.format
 export const isNone = (field, v) => v === 0 || meansNone(field, v) || (Boolean(field.refKind) && v < 0);
 
 /**
+ * Whether an entity's value of a field, at element `idx`, is none: as `isNone` says, unless the export linked it. A
+ * reference whose 0 names record 0 (OME's `zero`) links it: a Kamidori weapon's attack element 0 is Omni, element 0,
+ * and a garment's is none.
+ */
+export const noneIn = (entity, field, v, idx) =>
+	isNone(field, v) && !(field.refKind && entity.refs.some((r) => r.field === field.name && r.idx === idx));
+
+/**
  * A value's name (OME's export plan §5): the game's own, in each language the export has it in, which `Name` draws
  * (`{ title, names }`), else OME's word (`{ text }`); null when the value has neither.
  */

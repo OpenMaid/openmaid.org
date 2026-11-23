@@ -4,7 +4,7 @@ import { label } from './labels.mjs';
 import { SOURCE_LANGUAGE } from './language.mjs';
 import { flow, textShape } from './text-flow.mjs';
 import { cellItems, defaultColumns } from './columns.mjs';
-import { formatNumber, isChange, isNone, nameOf, valueItems, valueText } from './format.mjs';
+import { formatNumber, isChange, isNone, nameOf, noneIn, valueItems, valueText } from './format.mjs';
 
 export { formatNumber, isChange, valueItems, valueText };
 
@@ -21,7 +21,7 @@ function valueItem(entity, field, v, idx) {
 
 /**
  * A reference's links, one for each record its element names: an id no entity has shows as missing, and a value that
- * names no record shows as the game names it, where it does (a Kamidori skill's 無属, element 0, which no link reaches).
+ * names no record shows as the game names it, where it does.
  */
 function refItems(refs, field, v) {
 	if (!refs.length) return [nameOf(field, v) ?? { missing: `${field.refKind} ${v}` }];
@@ -197,7 +197,7 @@ export function infobox(kind, entity) {
 		const note = kind.notes.get(field.name) ?? null;
 		const value = entity.values[field.name];
 		const elements = field.isArray ? (value ?? []) : [value];
-		const none = (v) => isNone(field, v);
+		const none = (v, idx) => noneIn(entity, field, v, idx);
 		if (elements.every(none)) continue;
 		const item = (v, idx) => valueItem(entity, field, v, idx);
 		if (!field.isArray) {
@@ -210,7 +210,7 @@ export function infobox(kind, entity) {
 			continue;
 		}
 		const sparse = field.refKind || elements.filter(none).length * 2 > elements.length;
-		const items = elements.map((v, idx) => ({ v, idx })).filter(({ v }) => !sparse || !none(v));
+		const items = elements.map((v, idx) => ({ v, idx })).filter(({ v, idx }) => !sparse || !none(v, idx));
 		rows.push({ field, label: field.label, note, items: items.flatMap(({ v, idx }) => item(v, idx)) });
 	}
 	return rows;
@@ -407,9 +407,12 @@ function detailItems(kind, by, detail) {
 		const text = textItem(from, detail, at);
 		return text ? [text] : [{ text: '—' }];
 	}
-	if (v === null || v === undefined || (field.refKind && isNone(field, v))) return [{ text: '—' }];
+	if (v === null || v === undefined) return [{ text: '—' }];
 	if (!field.refKind) return valueItems(field, v);
-	return refItems(from.refs.filter((r) => r.field === detail && r.idx === at), field, v);
+	// A reference that is none shows a dash, unless the export linked it (format.mjs `noneIn`).
+	const refs = from.refs.filter((r) => r.field === detail && r.idx === at);
+	if (isNone(field, v) && !refs.length) return [{ text: '—' }];
+	return refItems(refs, field, v);
 }
 
 const itemKey = (item) => item.text ?? item.title ?? item.entity?.url ?? item.missing;

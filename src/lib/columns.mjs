@@ -125,13 +125,16 @@ function options(kind, column) {
 	const named = (item) => (item.names ? { t: item.title, n: item.names } : { x: item.text ?? item.title });
 	for (const entity of kind.entities) {
 		const v = rawValue(column, entity);
+		// Each record a reference names counts (a row reference names several: OME's export plan §5), a 0 the export
+		// linked among them (format.mjs `noneIn`: a Kamidori weapon's Omni).
+		if (type === 'entity') {
+			for (const ref of entity.refs.filter((r) => r.field === field.name))
+				if (ref.target) count(ref.target.id, { t: ref.target.title, n: ref.target.names });
+			continue;
+		}
 		if (emptyValue(field, type, v)) continue;
 		if (type === 'mask') {
 			for (let k = 0; k < 31; k++) if (v & (1 << k)) count(k, named(nameOf(field, k) ?? { text: String(k) }));
-		} else if (type === 'entity') {
-			// Each record a row reference names counts (OME's export plan §5).
-			for (const ref of entity.refs.filter((r) => r.field === field.name))
-				if (ref.target) count(ref.target.id, { t: ref.target.title, n: ref.target.names });
 		} else count(v, named(valueItems(field, v)[0]));
 	}
 	return [...counts.values()].sort((a, b) => a.v - b.v);
@@ -158,15 +161,17 @@ export function cellItems(column, entity) {
 			v === null || v === undefined || isNone(field, v) ? [] : [labelled(columnLabel(field, i) ?? `#${i}`, valueItems(field, v))],
 		);
 	const v = rawValue(column, entity);
-	if (emptyValue(field, type, v)) return [];
 	if (type === 'entity') {
-		// A row reference names every record of a row (OME's export plan §5): the cards that may carry an item.
+		// A row reference names every record of a row (OME's export plan §5): the cards that may carry an item. A value
+		// that is none is empty, unless the export linked it (format.mjs `noneIn`: a Kamidori weapon's Omni).
 		const refs = entity.refs.filter((r) => r.field === field.name);
+		if (v === null || v === undefined || (isNone(field, v) && !refs.length)) return [];
 		// A value that names no record shows as the game names it, where it does (values.mjs refItems).
 		return refs.length
 			? refs.map((ref) => (ref.target ? { entity: ref.target } : missing(ref.id)))
 			: [nameOf(field, v) ?? missing(v)];
 	}
+	if (emptyValue(field, type, v)) return [];
 	return valueItems(field, v);
 }
 
