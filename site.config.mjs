@@ -14,6 +14,10 @@ export default {
 		// OME's repository. A guide's link to an OME file outside the guides goes to that file here, at the bundle's
 		// commit; the home page links its releases.
 		repository: 'https://github.com/concopuffs/OpenMaidEngine',
+		// The OME release whose reference bundle a deploy builds with (site plan §15): the deploy downloads that
+		// release's OME-reference-<tag>.zip into bundle/. null until a release carries a bundle; the deploy then makes
+		// one from OME's develop branch. A local build does not read it (the order above).
+		release: null,
 	},
 	// The games whose database the build makes (site design §8, §10.1), each from one export: the folder OME's
 	// `data-export` writes, copied to data/<game>/. The OME_SITE_GAMES environment variable overrides which are built,

@@ -1,0 +1,10 @@
+# What a docker build sends of this folder (Dockerfile). data/ and bundle/ stay: the build mounts them. A bundle made
+# from an OME checkout (bundle/checkout/) does not: the image reads a downloaded zip.
+.git
+.astro
+node_modules
+dist
+docs
+bundle/checkout
+src/content/docs
+*.log

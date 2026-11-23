@@ -1,0 +1,126 @@
+# The site's image (site plan §15). It builds the image (Dockerfile) with the exports from the private bucket and OME's
+# reference bundle, checks it as it serves (scripts/smoke-test.mjs) and pushes it to GitHub's container registry. The
+# server's own tooling takes it from there.
+#
+# It runs on a push to develop and by hand, never for a pull request, so the bucket's keys never reach a fork's code.
+# It needs the repository variables EXPORTS_ENDPOINT, EXPORTS_BUCKET and (optionally) EXPORTS_REGION, and the secrets
+# EXPORTS_ACCESS_KEY_ID and EXPORTS_SECRET_ACCESS_KEY of a key that can only read the bucket (README, "Deploying").
+name: Site image
+
+on:
+  push:
+    branches: [develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: site-image
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  image:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Read what the build needs
+        id: sources
+        run: |
+          node scripts/deploy-sources.mjs > "$RUNNER_TEMP/sources.json"
+          cat "$RUNNER_TEMP/sources.json"
+          echo "release=$(jq -r '.ome.release // empty' "$RUNNER_TEMP/sources.json")" >> "$GITHUB_OUTPUT"
+          echo "repository=$(jq -r '.ome.repository | sub("^https://github.com/"; "")' "$RUNNER_TEMP/sources.json")" >> "$GITHUB_OUTPUT"
+
+      - name: Download OME's reference bundle
+        if: steps.sources.outputs.release != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE: ${{ steps.sources.outputs.release }}
+          REPOSITORY: ${{ steps.sources.outputs.repository }}
+        run: |
+          mkdir -p bundle
+          gh release download "$RELEASE" --repo "$REPOSITORY" --pattern "OME-reference-$RELEASE.zip" --dir bundle
+          ls -l bundle
+
+      # Until an OME release carries a reference bundle (site.config.mjs `ome.release` is null), one is made from OME's
+      # develop branch, as OME's own release workflow makes it.
+      - name: Set up Python
+        if: steps.sources.outputs.release == ''
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.11"
+
+      - name: Make the reference bundle from OME's develop
+        if: steps.sources.outputs.release == ''
+        env:
+          REPOSITORY: ${{ steps.sources.outputs.repository }}
+        run: |
+          git clone --depth 1 --branch develop "https://github.com/$REPOSITORY.git" "$RUNNER_TEMP/ome"
+          mkdir -p bundle
+          (cd "$RUNNER_TEMP/ome" && python -X utf8 tools/reference_bundle.py --output "$GITHUB_WORKSPACE/bundle")
+          ls -l bundle
+
+      - name: Download the exports
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.EXPORTS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.EXPORTS_SECRET_ACCESS_KEY }}
+          AWS_ENDPOINT_URL: ${{ vars.EXPORTS_ENDPOINT }}
+          AWS_DEFAULT_REGION: ${{ vars.EXPORTS_REGION || 'auto' }}
+          # Checksums only where the request needs one, as S3-compatible stores other than AWS expect.
+          AWS_REQUEST_CHECKSUM_CALCULATION: when_required
+          AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
+          BUCKET: ${{ vars.EXPORTS_BUCKET }}
+        run: |
+          : "${BUCKET:?set the repository variable EXPORTS_BUCKET}"
+          : "${AWS_ACCESS_KEY_ID:?set the repository secret EXPORTS_ACCESS_KEY_ID}"
+          # No endpoint is AWS's own S3.
+          [ -n "$AWS_ENDPOINT_URL" ] || unset AWS_ENDPOINT_URL
+          while read -r game revision; do
+            aws s3 sync "s3://$BUCKET/$game/$revision/" "data/$game/" --only-show-errors
+            if [ ! -f "data/$game/$revision.sqlite" ]; then
+              echo "::error::the bucket has no $game/$revision/$revision.sqlite"
+              exit 1
+            fi
+            echo "$game $revision: $(find "data/$game" -type f | wc -l) files"
+          done < <(jq -r '.games[] | "\(.id) \(.revision)"' "$RUNNER_TEMP/sources.json")
+
+      - name: Build the image
+        run: |
+          image="ghcr.io/${GITHUB_REPOSITORY,,}"
+          echo "IMAGE=$image" >> "$GITHUB_ENV"
+          docker build \
+            --label "org.opencontainers.image.source=https://github.com/$GITHUB_REPOSITORY" \
+            --label "org.opencontainers.image.revision=$GITHUB_SHA" \
+            --tag "$image:$GITHUB_SHA" .
+          docker image ls "$image"
+
+      - name: Check the image as it serves
+        run: |
+          docker run --detach --name site --publish 8080:8080 "$IMAGE:$GITHUB_SHA"
+          if ! node scripts/smoke-test.mjs http://localhost:8080; then
+            docker logs site
+            exit 1
+          fi
+
+      # The commit's tag always; latest only from develop, the tag the server's tooling follows.
+      - name: Push the image
+        env:
+          REGISTRY_TOKEN: ${{ github.token }}
+        run: |
+          echo "$REGISTRY_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+          docker push "$IMAGE:$GITHUB_SHA"
+          if [ "$GITHUB_REF" = refs/heads/develop ]; then
+            docker tag "$IMAGE:$GITHUB_SHA" "$IMAGE:latest"
+            docker push "$IMAGE:latest"
+          fi

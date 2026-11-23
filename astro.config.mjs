@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import config from './site.config.mjs';
 import { locateBundle, openBundle } from './src/lib/bundle.mjs';
 import { guideLinkKey, guideLinks, referenceTargets } from './src/lib/guide-links.mjs';
+import { listedGames } from './src/lib/listed-games.mjs';
 import { games, syncGuides } from './src/lib/ome.mjs';
 import { referenceSidebar } from './src/lib/reference-model.mjs';
 
@@ -26,9 +27,7 @@ const guides = syncGuides(
 const omeGames = games(bundle);
 
 // The games whose database the build makes (site.config.mjs `games`, or OME_SITE_GAMES).
-const listed = process.env.OME_SITE_GAMES?.split(',').map((game) => game.trim()).filter(Boolean) ?? Object.keys(config.games);
-for (const game of listed) if (!config.games[game]) throw new Error(`OME_SITE_GAMES names ${game}, which site.config.mjs does not`);
-const databases = listed.map((game) => ({ game, dir: path.join(here, 'data', game), ...config.games[game] }));
+const databases = listedGames(config).map((game) => ({ game, dir: path.join(here, 'data', game), ...config.games[game] }));
 
 // What the pages read of OME and the exports, as the module `virtual:ome` (typed in src/env.d.ts).
 const ome = {
