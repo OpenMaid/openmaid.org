@@ -83,11 +83,17 @@ export default {
 				area: ['place', 'battle_rule'],
 			},
 		},
-		// As small as OME's understood tables (the user, 2026-11-22): units, items, skills and stages.
+		// As large as OME's understood tables (the user, 2026-11-22), and growing with them.
 		himegari: {
 			revision: 'd8fe6068a5a5',
+			// An icon numbered from 501 is the append's sheet's (OME's declarations), so each kind lists both.
 			thumbnails: {
-				unit: ['face', 'sprite'],
+				unit: ['icon', 'icon_append', 'face', 'sprite'],
+				item: ['icon', 'icon_append'],
+				skill: ['icon'],
+				condition: ['icon'],
+				magic_action: ['icon'],
+				character_profile: ['portrait'],
 			},
 			columns: {
 				unit: [
@@ -104,6 +110,14 @@ export default {
 				item: ['category', 'attack_element', 'defense_element'],
 				skill: ['category', 'attack_element', 'max_range_encoded'],
 				stage: ['number_major', 'number_minor', 'clear_base_spendable_point_reward', 'extra_dungeon_flag'],
+				recipe: ['minimum_level', 'point_cost', 'ingredient_item_ids'],
+				condition: ['resisted_as', 'can_affect_bosses', 'cleared_by_recover'],
+				terrain: ['layout_class', 'required_skill_id'],
+				map_object: ['use_limit', 'required_skill_id', 'immunity_skill_id'],
+				card: ['type_id', 'awarded_item_id', 'clear_point_bonus', 'condition_id'],
+				training_action: ['spirit_delta', 'awarded_skill_id', 'awarded_item_id', 'minimum_progress'],
+				magic_action: ['menu_kind', 'cost', 'required_magic_facility_level'],
+				character_profile: ['unit_id'],
 			},
 		},
 	},
