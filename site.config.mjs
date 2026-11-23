@@ -13,7 +13,7 @@ export default {
 		checkout: '../age-reimpl',
 		// OME's repository. A guide's link to an OME file outside the guides goes to that file here, at the bundle's
 		// commit; the home page links its releases.
-		repository: 'https://github.com/concopuffs/OpenMaidEngine',
+		repository: 'https://github.com/OpenMaid/OpenMaidEngine',
 		// The OME a deploy builds with (site plan §15): 'latest', the newest release, so a release rebuilds the site with
 		// no change here; a release's tag, to hold one; or 'develop', the branch's head, which has no release's bundle,
 		// so the deploy makes one. The deploy exports each game with that OME's exporter and reads that OME's reference
