@@ -423,7 +423,7 @@ const itemKey = (item) => item.text ?? item.title ?? item.entity?.url ?? item.mi
  * table's row in a part has the part's heading ("Ally on stages"), else the part's name ("Stages: ally unit"). Each is
  * a `table` of the referring entities: each with its picture, then the details the export names beside it (a drop's
  * chance, a stage's labyrinth and floor), then the columns its kind's list shows first (lib/columns.mjs) but those the
- * details show, and a count where one refers so more than once (an enemy in several slots alike); its name leaves out
+ * details show and a one-cell reference's own field, and a count where one refers so more than once (an enemy in several slots alike); its name leaves out
  * the qualifiers the details and columns show.
  */
 export function referencedBy(data, entity) {
@@ -447,8 +447,12 @@ export function referencedBy(data, entity) {
 	}
 	const ids = new Set();
 	return [...groups.values()].map(({ key, kind, label: heading, details, refs }) => {
-		// The columns the kind's list shows first (lib/columns.mjs), but those the reference's details show already.
-		const listed = defaultColumns(kind).filter((column) => !details.includes(column.field.name));
+		// The columns the kind's list shows first (lib/columns.mjs), but those the reference's details show already and
+		// the reference's own field where it is one cell, which names this entity on every row (a unit's race).
+		const listed = defaultColumns(kind).filter(
+			(column) =>
+				!details.includes(column.field.name) && !(column.field.name === refs[0].field && column.field.width === 1),
+		);
 		const rows = new Map();
 		for (const by of refs) {
 			const cells = details.map((detail) => detailItems(kind, by, detail));
