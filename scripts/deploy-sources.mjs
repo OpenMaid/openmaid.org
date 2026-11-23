@@ -1,15 +1,14 @@
-// What a deploy's build downloads before it runs (site plan §15): the OME release whose reference bundle it reads, and
-// each game's export by the revision site.config.mjs names. Prints JSON, which the deploy workflow reads with jq:
+// What a deploy works from (site plan §15): the OME it builds with and the games it makes, each with the translations
+// its export carries. Prints JSON, which the deploy workflow reads with jq:
 //
-//   { "ome": { "release": "v0.10.0", "repository": "https://github.com/…" },
-//     "games": [ { "id": "kamidori", "revision": "0294c8eafacf" }, … ] }
-//
-// `release` is null while site.config.mjs names none; the workflow then builds the bundle from OME's develop branch.
+//   { "ome": { "release": "latest", "repository": "https://github.com/…" },
+//     "games": [ { "id": "kamidori", "translations": [ { "language": "en", "import": [...], "package": {...} } ] },
+//                { "id": "arterial", "translations": [] }, … ] }
 import config from '../site.config.mjs';
 import { listedGames } from '../src/lib/listed-games.mjs';
 
 const sources = {
-	ome: { release: config.ome.release ?? null, repository: config.ome.repository },
-	games: listedGames(config).map((id) => ({ id, revision: config.games[id].revision })),
+	ome: { release: config.ome.release ?? 'latest', repository: config.ome.repository },
+	games: listedGames(config).map((id) => ({ id, translations: config.games[id].translations ?? [] })),
 };
 console.log(JSON.stringify(sources, null, '\t'));

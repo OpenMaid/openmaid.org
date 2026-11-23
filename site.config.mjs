@@ -14,17 +14,28 @@ export default {
 		// OME's repository. A guide's link to an OME file outside the guides goes to that file here, at the bundle's
 		// commit; the home page links its releases.
 		repository: 'https://github.com/concopuffs/OpenMaidEngine',
-		// The OME release whose reference bundle a deploy builds with (site plan §15): the deploy downloads that
-		// release's OME-reference-<tag>.zip into bundle/. null until a release carries a bundle; the deploy then makes
-		// one from OME's develop branch. A local build does not read it (the order above).
-		release: null,
+		// The OME a deploy builds with (site plan §15): 'latest', the newest release, so a release rebuilds the site with
+		// no change here; a release's tag, to hold one; or 'develop', the branch's head, which has no release's bundle,
+		// so the deploy makes one. The deploy exports each game with that OME's exporter and reads that OME's reference
+		// bundle, so the two always agree. A local build does not read it (the order above).
+		release: 'latest',
 	},
 	// The games whose database the build makes (site design §8, §10.1), each from one export: the folder OME's
-	// `data-export` writes, copied to data/<game>/. The OME_SITE_GAMES environment variable overrides which are built,
-	// as a comma-separated list; empty builds the site without a database.
+	// `data-export` writes, in data/<game>/, whose manifest.json names the game's revision. The OME_SITE_GAMES
+	// environment variable overrides which are built, as a comma-separated list; empty builds the site without a
+	// database. A deploy makes the exports itself from the installs in its bucket (site plan §15).
 	games: {
 		kamidori: {
-			revision: '0294c8eafacf',
+			// The translations an export carries beside the game's own text (site design §8.6). The deploy imports each from
+			// the translated install in its bucket (translations/<game>/<language>/) with OME's `omp text import-scripts`
+			// and the options given, into a language package of the id, name and authors given, which the site credits.
+			translations: [
+				{
+					language: 'en',
+					import: ['--overlay-root', 'patch', '--allow-bmp-as-agf'],
+					package: { id: 'local.kamidori-en', name: 'English (Kamidori_Translated, imported)', authors: ['Aroduc'] },
+				},
+			],
 			// The picture a kind's lists and tooltips show, by the export's picture names, first found first. An explicit
 			// picture is never shown there (site design §8.11).
 			// A kind titled by a reference (a recipe, by the item it makes) shows its target's when it has none.
@@ -79,7 +90,6 @@ export default {
 			},
 		},
 		arterial: {
-			revision: '433790e6b0cc',
 			thumbnails: {
 				card: ['art'],
 				item: ['icon'],
@@ -105,7 +115,6 @@ export default {
 		},
 		// As large as OME's understood tables (the user, 2026-11-22), and growing with them.
 		himegari: {
-			revision: 'd8fe6068a5a5',
 			// An icon numbered from 501 is the append's sheet's (OME's declarations), so each kind lists both.
 			thumbnails: {
 				unit: ['icon', 'icon_append', 'face', 'sprite'],

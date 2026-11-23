@@ -1,20 +1,29 @@
-# The site's image (site plan §15). It builds the image (Dockerfile) with the exports from the private bucket and OME's
-# reference bundle, checks it as it serves (scripts/smoke-test.mjs) and pushes it to GitHub's container registry. The
-# server's own tooling takes it from there.
+# The site's image (site plan §15), from the game installs in a private bucket to the image in GitHub's container
+# registry, with no step by hand:
 #
-# It runs on a push to develop and by hand, never for a pull request, so the bucket's keys never reach a fork's code.
-# It needs the repository variables EXPORTS_ENDPOINT, EXPORTS_BUCKET and (optionally) EXPORTS_REGION, and the secrets
-# EXPORTS_ACCESS_KEY_ID and EXPORTS_SECRET_ACCESS_KEY of a key that can only read the bucket (README, "Deploying").
+# 1. resolve: which OME (site.config.mjs `ome.release`: the latest release by default), and each game's export key
+#    (scripts/export-key.mjs): that OME's commit, the game's install and translations as the bucket lists them, and
+#    how the export is made. An export the bucket holds under its key is not made again.
+# 2. export: for each game whose export is missing, one runner downloads its install and translations, makes the
+#    export with that OME (scripts/make-export.mjs) and uploads it.
+# 3. image: builds the image (Dockerfile) from the exports and that OME's reference bundle, checks it as it serves
+#    (scripts/smoke-test.mjs) and pushes it, where the server's own tooling takes it.
+#
+# It runs on a push to develop, when OME's notify-site workflow sends ome-release after a release, and by hand; never
+# for a pull request, so the bucket's keys never reach a fork's code. It needs the repository variables
+# EXPORTS_ENDPOINT, EXPORTS_BUCKET and (optionally) EXPORTS_REGION, and the secrets EXPORTS_ACCESS_KEY_ID and
+# EXPORTS_SECRET_ACCESS_KEY of a key that reads the bucket and writes its exports/ (README, "Deploying").
 name: Site image
 
 on:
   push:
     branches: [develop]
+  repository_dispatch:
+    types: [ome-release]
   workflow_dispatch:
 
 permissions:
   contents: read
-  packages: write
 
 concurrency:
   group: site-image
@@ -24,76 +33,250 @@ defaults:
   run:
     shell: bash
 
+env:
+  BUCKET: ${{ vars.EXPORTS_BUCKET }}
+  AWS_ENDPOINT_URL: ${{ vars.EXPORTS_ENDPOINT }}
+  AWS_DEFAULT_REGION: ${{ vars.EXPORTS_REGION || 'auto' }}
+  # Checksums only where a request needs one, as S3-compatible stores other than AWS expect.
+  AWS_REQUEST_CHECKSUM_CALCULATION: when_required
+  AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
+
 jobs:
-  image:
+  resolve:
+    name: Resolve OME and the exports
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 10
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.EXPORTS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.EXPORTS_SECRET_ACCESS_KEY }}
+    outputs:
+      ome-repository: ${{ steps.ome.outputs.repository }}
+      ome-ref: ${{ steps.ome.outputs.ref }}
+      ome-commit: ${{ steps.ome.outputs.commit }}
+      ome-release: ${{ steps.ome.outputs.release }}
+      exports: ${{ steps.keys.outputs.exports }}
+      missing: ${{ steps.keys.outputs.missing }}
     steps:
       - name: Check out
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
-      - name: Read what the build needs
-        id: sources
+      - name: Read what the deploy works from
         run: |
           node scripts/deploy-sources.mjs > "$RUNNER_TEMP/sources.json"
           cat "$RUNNER_TEMP/sources.json"
-          echo "release=$(jq -r '.ome.release // empty' "$RUNNER_TEMP/sources.json")" >> "$GITHUB_OUTPUT"
-          echo "repository=$(jq -r '.ome.repository | sub("^https://github.com/"; "")' "$RUNNER_TEMP/sources.json")" >> "$GITHUB_OUTPUT"
 
-      - name: Download OME's reference bundle
-        if: steps.sources.outputs.release != ''
+      - name: Choose OME's version
+        id: ome
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE: ${{ steps.sources.outputs.release }}
-          REPOSITORY: ${{ steps.sources.outputs.repository }}
         run: |
-          mkdir -p bundle
-          gh release download "$RELEASE" --repo "$REPOSITORY" --pattern "OME-reference-$RELEASE.zip" --dir bundle
-          ls -l bundle
+          repository=$(jq -r '.ome.repository | sub("^https://github.com/"; "")' "$RUNNER_TEMP/sources.json")
+          wanted=$(jq -r '.ome.release' "$RUNNER_TEMP/sources.json")
+          case "$wanted" in
+            develop) ref=develop; release=false ;;
+            latest) ref=$(gh release view --repo "$repository" --json tagName --jq .tagName); release=true ;;
+            *) ref=$wanted; release=true ;;
+          esac
+          refs=$(git ls-remote "https://github.com/$repository.git")
+          if [ "$release" = true ]; then
+            commit=$(awk -v peeled="refs/tags/$ref^{}" -v tag="refs/tags/$ref" \
+              '$2 == peeled { found = $1 } $2 == tag && !found { found = $1 } END { print found }' <<< "$refs")
+          else
+            commit=$(awk -v head="refs/heads/$ref" '$2 == head { print $1 }' <<< "$refs")
+          fi
+          if [ -z "$commit" ]; then
+            echo "::error::$repository has no $ref"
+            exit 1
+          fi
+          echo "OME $ref at $commit"
+          {
+            echo "repository=$repository"
+            echo "ref=$ref"
+            echo "commit=$commit"
+            echo "release=$release"
+          } >> "$GITHUB_OUTPUT"
 
-      # Until an OME release carries a reference bundle (site.config.mjs `ome.release` is null), one is made from OME's
-      # develop branch, as OME's own release workflow makes it.
-      - name: Set up Python
-        if: steps.sources.outputs.release == ''
+      - name: Key each game's export
+        id: keys
+        env:
+          OME_COMMIT: ${{ steps.ome.outputs.commit }}
+        run: |
+          [ -n "$AWS_ENDPOINT_URL" ] || unset AWS_ENDPOINT_URL   # none is AWS's own S3
+          : "${BUCKET:?set the repository variable EXPORTS_BUCKET}"
+          : "${AWS_ACCESS_KEY_ID:?set the repository secret EXPORTS_ACCESS_KEY_ID}"
+          list() {
+            aws s3api list-objects-v2 --bucket "$BUCKET" --prefix "$1" --query 'Contents[].[Key,ETag,Size]' --output json
+          }
+          exports='[]'
+          missing='[]'
+          while read -r game; do
+            listings="$RUNNER_TEMP/listings/$game"
+            mkdir -p "$listings"
+            list "installs/$game/" > "$listings/install.json"
+            while read -r language; do
+              [ -n "$language" ] && list "translations/$game/$language/" > "$listings/translation-$language.json"
+            done < <(jq -r --arg game "$game" '.games[] | select(.id == $game) | .translations[].language' \
+              "$RUNNER_TEMP/sources.json")
+            key=$(node scripts/export-key.mjs "$game" "$OME_COMMIT" "$listings")
+            entry=$(jq -cn --arg game "$game" --arg key "$key" '{game: $game, key: $key}')
+            exports=$(jq -c --argjson entry "$entry" '. + [$entry]' <<< "$exports")
+            if aws s3api head-object --bucket "$BUCKET" --key "exports/$game/$key/manifest.json" > /dev/null 2>&1; then
+              echo "$game: export $key is in the bucket"
+            else
+              echo "$game: export $key is to be made"
+              missing=$(jq -c --argjson entry "$entry" '. + [$entry]' <<< "$missing")
+            fi
+          done < <(jq -r '.games[].id' "$RUNNER_TEMP/sources.json")
+          {
+            echo "exports=$exports"
+            echo "missing=$missing"
+          } >> "$GITHUB_OUTPUT"
+
+  export:
+    name: Export ${{ matrix.game }}
+    needs: resolve
+    if: needs.resolve.outputs.missing != '[]'
+    strategy:
+      fail-fast: true
+      matrix:
+        include: ${{ fromJSON(needs.resolve.outputs.missing) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.EXPORTS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.EXPORTS_SECRET_ACCESS_KEY }}
+      DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+      DOTNET_NOLOGO: "true"
+      PYTHONUTF8: "1"
+      OME_PYTHON: python
+      GAME: ${{ matrix.game }}
+      KEY: ${{ matrix.key }}
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # A release by its tag, so the export's OME version (git describe) names it; develop by its commit.
+      - name: Check out OME ${{ needs.resolve.outputs.ome-ref }}
+        env:
+          OME_REPOSITORY: ${{ needs.resolve.outputs.ome-repository }}
+          OME_REF: ${{ needs.resolve.outputs.ome-ref }}
+          OME_COMMIT: ${{ needs.resolve.outputs.ome-commit }}
+          OME_RELEASE: ${{ needs.resolve.outputs.ome-release }}
+        run: |
+          git init -q ome
+          if [ "$OME_RELEASE" = true ]; then
+            git -C ome fetch -q --depth 1 "https://github.com/$OME_REPOSITORY.git" "+refs/tags/$OME_REF:refs/tags/$OME_REF"
+            git -C ome checkout -q "refs/tags/$OME_REF"
+          else
+            git -C ome fetch -q --depth 1 "https://github.com/$OME_REPOSITORY.git" "$OME_COMMIT"
+            git -C ome checkout -q FETCH_HEAD
+          fi
+          if [ "$(git -C ome rev-parse HEAD)" != "$OME_COMMIT" ]; then
+            echo "::error::OME $OME_REF is no longer $OME_COMMIT"
+            exit 1
+          fi
+          echo "OME $(git -C ome describe --tags --always) at $OME_COMMIT"
+
+      - name: Set up Python 3.11
         uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: "3.11"
+          architecture: x64
+
+      - name: Set up .NET SDK
+        uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          global-json-file: ome/global.json
+
+      # An install and a translated install run to some 10 GB; the runner's second disk holds them.
+      - name: Make room for the install
+        run: |
+          sudo mkdir -p /mnt/ome-data
+          sudo chown "$USER" /mnt/ome-data
+          df -h / /mnt
+
+      - name: Download the install and translations
+        run: |
+          [ -n "$AWS_ENDPOINT_URL" ] || unset AWS_ENDPOINT_URL
+          aws s3 sync "s3://$BUCKET/installs/$GAME/" /mnt/ome-data/install/ --only-show-errors
+          while read -r language; do
+            [ -n "$language" ] || continue
+            aws s3 sync "s3://$BUCKET/translations/$GAME/$language/" "/mnt/ome-data/translations/$language/" --only-show-errors
+          done < <(node scripts/deploy-sources.mjs | jq -r --arg game "$GAME" '.games[] | select(.id == $game) | .translations[].language')
+          du -sh /mnt/ome-data/*
+
+      - name: Make the export
+        run: |
+          node scripts/make-export.mjs --ome ome --game "$GAME" --install /mnt/ome-data/install \
+            --translations /mnt/ome-data/translations --output /mnt/ome-data/export
+
+      # The manifest goes last, so an export the bucket lists under its key is a whole one.
+      - name: Upload the export
+        run: |
+          [ -n "$AWS_ENDPOINT_URL" ] || unset AWS_ENDPOINT_URL
+          aws s3 sync /mnt/ome-data/export/ "s3://$BUCKET/exports/$GAME/$KEY/" --exclude manifest.json --only-show-errors
+          aws s3 cp /mnt/ome-data/export/manifest.json "s3://$BUCKET/exports/$GAME/$KEY/manifest.json" --only-show-errors
+
+  image:
+    name: Build and push the image
+    needs: [resolve, export]
+    if: ${{ !cancelled() && needs.resolve.result == 'success' && contains(fromJSON('["success", "skipped"]'), needs.export.result) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      packages: write
+    env:
+      AWS_ACCESS_KEY_ID: ${{ secrets.EXPORTS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.EXPORTS_SECRET_ACCESS_KEY }}
+      OME_REPOSITORY: ${{ needs.resolve.outputs.ome-repository }}
+      OME_REF: ${{ needs.resolve.outputs.ome-ref }}
+      OME_COMMIT: ${{ needs.resolve.outputs.ome-commit }}
+      EXPORTS: ${{ needs.resolve.outputs.exports }}
+    steps:
+      - name: Check out
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Download OME's reference bundle
+        if: needs.resolve.outputs.ome-release == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p bundle
+          gh release download "$OME_REF" --repo "$OME_REPOSITORY" --pattern "OME-reference-$OME_REF.zip" --dir bundle
+          ls -l bundle
+
+      # OME's develop has no release's bundle: one is made from it, as OME's own release workflow makes it.
+      - name: Set up Python 3.11
+        if: needs.resolve.outputs.ome-release != 'true'
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.11"
+          architecture: x64
 
       - name: Make the reference bundle from OME's develop
-        if: steps.sources.outputs.release == ''
-        env:
-          REPOSITORY: ${{ steps.sources.outputs.repository }}
+        if: needs.resolve.outputs.ome-release != 'true'
         run: |
-          git clone --depth 1 --branch develop "https://github.com/$REPOSITORY.git" "$RUNNER_TEMP/ome"
+          git init -q "$RUNNER_TEMP/ome"
+          git -C "$RUNNER_TEMP/ome" fetch -q --depth 1 "https://github.com/$OME_REPOSITORY.git" "$OME_COMMIT"
+          git -C "$RUNNER_TEMP/ome" checkout -q FETCH_HEAD
           mkdir -p bundle
           (cd "$RUNNER_TEMP/ome" && python -X utf8 tools/reference_bundle.py --output "$GITHUB_WORKSPACE/bundle")
           ls -l bundle
 
       - name: Download the exports
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.EXPORTS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.EXPORTS_SECRET_ACCESS_KEY }}
-          AWS_ENDPOINT_URL: ${{ vars.EXPORTS_ENDPOINT }}
-          AWS_DEFAULT_REGION: ${{ vars.EXPORTS_REGION || 'auto' }}
-          # Checksums only where the request needs one, as S3-compatible stores other than AWS expect.
-          AWS_REQUEST_CHECKSUM_CALCULATION: when_required
-          AWS_RESPONSE_CHECKSUM_VALIDATION: when_required
-          BUCKET: ${{ vars.EXPORTS_BUCKET }}
         run: |
-          : "${BUCKET:?set the repository variable EXPORTS_BUCKET}"
-          : "${AWS_ACCESS_KEY_ID:?set the repository secret EXPORTS_ACCESS_KEY_ID}"
-          # No endpoint is AWS's own S3.
           [ -n "$AWS_ENDPOINT_URL" ] || unset AWS_ENDPOINT_URL
-          while read -r game revision; do
-            aws s3 sync "s3://$BUCKET/$game/$revision/" "data/$game/" --only-show-errors
-            if [ ! -f "data/$game/$revision.sqlite" ]; then
-              echo "::error::the bucket has no $game/$revision/$revision.sqlite"
-              exit 1
-            fi
-            echo "$game $revision: $(find "data/$game" -type f | wc -l) files"
-          done < <(jq -r '.games[] | "\(.id) \(.revision)"' "$RUNNER_TEMP/sources.json")
+          while read -r game key; do
+            aws s3 sync "s3://$BUCKET/exports/$game/$key/" "data/$game/" --only-show-errors
+            echo "$game $key: revision $(jq -r .revision "data/$game/manifest.json"), $(find "data/$game" -type f | wc -l) files"
+          done < <(jq -r '.[] | "\(.game) \(.key)"' <<< "$EXPORTS")
 
       - name: Build the image
         run: |
@@ -102,6 +285,7 @@ jobs:
           docker build \
             --label "org.opencontainers.image.source=https://github.com/$GITHUB_REPOSITORY" \
             --label "org.opencontainers.image.revision=$GITHUB_SHA" \
+            --label "org.openmaid.ome=$OME_REF ($OME_COMMIT)" \
             --tag "$image:$GITHUB_SHA" .
           docker image ls "$image"
 
@@ -113,7 +297,8 @@ jobs:
             exit 1
           fi
 
-      # The commit's tag always; latest only from develop, the tag the server's tooling follows.
+      # The commit's tag always; latest, the tag the server's tooling follows, from develop only. An OME release's
+      # dispatch runs on the repository's default branch, which is develop for that reason (README, "Deploying").
       - name: Push the image
         env:
           REGISTRY_TOKEN: ${{ github.token }}

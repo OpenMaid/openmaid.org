@@ -42,11 +42,18 @@ npm run preview  # serves dist/
 Each build copies OME's guides from the bundle into `src/content/docs/docs/`, which git ignores, and fails on a guide
 link it cannot map. The favicon is OME's icon (`godot/assets/ome-icon.svg` in OME).
 
-The game database needs each game's export, which holds the game's data and so is never committed. Make it with
-OME (`Ome.Cli data-export --game <game>`, on a machine with the game installed) and copy the folder it writes to
-`data/<game>/`, so that `data/kamidori/` holds `<revision>.sqlite`, `pictures/` and `manifest.json`. The revision
-must be the one `site.config.mjs` lists. To build without the database, set `OME_SITE_GAMES` empty; to build some
-games only, list them (`OME_SITE_GAMES=kamidori`).
+The game database needs each game's export, which holds the game's data and so is never committed. Make it on a
+machine with the game installed, as the deploy does, with an OME checkout:
+
+```sh
+node scripts/make-export.mjs --ome ../age-reimpl --game kamidori --install <the game's install> \
+  --translations <a folder holding en/, the translated install> --output data/kamidori
+```
+
+It runs OME's build tools, imports each translation `site.config.mjs` lists for the game into a language package
+(written beside the output, as `data/kamidori.en/`), and exports the game with them, so that `data/kamidori/` holds
+`<revision>.sqlite`, `pictures/` and `manifest.json`. The build reads the revision from the manifest. To build without
+the database, set `OME_SITE_GAMES` empty; to build some games only, list them (`OME_SITE_GAMES=kamidori`).
 
 ## What this repository holds, and what it does not
 
@@ -66,47 +73,72 @@ serving the built site over plain HTTP on port 8080 (`Dockerfile`, `deploy/nginx
 HTTPS. Besides the pages, nginx redirects an entity's address without its slug, or with a wrong one, to its page, from
 a map the build writes (`scripts/entity-redirects.mjs`).
 
-The workflow `.github/workflows/site-image.yml` makes the image on every push to `develop`, and by hand:
+The workflow `.github/workflows/site-image.yml` makes the image with no step by hand. It runs on every push to
+`develop`, when OME publishes a release (OME's workflow `notify-site.yml` sends this repository an `ome-release`
+event), and by hand. Its three jobs:
 
-1. it reads what the build needs (`scripts/deploy-sources.mjs`): the OME release `site.config.mjs` names in
-   `ome.release`, and each game's revision;
-2. it downloads that release's `OME-reference-<tag>.zip` into `bundle/` (while `ome.release` is null, it makes one
-   from OME's `develop` instead), and each game's export from the private bucket into `data/<game>/`;
-3. it builds the image, in which only the built site ends up: the build reads `data/` and `bundle/` through mounts,
-   so no layer holds an export;
-4. it runs the image and checks it as it serves (`scripts/smoke-test.mjs`), then pushes it to GitHub's container
-   registry as `ghcr.io/<owner>/<repository>`, tagged with the commit and, from `develop`, `latest`.
+1. **Resolve.** It reads what the deploy works from (`scripts/deploy-sources.mjs`): the OME that `site.config.mjs`
+   names in `ome.release` (`'latest'`, OME's latest release, by default; or a tag; or `'develop'`), and each game with
+   its translations. For each game it computes the export's key (`scripts/export-key.mjs`) from OME's commit, the
+   game's install and translated installs as the bucket lists them (each file's name, ETag and size), the game's
+   translations in `site.config.mjs` and `scripts/make-export.mjs` itself. An export the bucket holds under its key is
+   not made again.
+2. **Export,** for each game whose export is missing: a runner downloads the install and its translations, makes the
+   export with that OME (`scripts/make-export.mjs`), and uploads it under its key, its manifest last, so that an
+   export the bucket lists is a whole one.
+3. **Image.** It downloads OME's reference bundle into `bundle/` (the release's `OME-reference-<tag>.zip`; for
+   `develop`, one made from its commit) and each game's export into `data/<game>/`, and builds the image. Only the
+   built site ends up in it: the build reads `data/` and `bundle/` through mounts, so no layer holds an export. It runs
+   the image and checks it as it serves (`scripts/smoke-test.mjs`), then pushes it to GitHub's container registry as
+   `ghcr.io/<owner>/<repository>`, tagged with the commit and, from `develop`, `latest`.
 
-The server's own tooling takes the image from there. It needs a token that can read the package (`read:packages`),
-since the package is private.
+So an OME release, an install or translation changed in the bucket, and a push here each end in a new image, and what
+did not change is not exported again. The server's own tooling takes the image from there. It needs a token that can
+read the package (`read:packages`), since the package is private.
 
-### The exports in the bucket
+### The bucket
 
-Any S3-compatible bucket works. Each game's export goes under `<game>/<revision>/`, exactly as OME writes it:
+Any S3-compatible bucket works. It holds each game's install and translated installs, which are uploaded once, and
+the exports the workflow writes:
 
 ```
-<bucket>/kamidori/0294c8eafacf/0294c8eafacf.sqlite
-<bucket>/kamidori/0294c8eafacf/manifest.json
-<bucket>/kamidori/0294c8eafacf/pictures/...
+<bucket>/installs/<game>/...                  the game's install as it is on disk, SYS4INI.BIN at its top
+<bucket>/translations/<game>/<language>/...   a translated install that a translation in site.config.mjs imports
+<bucket>/exports/<game>/<key>/...             the workflow's exports: <revision>.sqlite, pictures/, manifest.json
 ```
 
-After making an export with OME, upload it with the AWS CLI (or any S3 client), from OME's checkout:
+Upload an install, or a new one in its place, with the AWS CLI or any S3 client; `--delete` makes the bucket's copy
+the same as the folder:
 
 ```sh
-aws s3 sync build/games/kamidori/export/ s3://<bucket>/kamidori/0294c8eafacf/ --delete --endpoint-url <endpoint>
+aws s3 sync "<the game's install>" s3://<bucket>/installs/kamidori/ --delete --endpoint-url <endpoint>
+aws s3 sync "<the translated install>" s3://<bucket>/translations/kamidori/en/ --delete --endpoint-url <endpoint>
 ```
 
-Then run the workflow by hand (or push), and the image is rebuilt with it.
+The next run exports the game again. Nothing reads an export once no key names it, so old ones under `exports/` can
+be deleted; a run that needs one again makes it.
 
-The repository's settings hold where the bucket is and a key that can only read it:
+### The repositories' settings
+
+This repository's settings hold where the bucket is and a key for it. The key reads the bucket and writes `exports/`:
 
 | Kind | Name | What |
 |---|---|---|
 | Variable | `EXPORTS_ENDPOINT` | The bucket's S3 endpoint (empty for AWS's own S3) |
 | Variable | `EXPORTS_BUCKET` | The bucket's name |
 | Variable | `EXPORTS_REGION` | Its region, if it needs one (default `auto`) |
-| Secret | `EXPORTS_ACCESS_KEY_ID` | A read-only key for the bucket |
+| Secret | `EXPORTS_ACCESS_KEY_ID` | The bucket's key |
 | Secret | `EXPORTS_SECRET_ACCESS_KEY` | Its secret |
+
+The repository's default branch is `develop`: GitHub runs an event that another repository sends with the default
+branch's workflow, and `latest` comes from `develop` only.
+
+OME's repository holds what its `notify-site.yml` needs to send the event:
+
+| Kind | Name | What |
+|---|---|---|
+| Variable | `SITE_REPOSITORY` | This repository, as `<owner>/<name>`; without it no event is sent |
+| Secret | `SITE_DISPATCH_TOKEN` | A token that may send this repository an event: a fine-grained one with Contents: write on it, or a GitHub App's |
 
 ### Building the image by hand
 

@@ -15,6 +15,20 @@ export const FORMAT_VERSION = 1;
  * A game's export as the pages use it: its build facts, its kinds with their fields and entities, and its pictures.
  * Fails on what the site cannot show: a missing export, another format version, a picture file the export lacks.
  */
+/**
+ * The revision of the export in a game's folder, as its manifest.json names it (OME's export spec §6.5): the build
+ * reads whichever revision the folder holds, so a new export needs no change to site.config.mjs.
+ */
+export function exportRevision(game, dir) {
+	const file = path.join(dir, 'manifest.json');
+	if (!fs.existsSync(file))
+		throw new Error(`no export of ${game} at ${dir}: copy OME's export folder there, or leave the game out with OME_SITE_GAMES (README.md)`);
+	const manifest = JSON.parse(fs.readFileSync(file, 'utf8'));
+	if (manifest.game !== game) throw new Error(`${file} is an export of ${manifest.game}, not ${game}`);
+	if (!manifest.revision) throw new Error(`${file} names no revision`);
+	return manifest.revision;
+}
+
 export function readExport({ game, revision, dir, thumbnails = {}, cards = {}, columns = {}, linkIcons = [] }) {
 	const file = path.join(dir, `${revision}.sqlite`);
 	if (!fs.existsSync(file))
