@@ -27,7 +27,7 @@ export type Column = {
 };
 /** An item of a cell: a link (the index of its entry in `links`), a name, a text or an id no entry has. */
 export type Item = number | { t?: string; n?: Names; x?: string; m?: string };
-type Link = { i: number; u: string; t: string; n: Names };
+type Link = { i: number; u: string; t: string; n: Names; p?: [string, number, number] };
 export type Row = { id: number; u: string; t: string; n: Names; p: [string, number, number] | null; v: unknown[] };
 export type ListFile = { pictures: string; defaults: string[]; columns: Column[]; rows: Row[]; links: Link[] };
 export type Sort = { key: string; desc: boolean };
@@ -55,6 +55,12 @@ export function thumbHtml(pictures: string, picture: [string, number, number] | 
 		? `<img src="${esc(pictures + picture[0])}" alt="" width="${picture[1]}" height="${picture[2]}" loading="lazy"${picture[1] <= 32 && picture[2] <= 32 ? ' class="ome-pixel"' : ''}>`
 		: '';
 	return `<span class="ome-row-thumb" aria-hidden="true">${img}</span>`;
+}
+
+/** An entry's icon in a link's line of text, as `Value.astro` draws it (site.config.mjs `linkIcons`). */
+export function iconHtml(pictures: string, picture: [string, number, number]) {
+	const pixel = picture[1] <= 32 && picture[2] <= 32 ? ' class="ome-pixel"' : '';
+	return `<span class="ome-link-icon" aria-hidden="true"><img src="${esc(pictures + picture[0])}" alt="" width="${picture[1]}" height="${picture[2]}" loading="lazy"${pixel}></span>`;
 }
 
 /** The language a game's text shows in: the switch's choice, else the page's first translation. */
@@ -111,7 +117,9 @@ export function listTable(file: ListFile, table: HTMLTableElement, options: Opti
 	const itemHtml = (item: Item) => {
 		if (typeof item === 'number') {
 			const link = links[item];
-			return `<a href="${esc(link.u)}">${nameHtml(link.t, link.n)}</a>`;
+			return link.p
+				? `<a href="${esc(link.u)}" class="ome-thumbed">${iconHtml(file.pictures, link.p)}${nameHtml(link.t, link.n)}</a>`
+				: `<a href="${esc(link.u)}">${nameHtml(link.t, link.n)}</a>`;
 		}
 		if (item.m) return `<span class="ome-missing">${esc(item.m)} (no such entry)</span>`;
 		if (item.n) return nameHtml(item.t ?? '', item.n);

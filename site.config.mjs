@@ -31,7 +31,11 @@ export default {
 				quest: ['journal_icon'],
 				condition: ['icon'],
 				world_area: ['picture'],
+				element: ['icon'],
 			},
+			// The kinds whose thumbnail a link to one of their entries shows before its name, in an infobox, a list's
+			// cells and a related table's details, as the game draws an element's icon beside its name.
+			linkIcons: ['element'],
 			// The entry whose picture a kind's card on the game's front page shows, by id (site plan §10.3, finding 18),
 			// where the first entry with a picture says less of the kind; a kind with no picture shows its initial.
 			cards: { item: 250, condition: 9 },
@@ -97,7 +101,9 @@ export default {
 				condition: ['icon'],
 				magic_action: ['icon'],
 				character_profile: ['portrait'],
+				element: ['icon'],
 			},
+			linkIcons: ['element'],
 			columns: {
 				unit: [
 					'species_category',

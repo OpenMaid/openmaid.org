@@ -15,7 +15,7 @@ export const FORMAT_VERSION = 1;
  * A game's export as the pages use it: its build facts, its kinds with their fields and entities, and its pictures.
  * Fails on what the site cannot show: a missing export, another format version, a picture file the export lacks.
  */
-export function readExport({ game, revision, dir, thumbnails = {}, cards = {}, columns = {} }) {
+export function readExport({ game, revision, dir, thumbnails = {}, cards = {}, columns = {}, linkIcons = [] }) {
 	const file = path.join(dir, `${revision}.sqlite`);
 	if (!fs.existsSync(file))
 		throw new Error(`no export of ${game} revision ${revision} at ${file}: copy OME's export folder there (README.md)`);
@@ -309,6 +309,9 @@ export function readExport({ game, revision, dir, thumbnails = {}, cards = {}, c
 			}
 		}
 		qualify(kinds.filter((kind) => titleRefs(kind).length));
+		// A link to an entry of these kinds shows its thumbnail before its name (site.config.mjs `linkIcons`).
+		for (const kind of kinds.filter((kind) => linkIcons.includes(kind.id)))
+			for (const entity of kind.entities) if (entity.thumbnail) entity.icon = entity.thumbnail;
 		return { game, revision, info, manifest, languages, packages, kinds, byKey, pictures };
 	} finally {
 		db.close();

@@ -147,7 +147,7 @@ const altOf = (caption: string) =>
 										row.items.map((item, i) => (
 											<>
 												{i > 0 && ', '}
-												<Value item={item} />
+												<Value item={item} data={data} />
 											</>
 										))
 									)}

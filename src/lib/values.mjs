@@ -4,7 +4,7 @@ import { label } from './labels.mjs';
 import { SOURCE_LANGUAGE } from './language.mjs';
 import { flow, textShape } from './text-flow.mjs';
 import { cellItems, defaultColumns } from './columns.mjs';
-import { formatNumber, isChange, isNone, nameOf, noneIn, valueItems, valueText } from './format.mjs';
+import { formatNumber, isChange, isNone, linkTo, nameOf, noneIn, valueItems, valueText } from './format.mjs';
 
 export { formatNumber, isChange, valueItems, valueText };
 
@@ -25,7 +25,7 @@ function valueItem(entity, field, v, idx) {
  */
 function refItems(refs, field, v) {
 	if (!refs.length) return [nameOf(field, v) ?? { missing: `${field.refKind} ${v}` }];
-	return refs.map((ref) => (ref.target ? { entity: ref.target } : { missing: `${field.refKind} ${ref.id}` }));
+	return refs.map((ref) => (ref.target ? linkTo(ref.target) : { missing: `${field.refKind} ${ref.id}` }));
 }
 
 /**

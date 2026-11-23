@@ -83,7 +83,7 @@ const pictured = kind.entities.some((entity) => entity.thumbnail);
 									{cellItems(column, entity).map((item, i) => (
 										<>
 											{i > 0 && ', '}
-											<Value item={item} />
+											<Value item={item} data={data} />
 										</>
 									))}
 								</td>

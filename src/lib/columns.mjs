@@ -1,7 +1,7 @@
 // A kind's list columns (site plan §9.1): the columns a table of its entries can show, those it shows first, each
 // entry's cell in each, and the file a list page's script draws its table from (src/pages/[game]/[kind]/list.json.ts).
 // A kind's list and its entries' "Related" tables on other pages take their columns from here.
-import { emptyValue, isNone, nameOf, valueItems } from './format.mjs';
+import { emptyValue, isNone, linkTo, nameOf, valueItems } from './format.mjs';
 import { columnLabel, labelled, named } from './values.mjs';
 
 /** An array as wide as this, or narrower, gives a column for each element; a wider one gives one column of them all. */
@@ -155,7 +155,7 @@ export function cellItems(column, entity) {
 	const { field, type } = column;
 	const missing = (id) => ({ missing: `${field.refKind} ${id}` });
 	if (type === 'entities')
-		return entity.refs.filter((ref) => ref.field === field.name).map((ref) => (ref.target ? { entity: ref.target } : missing(ref.id)));
+		return entity.refs.filter((ref) => ref.field === field.name).map((ref) => (ref.target ? linkTo(ref.target) : missing(ref.id)));
 	if (type === 'list')
 		return (entity.values[field.name] ?? []).flatMap((v, i) =>
 			v === null || v === undefined || isNone(field, v) ? [] : [labelled(columnLabel(field, i) ?? `#${i}`, valueItems(field, v))],
@@ -168,7 +168,7 @@ export function cellItems(column, entity) {
 		if (v === null || v === undefined || (isNone(field, v) && !refs.length)) return [];
 		// A value that names no record shows as the game names it, where it does (values.mjs refItems).
 		return refs.length
-			? refs.map((ref) => (ref.target ? { entity: ref.target } : missing(ref.id)))
+			? refs.map((ref) => (ref.target ? linkTo(ref.target) : missing(ref.id)))
 			: [nameOf(field, v) ?? missing(v)];
 	}
 	if (emptyValue(field, type, v)) return [];
@@ -181,7 +181,8 @@ export function cellItems(column, entity) {
  * address, name (`t`, and `n` in each language), thumbnail (`p`: file, width, height) and a cell for each column (`v`):
  * the value for a column of one value (`number`, `name`, `mask`), else its items, each a link, a name (`t`, `n`), a
  * text (`x`) or an id no entry has (`m`). A link is the index of the entry it names in `links` (its id `i`, `u`, `t`,
- * `n`), which holds each entry the cells name once: a skill many units have is written once. A column says how a list
+ * `n`, and its icon `p` where its kind's links show one), which holds each entry the cells name once: a skill many units
+ * have is written once. A column says how a list
  * filters on it (`filter`, `filterOf`) and the choices of its select (`options`).
  */
 export function listData(data, kind) {
@@ -189,7 +190,17 @@ export function listData(data, kind) {
 	const links = [];
 	const linked = new Map();
 	const link = (entity) => {
-		if (!linked.has(entity)) linked.set(entity, links.push({ i: entity.id, u: entity.url, t: entity.title, n: entity.names }) - 1);
+		if (!linked.has(entity))
+			linked.set(
+				entity,
+				links.push({
+					i: entity.id,
+					u: entity.url,
+					t: entity.title,
+					n: entity.names,
+					...(entity.icon ? { p: [entity.icon.file, entity.icon.width, entity.icon.height] } : {}),
+				}) - 1,
+			);
 		return linked.get(entity);
 	};
 	const item = (i) =>

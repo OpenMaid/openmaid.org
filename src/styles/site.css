@@ -289,6 +289,17 @@ img.ome-pixel {
 	width: 3rem;
 	height: auto;
 }
+/* An entry's icon before a link's name, on its line (site.config.mjs `linkIcons`: an element's), a little larger than
+   the game draws it; the link is an `ome-thumbed` one, so the two do not break apart. */
+.ome-link-icon {
+	display: inline-flex;
+	margin-inline-end: 0.3rem;
+}
+.ome-link-icon img {
+	display: block;
+	width: 1.25rem;
+	height: auto;
+}
 /* Tabs (src/components/Tabs.astro; site plan §9): a row of tabs over the panel shown, the chosen one underlined (so it
    reads the same when the row wraps on a phone), each with its count. Hidden until a script turns the panels into
    tabs; then the panels' own headings are hidden. */

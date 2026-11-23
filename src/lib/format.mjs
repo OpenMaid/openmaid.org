@@ -21,6 +21,9 @@ export const isNone = (field, v) => v === 0 || meansNone(field, v) || (Boolean(f
 export const noneIn = (entity, field, v, idx) =>
 	isNone(field, v) && !(field.refKind && entity.refs.some((r) => r.field === field.name && r.idx === idx));
 
+/** A link to an entity, with its icon where its kind's links show one (site.config.mjs `linkIcons`: an element's). */
+export const linkTo = (entity) => (entity.icon ? { entity, icon: entity.icon } : { entity });
+
 /**
  * A value's name (OME's export plan §5): the game's own, in each language the export has it in, which `Name` draws
  * (`{ title, names }`), else OME's word (`{ text }`); null when the value has neither.

@@ -1,8 +1,9 @@
 ---
 // One value of an entity's field as the infobox, a group or a loaded table shows it (lib/values.mjs): a link to the
 // entity it refers to, an id no entity has, a text of the game in each language it has, or the value as text. A link
-// may have its entity's picture before the name (`thumb`; null keeps the picture's room empty, so names line up), and
-// its entity's marks after it (OME's export plan §5: a boss is marked "Boss").
+// may have its entity's picture before the name (`thumb`; null keeps the picture's room empty, so names line up), or
+// its entity's icon in the line of text (`icon`, site.config.mjs `linkIcons`: an element's), and its entity's marks
+// after it (OME's export plan §5: a boss is marked "Boss").
 import Name from './Name.astro';
 import Picture from './Picture.astro';
 
@@ -14,6 +15,7 @@ interface Props {
 		title?: string;
 		names?: Record<string, string>;
 		thumb?: { file: string; explicit: boolean; width: number; height: number } | null;
+		icon?: { file: string; explicit: boolean; width: number; height: number };
 	};
 	data?: { game: string; revision: string };
 }
@@ -23,10 +25,15 @@ const { item, data } = Astro.props;
 
 {
 	item.entity ? (
-		<a href={item.entity.url} class:list={[{ 'ome-thumbed': item.thumb !== undefined }]}>
+		<a href={item.entity.url} class:list={[{ 'ome-thumbed': item.thumb !== undefined || item.icon }]}>
 			{item.thumb !== undefined && (
 				<span class="ome-row-thumb" aria-hidden="true">
 					{item.thumb && data && <Picture data={data} picture={item.thumb} alt="" />}
+				</span>
+			)}
+			{item.thumb === undefined && item.icon && data && (
+				<span class="ome-link-icon" aria-hidden="true">
+					<Picture data={data} picture={item.icon} alt="" />
 				</span>
 			)}
 			<Name entity={item.entity} />
