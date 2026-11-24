@@ -4,11 +4,11 @@
 // something, with a dropdown").
 // Below 72rem the sidebar shows them instead (Sidebar.astro), and the phone's menu with it.
 import Default from '@astrojs/starlight/components/SiteTitle.astro';
-import { databases as listDatabases, guide } from '../lib/sections.mjs';
+import { databases as listDatabases, databasesPage, guide } from '../lib/sections.mjs';
 
 const databases = listDatabases();
 const here = Astro.url.pathname;
-const inDatabase = databases.some(({ href }) => here.startsWith(href));
+const inDatabase = here.startsWith(databasesPage.href) || databases.some(({ href }) => here.startsWith(href));
 ---
 
 <div class="ome-site-title">
@@ -20,6 +20,11 @@ const inDatabase = databases.some(({ href }) => here.startsWith(href));
 				<details class="ome-menu" data-ome-menu>
 					<summary class:list={{ 'ome-here': inDatabase }}>Game databases</summary>
 					<ul>
+						<li>
+							<a href={databasesPage.href} aria-current={here.startsWith(databasesPage.href) ? 'true' : undefined}>
+								All databases
+							</a>
+						</li>
 						{databases.map(({ label, href }) => (
 							<li>
 								<a href={href} aria-current={here.startsWith(href) ? 'true' : undefined}>

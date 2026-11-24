@@ -1,7 +1,7 @@
 // A kind's list columns (site plan §9.1): the columns a table of its entries can show, those it shows first, each
 // entry's cell in each, and the file a list page's script draws its table from (src/pages/[game]/[kind]/list.json.ts).
 // A kind's list and its entries' "Related" tables on other pages take their columns from here.
-import { emptyValue, isNone, linkTo, nameOf, valueItems } from './format.mjs';
+import { emptyValue, isNone, linkTo, nameOf, pictureTuple, valueItems } from './format.mjs';
 import { columnLabel, labelled, named } from './values.mjs';
 
 /** An array as wide as this, or narrower, gives a column for each element; a wider one gives one column of them all. */
@@ -198,7 +198,7 @@ export function listData(data, kind) {
 					u: entity.url,
 					t: entity.title,
 					n: entity.names,
-					...(entity.icon ? { p: [entity.icon.file, entity.icon.width, entity.icon.height] } : {}),
+					...(entity.icon ? { p: pictureTuple(entity.icon) } : {}),
 				}) - 1,
 			);
 		return linked.get(entity);
@@ -237,7 +237,7 @@ export function listData(data, kind) {
 			u: e.url,
 			t: e.title,
 			n: e.names,
-			p: e.thumbnail ? [e.thumbnail.file, e.thumbnail.width, e.thumbnail.height] : null,
+			p: e.thumbnail ? pictureTuple(e.thumbnail) : null,
 			v: columns.map((c) => (VALUE_TYPES.has(c.type) ? (rawValue(c, e) ?? null) : cellItems(c, e).map(item))),
 		})),
 		links,

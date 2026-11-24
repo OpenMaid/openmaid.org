@@ -4,8 +4,9 @@
 //   node scripts/smoke-test.mjs http://localhost:8080
 //
 // It waits until the server takes connections (the container starting), then makes each request once: the home page,
-// the reference, a 404, and for each game the build lists its front page, a kind's first entity, the redirects to
-// that entity's page (no slug, a wrong slug, no slash; deploy/nginx.conf), its picture, and the cache headers.
+// the reference, a 404, the databases page and its covers, and for each game the build lists its front page, a kind's
+// first entity, the redirects to that entity's page (no slug, a wrong slug, no slash; deploy/nginx.conf), its picture,
+// and the cache headers.
 import config from '../site.config.mjs';
 import { listedGames } from '../src/lib/listed-games.mjs';
 
@@ -61,6 +62,17 @@ if (asset) {
 }
 await expectStatus('/docs/', 200, 'the reference');
 await expectStatus('/pagefind/pagefind-entry.json', 200, 'the search index');
+// The page that lists the databases (site plan §15.4), and the covers it shows, the site's own copies.
+if (listedGames(config).length > 0) {
+	const databases = await (await expectStatus('/databases/', 200, 'the databases page')).text();
+	const list = databases.slice(databases.indexOf('class="ome-databases'));
+	for (const game of listedGames(config))
+		check(`the databases page lists ${game}'s database`, list.includes(`href="/${game}/"`));
+	for (const [, file] of list.matchAll(/src="\/databases\/covers\/([^"]+)"/g)) {
+		const cover = await expectStatus(`/databases/covers/${file}`, 200, `the cover ${file}`);
+		check(`the cover ${file} is a picture`, cover.headers.get('content-type')?.startsWith('image/'), cover.headers.get('content-type'));
+	}
+}
 const missing = await expectStatus('/no-such-page/', 404, 'a page that does not exist');
 check('a missing page shows the 404 page', (await missing.text()).includes('Page not found'));
 

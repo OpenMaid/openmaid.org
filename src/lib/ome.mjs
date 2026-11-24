@@ -18,6 +18,8 @@ export function games(bundle) {
 			play: game.support?.play ?? null,
 			modding: game.support?.modding ?? null,
 			site: game.site ?? null,
+			// The package's picture on the publisher's site, its address and SHA-256 (src/lib/covers.mjs).
+			cover: game.cover ?? null,
 			baseMod: game.base_mod,
 			scriptIndex: game.script_index,
 		}))

@@ -51,6 +51,7 @@ export default {
 				condition: ['icon'],
 				world_area: ['picture'],
 				element: ['icon'],
+				map_object: ['sprite'],
 			},
 			// The kinds whose thumbnail a link to one of their entries shows before its name, in an infobox, a list's
 			// cells and a related table's details, as the game draws an element's icon beside its name.
@@ -105,7 +106,7 @@ export default {
 				tip: ['picture'],
 			},
 			columns: {
-				card: ['rarity', 'race_flags', 'cost', 'control', 'attack', 'hp', 'price.buy'],
+				card: ['rarity', 'category', 'cost', 'control', 'attack', 'hp', 'price.buy'],
 				item: ['kind', 'rarity', 'price.buy'],
 				condition: ['kind', 'attack_change', 'hp_change', 'turn_hp_change'],
 				skill: ['kind', 'amount'],
@@ -130,6 +131,7 @@ export default {
 				magic_action: ['icon'],
 				character_profile: ['portrait'],
 				element: ['icon'],
+				map_object: ['sprite'],
 			},
 			linkIcons: ['element'],
 			columns: {

@@ -181,7 +181,11 @@ export function readExport({ game, revision, dir, thumbnails = {}, cards = {}, c
 			const grouped = (sql) => groupBy(all(sql, kind.id), (row) => row.id);
 			const texts = grouped('SELECT id, field, idx, lang, value FROM text WHERE kind = ? ORDER BY id, field, idx, lang');
 			const refs = grouped('SELECT from_id AS id, field, idx, to_kind, to_id FROM ref WHERE from_kind = ? ORDER BY from_id, field, idx');
-			const pics = grouped('SELECT id, name, file, explicit, width, height, hash FROM picture WHERE kind = ? ORDER BY id, name');
+			// A picture the game draws with its additive glow is marked (OME's export plan §5); an export before the
+			// mark has no such column.
+			const pics = grouped(
+				`SELECT id, name, file, explicit, ${columnsOf('picture').includes('additive') ? 'additive' : '0 AS additive'}, width, height, hash FROM picture WHERE kind = ? ORDER BY id, name`,
+			);
 			const cells = grouped('SELECT id, field, idx, bank, address, raw, writer FROM cell WHERE kind = ? ORDER BY id, field, idx');
 			const relations = grouped('SELECT id, relation, script, offset, count FROM relation WHERE kind = ? ORDER BY id, relation, script, offset');
 			const snippets = new Map(all('SELECT id, text FROM snippet WHERE kind = ?', kind.id).map((r) => [r.id, r.text]));
@@ -219,7 +223,15 @@ export function readExport({ game, revision, dir, thumbnails = {}, cards = {}, c
 					if (!pictures.has(name)) {
 						const source = path.join(dir, ...p.file.split('/'));
 						if (!fs.existsSync(source)) throw new Error(`${file}: ${kind.id} ${id}'s picture ${p.file} is not in the export`);
-						pictures.set(name, { file: name, source, explicit: Boolean(p.explicit), width: p.width, height: p.height, hash: p.hash });
+						pictures.set(name, {
+							file: name,
+							source,
+							explicit: Boolean(p.explicit),
+							...(p.additive ? { additive: true } : {}),
+							width: p.width,
+							height: p.height,
+							hash: p.hash,
+						});
 					}
 					return { name: p.name, ...pictures.get(name) };
 				});

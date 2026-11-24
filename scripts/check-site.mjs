@@ -1,4 +1,5 @@
-// Checks a built site (dist/), after `astro build` (site design §10.2):
+// Checks a built site (dist/, or the folder given: `node scripts/check-site.mjs [DIR]`, for a build made with
+// `astro build --outDir DIR`), after `astro build` (site design §10.2):
 //
 // - every link and asset a page names on the site resolves to a built file, and every anchor to an id on that page;
 // - the search index holds every page that marks its content for search (`data-pagefind-body`), and only those: the
@@ -23,7 +24,7 @@ import config from '../site.config.mjs';
 import { locateBundle, openBundle } from '../src/lib/bundle.mjs';
 import { href, referenceModel } from '../src/lib/reference-model.mjs';
 
-const dist = fileURLToPath(new URL('../dist/', import.meta.url));
+const dist = process.argv[2] ? path.resolve(process.argv[2]) : fileURLToPath(new URL('../dist/', import.meta.url));
 const failures = [];
 
 const pages = new Map(); // "/docs/lua/" -> { file, ids, links, searchable }

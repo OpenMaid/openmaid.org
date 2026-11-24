@@ -8,6 +8,7 @@ import config from './site.config.mjs';
 import { locateBundle, openBundle } from './src/lib/bundle.mjs';
 import { guideLinkKey, guideLinks, referenceTargets } from './src/lib/guide-links.mjs';
 import { exportRevision } from './src/lib/export.mjs';
+import { localCover } from './src/lib/covers.mjs';
 import { listedGames } from './src/lib/listed-games.mjs';
 import { games, syncGuides } from './src/lib/ome.mjs';
 import { referenceSidebar } from './src/lib/reference-model.mjs';
@@ -28,10 +29,14 @@ const guides = syncGuides(
 const omeGames = games(bundle);
 
 // The games whose database the build makes (site.config.mjs `games`, or OME_SITE_GAMES), each at the revision its
-// export in data/<game>/ holds.
+// export in data/<game>/ holds, with the copy of its cover in data/covers/ whose hash is the bundle's, if there is one
+// (src/lib/covers.mjs).
 const databases = listedGames(config).map((game) => {
 	const dir = path.join(here, 'data', game);
-	return { game, dir, revision: exportRevision(game, dir), ...config.games[game] };
+	const named = omeGames.find((g) => g.id === game)?.cover;
+	const cover = localCover(here, game, named);
+	if (named && !cover) console.warn(`[ome] no copy of ${game}'s cover in data/covers/: run node scripts/fetch-covers.mjs`);
+	return { game, dir, revision: exportRevision(game, dir), cover, ...config.games[game] };
 });
 
 // What the pages read of OME and the exports, as the module `virtual:ome` (typed in src/env.d.ts).

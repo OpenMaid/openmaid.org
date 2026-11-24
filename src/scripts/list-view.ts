@@ -27,8 +27,8 @@ export type Column = {
 };
 /** An item of a cell: a link (the index of its entry in `links`), a name, a text or an id no entry has. */
 export type Item = number | { t?: string; n?: Names; x?: string; m?: string };
-type Link = { i: number; u: string; t: string; n: Names; p?: [string, number, number] };
-export type Row = { id: number; u: string; t: string; n: Names; p: [string, number, number] | null; v: unknown[] };
+type Link = { i: number; u: string; t: string; n: Names; p?: PictureTuple };
+export type Row = { id: number; u: string; t: string; n: Names; p: PictureTuple | null; v: unknown[] };
 export type ListFile = { pictures: string; defaults: string[]; columns: Column[]; rows: Row[]; links: Link[] };
 export type Sort = { key: string; desc: boolean };
 /** A filter of a list: a column and the value it wants, as the address writes it (`3`, `10..20`, `poison`). */
@@ -49,18 +49,26 @@ export function nameHtml(title: string, names: Names = {}) {
 	return esc(title);
 }
 
+/** A picture in a list file: its file, width and height, and 1 where the game draws it with its additive glow. */
+export type PictureTuple = [string, number, number] | [string, number, number, 1];
+
+/** A picture's classes, as `Picture.astro` gives them: a small one's pixels kept sharp, an additive one on a dark tile. */
+const pictureClass = (picture: PictureTuple) => {
+	const classes = [...(picture[1] <= 32 && picture[2] <= 32 ? ['ome-pixel'] : []), ...(picture[3] ? ['ome-additive'] : [])];
+	return classes.length > 0 ? ` class="${classes.join(' ')}"` : '';
+};
+
 /** A thumbnail beside a name, as `Value.astro` draws it; an empty box keeps the names in line where an entry has none. */
-export function thumbHtml(pictures: string, picture: [string, number, number] | null | 0) {
+export function thumbHtml(pictures: string, picture: PictureTuple | null | 0) {
 	const img = picture
-		? `<img src="${esc(pictures + picture[0])}" alt="" width="${picture[1]}" height="${picture[2]}" loading="lazy"${picture[1] <= 32 && picture[2] <= 32 ? ' class="ome-pixel"' : ''}>`
+		? `<img src="${esc(pictures + picture[0])}" alt="" width="${picture[1]}" height="${picture[2]}" loading="lazy"${pictureClass(picture)}>`
 		: '';
 	return `<span class="ome-row-thumb" aria-hidden="true">${img}</span>`;
 }
 
 /** An entry's icon in a link's line of text, as `Value.astro` draws it (site.config.mjs `linkIcons`). */
-export function iconHtml(pictures: string, picture: [string, number, number]) {
-	const pixel = picture[1] <= 32 && picture[2] <= 32 ? ' class="ome-pixel"' : '';
-	return `<span class="ome-link-icon" aria-hidden="true"><img src="${esc(pictures + picture[0])}" alt="" width="${picture[1]}" height="${picture[2]}" loading="lazy"${pixel}></span>`;
+export function iconHtml(pictures: string, picture: PictureTuple) {
+	return `<span class="ome-link-icon" aria-hidden="true"><img src="${esc(pictures + picture[0])}" alt="" width="${picture[1]}" height="${picture[2]}" loading="lazy"${pictureClass(picture)}></span>`;
 }
 
 /** The language a game's text shows in: the switch's choice, else the page's first translation. */

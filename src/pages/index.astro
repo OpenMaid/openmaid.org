@@ -1,10 +1,10 @@
 ---
 // Home (site design §6): what the Open Maid project is and its parts (site plan §11), its games and their support
 // levels, where to get OME and the games' databases. It has no sidebar, so it is the phone's only way to the databases:
-// the hero and the games table link each one.
+// the hero links the page that lists them (the user, 2026-11-24), and the games table links each one.
 import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
 import ome from 'virtual:ome';
-import { databases as listDatabases, guide } from '../lib/sections.mjs';
+import { databases as listDatabases, databasesPage, guide } from '../lib/sections.mjs';
 
 const releases = `${ome.repository}/releases/latest`;
 const databases = listDatabases();
@@ -20,7 +20,9 @@ const databaseOf = new Map(databases.map((d) => [d.game, d]));
 			tagline: 'An open engine, modding tools and game databases for Eushully’s games.',
 			actions: [
 				{ text: 'Read the modding guide', link: guide.href, icon: 'right-arrow' },
-				...databases.map((d) => ({ text: `The ${d.label} database`, link: d.href, icon: 'right-arrow', variant: 'secondary' })),
+				...(databases.length > 0
+					? [{ text: 'The game databases', link: databasesPage.href, icon: 'right-arrow', variant: 'secondary' as const }]
+					: []),
 				{ text: 'Get OME', link: releases, icon: 'external', variant: 'minimal' },
 			],
 		},
@@ -82,14 +84,7 @@ const databaseOf = new Map(databases.map((d) => [d.game, d]));
 				<h2>The game databases</h2>
 				<p>
 					A page for each record of a game’s data (an item, a character, a skill, a recipe …), read by OME from the
-					game’s own data tables:{' '}
-					{databases.map((d, i) => (
-						<>
-							{i > 0 && ', '}
-							<a href={d.href}>{d.label}</a>
-						</>
-					))}
-					.
+					game’s own data tables. <a href={databasesPage.href}>The game databases</a> page lists them.
 				</p>
 			</>
 		)

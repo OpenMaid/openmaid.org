@@ -5,10 +5,10 @@
 // not show is shown beside the name, so "銅" finds "Copper Key" and says why.
 import { nameOf, nameScore, searchOf } from '../lib/match.mjs';
 import { SOURCE_LANGUAGE } from '../lib/language.mjs';
-import { esc, nameHtml, thumbHtml, type Names } from './list-view.ts';
+import { esc, nameHtml, thumbHtml, type Names, type PictureTuple } from './list-view.ts';
 
 type Kind = { id: string; one: string; many: string };
-type Raw = [number, number, string, string, Names | 0, [string, number, number] | 0];
+type Raw = [number, number, string, string, Names | 0, PictureTuple | 0];
 type IndexFile = { game: string; title: string; pictures: string; kinds: Kind[]; entries: Raw[] };
 export type Entry = {
 	kind: number;
@@ -17,7 +17,7 @@ export type Entry = {
 	title: string;
 	/** The entry's name in each language, the game's included; empty when its title is not the game's text. */
 	names: Names;
-	picture: [string, number, number] | 0;
+	picture: PictureTuple | 0;
 	keys: { tag: string; key: ReturnType<typeof nameOf> }[];
 };
 export type Index = { game: string; title: string; pictures: string; kinds: Kind[]; entries: Entry[] };

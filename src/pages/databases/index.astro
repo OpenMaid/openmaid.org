@@ -1,0 +1,133 @@
+---
+// The game databases (the user, 2026-11-24: "a game database overview page that lists them out, potentially with
+// coverart like the english wiki uses"), which the home page's hero links in the place of a link for each: each game's
+// cover, as the site's own copy (src/lib/covers.mjs), its titles, what its database holds and its languages.
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import ome from 'virtual:ome';
+import { databasesPage, databasesSidebar } from '../../lib/sections.mjs';
+import { games } from '../../lib/database.mjs';
+import { languageName } from '../../lib/labels.mjs';
+
+const listed = games().map((data) => {
+	const database = ome.databases.find((d) => d.game === data.game)!;
+	return {
+		data,
+		cover: database.cover,
+		entries: data.kinds.reduce((sum, kind) => sum + kind.entities.length, 0),
+		languages: ['Japanese', ...data.languages.map(languageName)],
+	};
+});
+// The maker's site, which OME's profiles name for each game, where the covers come from.
+const makerSites = [...new Set(listed.map(({ data }) => ome.games.find((g) => g.id === data.game)?.site).filter(Boolean))];
+---
+
+<StarlightPage
+	frontmatter={{
+		title: databasesPage.label,
+		head: [{ tag: 'title', content: `${databasesPage.label} | ${ome.title}` }],
+		tableOfContents: false,
+		prev: false,
+		next: false,
+	}}
+	sidebar={databasesSidebar()}
+>
+	<p>
+		Each game’s database has a page for each record of its data: an item, a character, a skill, a recipe and the rest,
+		read by Open Maid Engine from the game’s own data tables, with its own text and pictures. The story’s scenes are
+		not here.
+	</p>
+	<ul class="ome-databases not-content">
+		{
+			listed.map(({ data, cover, entries, languages }) => (
+				<li>
+					<a href={`/${data.game}/`}>
+						<span class="ome-database-cover" aria-hidden={cover ? undefined : 'true'}>
+							{cover ? (
+								<img
+									src={`/databases/covers/${cover.name}`}
+									alt={`The package of ${data.title}`}
+									width={cover.width}
+									height={cover.height}
+									loading="lazy"
+								/>
+							) : (
+								data.title[0]
+							)}
+						</span>
+						<span class="ome-database-title">{data.title}</span>
+						<span class="ome-database-original" lang="ja">
+							{data.info.title}
+						</span>
+						<span class="ome-database-count">
+							{data.kinds.length} kinds, {entries.toLocaleString('en')} entries · {languages.join(' and ')}
+						</span>
+					</a>
+				</li>
+			))
+		}
+	</ul>
+	{
+		listed.some(({ cover }) => cover) && (
+			<p>
+				The covers are the pictures of the games’ packages that their maker shows on{' '}
+				{makerSites.length === 1 ? <a href={makerSites[0]}>its site</a> : 'its site'}.
+			</p>
+		)
+	}
+</StarlightPage>
+
+<style>
+	.ome-databases {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
+		gap: 1rem;
+		margin: 1.5rem 0 2rem;
+		padding: 0;
+		list-style: none;
+	}
+	.ome-databases a {
+		display: grid;
+		grid-template-rows: auto auto auto 1fr;
+		gap: 0.3rem;
+		height: 100%;
+		padding: 0.75rem;
+		border: 1px solid var(--sl-color-gray-5);
+		border-radius: 0.5rem;
+		color: var(--sl-color-white);
+		text-decoration: none;
+	}
+	.ome-databases a:hover {
+		border-color: var(--sl-color-accent);
+		background: var(--sl-color-accent-low);
+	}
+	.ome-database-cover {
+		display: grid;
+		place-items: center;
+		aspect-ratio: 32 / 45;
+		margin-bottom: 0.4rem;
+		overflow: hidden;
+		border-radius: 0.35rem;
+		background: var(--sl-color-gray-6);
+		color: var(--sl-color-gray-3);
+		font-size: 3rem;
+		font-weight: 600;
+	}
+	.ome-database-cover img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
+	.ome-database-title {
+		font-weight: 600;
+		line-height: 1.3;
+	}
+	.ome-database-original {
+		color: var(--sl-color-gray-2);
+		font-size: var(--sl-text-sm);
+	}
+	.ome-database-count {
+		align-self: end;
+		color: var(--sl-color-gray-3);
+		font-size: var(--sl-text-sm);
+	}
+</style>

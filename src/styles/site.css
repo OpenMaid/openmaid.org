@@ -285,6 +285,12 @@
 img.ome-pixel {
 	image-rendering: pixelated;
 }
+/* A picture the game draws with its additive glow (a healing feather; site plan §15.4) is light added to what is under
+   it: on a dark tile, as over the game's dungeon floor, in either theme. */
+img.ome-additive {
+	background: #16161c;
+	border-radius: 0.25rem;
+}
 .ome-pictures img.ome-pixel {
 	width: 3rem;
 	height: auto;

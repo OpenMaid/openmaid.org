@@ -10,6 +10,10 @@
 #
 #   docker build -t ome-site .
 #   docker run --rm -p 8080:8080 ome-site
+#
+# The games' covers (src/lib/covers.mjs) are downloaded into data/covers/ before the site is built, unless a copy with
+# the bundle's hash is there already: data/ is mounted writable for that, and what is written to it is discarded with
+# the mount.
 
 FROM node:24-bookworm-slim AS build
 WORKDIR /site
@@ -21,9 +25,10 @@ COPY astro.config.mjs site.config.mjs tsconfig.json ./
 COPY public ./public
 COPY scripts ./scripts
 COPY src ./src
-RUN --mount=type=bind,source=data,target=/site/data \
+RUN --mount=type=bind,source=data,target=/site/data,rw \
 	--mount=type=bind,source=bundle,target=/site/bundle \
-	npm run build \
+	node scripts/fetch-covers.mjs \
+	&& npm run build \
 	&& node scripts/entity-redirects.mjs dist > /site/entity-redirects.map
 
 FROM nginxinc/nginx-unprivileged:stable-alpine

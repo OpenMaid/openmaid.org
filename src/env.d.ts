@@ -16,6 +16,7 @@ declare module 'virtual:ome' {
 			play: string | null;
 			modding: string | null;
 			site: string | null;
+			cover: { url: string; sha256: string } | null;
 			baseMod: { id: string; version: string };
 			scriptIndex: boolean;
 		}[];
@@ -25,6 +26,8 @@ declare module 'virtual:ome' {
 			dir: string;
 			thumbnails: Record<string, string[]>;
 			cards?: Record<string, number>;
+			// The checked copy of its cover (src/lib/covers.mjs), or null.
+			cover: { source: string; name: string; type: string; width: number; height: number } | null;
 		}[];
 		// The reference bundle's zip (src/lib/bundle.mjs), which src/lib/reference.mjs reads.
 		bundle: string;

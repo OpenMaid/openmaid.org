@@ -39,6 +39,10 @@ npm run build    # the site in dist/, then scripts/check-site.mjs checks its lin
 npm run preview  # serves dist/
 ```
 
+To check a build made elsewhere (`npx astro build --outDir .astro/check`, say, while `npm run preview` serves
+`dist/`), give its folder: `node scripts/check-site.mjs .astro/check`. Astro wants that folder on the project's drive
+and inside it, where it finds its packages.
+
 `package-lock.json` is written by npm 11.19.1, the npm of the image's Node, and the image installs from it with
 `npm ci`. An older npm leaves out of the lock the `@emnapi` packages that the wasm32 builds of Astro's compiler,
 rolldown and satteri ask for, and the image's `npm ci` then refuses the lock as out of sync (the first deploy's
@@ -64,11 +68,22 @@ own is the installer's, from the registry of the machine the game was installed 
 Change it when the install in the bucket changes. To build without
 the database, set `OME_SITE_GAMES` empty; to build some games only, list them (`OME_SITE_GAMES=kamidori`).
 
+The page that lists the databases (`/databases/`) shows each game's cover, the picture of its package on its maker's
+site, which OME's reference bundle names with its SHA-256 (`games.json`). The site serves its own copy, as the
+English fan wiki does, not the maker's address (site plan §15.4). Get the copies once with
+
+```sh
+node scripts/fetch-covers.mjs
+```
+
+which reads the bundle as the build does and downloads each into `data/covers/`, keeping it only with that hash. The
+image's build runs it too. A game with no copy is shown without a cover, and the build says so.
+
 ## What this repository holds, and what it does not
 
 - It holds the site: pages, templates, styles, scripts, the build and the deploy.
 - It does not hold game data. Exports from OME's exporter hold data from the games, so they are kept in private
-  storage and copied into `data/`, which git ignores.
+  storage and copied into `data/`, which git ignores. The games' covers are downloaded into `data/covers/`.
 - It does not hold OME's docs or registries. OME's repository keeps them, and publishes them with each release as a
   reference bundle, which the build reads from `bundle/` or makes from a checkout there; git ignores it.
 

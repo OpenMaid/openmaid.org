@@ -2,6 +2,7 @@
 // which the database's search box suggests from as one types and its results page finds entries in
 // (src/scripts/search.ts). Names only: an entry's text is in Pagefind's index, which the results page's "Full text"
 // tab asks.
+import { pictureTuple } from './format.mjs';
 import { SOURCE_LANGUAGE } from './language.mjs';
 
 /**
@@ -9,7 +10,7 @@ import { SOURCE_LANGUAGE } from './language.mjs';
  * entity, `[kind, id, slug, title, names, picture]`: the kind's index in `kinds`; the entity's id and its URL's slug
  * (its address is `/<game>/<kind>/<id>/<slug>/`); its name in the game's language, told apart from others; its names
  * in the other languages (`{ en: … }`, 0 when it has none: a title that is not the game's text); and its thumbnail,
- * `[file, width, height]`, or 0.
+ * `[file, width, height]` with a 1 after them where it is additive (`pictureTuple`), or 0.
  */
 export function searchData(data) {
 	return {
@@ -27,7 +28,7 @@ export function searchData(data) {
 					entity.slug,
 					entity.title,
 					Object.keys(others).length ? others : 0,
-					picture ? [picture.file, picture.width, picture.height] : 0,
+					picture ? pictureTuple(picture) : 0,
 				];
 			}),
 		),
