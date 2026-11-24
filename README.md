@@ -133,12 +133,15 @@ This repository's settings hold where the bucket is and a key for it. The key re
 The repository's default branch is `develop`: GitHub runs an event that another repository sends with the default
 branch's workflow, and `latest` comes from `develop` only.
 
-OME's repository holds what its `notify-site.yml` needs to send the event:
+OME's repository holds what its `notify-site.yml` needs to send the event. It sends it as a GitHub App, owned by the
+organization, with the repository permission Contents: Read and write and installed on this repository alone; each
+run makes a token from the app's key that lasts an hour and may write only this repository's contents:
 
 | Kind | Name | What |
 |---|---|---|
 | Variable | `SITE_REPOSITORY` | This repository, as `<owner>/<name>`; without it no event is sent |
-| Secret | `SITE_DISPATCH_TOKEN` | A token that may send this repository an event: a fine-grained one with Contents: write on it, or a GitHub App's |
+| Variable | `SITE_DISPATCH_APP_CLIENT_ID` | The app's client ID (its settings page shows it, with its app ID) |
+| Secret | `SITE_DISPATCH_APP_KEY` | A private key of the app, the whole `.pem` file |
 
 ### Building the image by hand
 
