@@ -35,7 +35,8 @@ export type Sort = { key: string; desc: boolean };
 export type Filter = { column: Column; value: string };
 
 const VALUE_TYPES = new Set(['number', 'name', 'mask']);
-const SORTED = new Set(['number', 'name', 'entity']);
+/** What a cell sorts by: a number, a text, or for a cell of several items each item's in turn. */
+type SortKey = number | string | (number | string)[];
 
 export const esc = (text: unknown) =>
 	String(text).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]!);
@@ -161,7 +162,7 @@ export function listTable(file: ListFile, table: HTMLTableElement, options: Opti
 		return texts.get(key)!;
 	};
 
-	// The table: its heading, each sortable column's a button, and its rows, each drawn once for the columns shown.
+	// The table: its heading, each column's a button that sorts by it, and its rows, each drawn once for the columns shown.
 	const order = (key: string) => (file.defaults.includes(key) ? file.defaults.indexOf(key) : file.defaults.length + byKey.get(key)!.position);
 	const visible = () => state.shown.map((key) => byKey.get(key)!);
 	const labelHtml = (column: Column) => {
@@ -169,17 +170,16 @@ export function listTable(file: ListFile, table: HTMLTableElement, options: Opti
 		const label = column.note ? `<span class="ome-noted" title="${esc(column.note)}">${text}</span>` : text;
 		return `${column.group ? `<span class="ome-col-group">${esc(column.group)}</span>` : ''}${label}`;
 	};
-	const headingHtml = (key: string, inner: string, numeric: boolean, sortable: boolean) => {
+	const headingHtml = (key: string, inner: string, numeric: boolean) => {
 		const sorted = state.sort?.key === key ? (state.sort.desc ? 'descending' : 'ascending') : null;
 		const attributes = `${numeric ? ' class="ome-num"' : ''}${sorted ? ` aria-sort="${sorted}"` : ''}`;
-		if (!sortable) return `<th scope="col"${attributes}>${inner}</th>`;
 		return `<th scope="col"${attributes}><button type="button" class="ome-sort" data-sort="${esc(key)}">${inner}<span class="ome-sort-mark" aria-hidden="true"></span></button></th>`;
 	};
 	const drawHead = () => {
 		const head = [
-			headingHtml('id', 'ID', true, true),
-			headingHtml('name', 'Name', false, true),
-			...visible().map((column) => headingHtml(column.key, labelHtml(column), column.type === 'number', SORTED.has(column.type))),
+			headingHtml('id', 'ID', true),
+			headingHtml('name', 'Name', false),
+			...visible().map((column) => headingHtml(column.key, labelHtml(column), column.type === 'number')),
 		];
 		table.tHead!.innerHTML = `<tr>${head.join('')}</tr>`;
 	};
@@ -198,9 +198,19 @@ export function listTable(file: ListFile, table: HTMLTableElement, options: Opti
 		return drawn.get(row)!;
 	};
 
-	// Sorting: numbers as they read, a named value in the game's order of its values, a name or a reference by its name in
-	// the language shown; empty cells last either way, and the id between equals.
-	const sortKey = (sort: Sort, row: Row): number | string | null => {
+	// Sorting: numbers as they read, a named value in the game's order of its values, a mask by the values it has in that
+	// order, a name or a reference by its name in the language shown, a cell of several references or a list by each
+	// item in turn (a list's numbers as numbers); empty cells last either way, and the id between equals.
+	const itemName = (item: Item) =>
+		typeof item === 'number' ? named(links[item].t, links[item].n) : named(item.t ?? item.x ?? item.m ?? '', item.n);
+	// The values a mask shows (format.mjs `valueItems`): its named ones, or every bit it has where none is named.
+	const maskValues = (field: Field, v: number) => {
+		const set: number[] = [];
+		for (let k = 0; k < 31; k++) if (v & (1 << k)) set.push(k);
+		const namedSet = set.filter((k) => field.names?.has(k));
+		return namedSet.length ? namedSet : set;
+	};
+	const sortKey = (sort: Sort, row: Row): SortKey | null => {
 		if (sort.key === 'id') return row.id;
 		if (sort.key === 'name') return named(row.t, row.n);
 		const column = byKey.get(sort.key)!;
@@ -208,19 +218,35 @@ export function listTable(file: ListFile, table: HTMLTableElement, options: Opti
 			const item = items(column, row)[0];
 			return typeof item === 'number' ? named(links[item].t, links[item].n) : null;
 		}
+		if (column.type === 'entities' || column.type === 'list') {
+			const list = items(column, row);
+			return list.length ? list.map(itemName) : null;
+		}
 		const v = valueOf(column, row);
 		if (emptyValue(column.field, column.type, v))
 			return column.type === 'number' && v === 0 && column.field.format?.none !== 0 ? 0 : null;
+		if (column.type === 'mask' && column.field.format?.bits) return maskValues(column.field, v!);
 		return column.type === 'number' ? shownNumber(column.field, v) : v;
 	};
 	const sorted = (list: Row[]) => {
 		const sort = state.sort;
 		if (!sort) return list;
-		const tag = options.language();
+		const collator = new Intl.Collator(options.language(), { numeric: byKey.get(sort.key)?.type === 'list' });
+		// Item by item; a cell whose items begin another's sorts before it.
+		const compare = (a: SortKey, b: SortKey): number => {
+			if (Array.isArray(a) && Array.isArray(b)) {
+				for (let i = 0; i < Math.min(a.length, b.length); i++) {
+					const by = compare(a[i], b[i]);
+					if (by) return by;
+				}
+				return a.length - b.length;
+			}
+			return typeof a === 'string' ? collator.compare(a, b as string) : (a as number) - (b as number);
+		};
 		const keyed = list.map((row) => ({ row, key: sortKey(sort, row) }));
 		keyed.sort((a, b) => {
 			if (a.key === null || b.key === null) return a.key === b.key ? a.row.id - b.row.id : a.key === null ? 1 : -1;
-			const by = typeof a.key === 'string' ? a.key.localeCompare(b.key as string, tag) : a.key - (b.key as number);
+			const by = compare(a.key, b.key);
 			return (sort.desc ? -by : by) || a.row.id - b.row.id;
 		});
 		return keyed.map(({ row }) => row);
@@ -264,5 +290,6 @@ export function listTable(file: ListFile, table: HTMLTableElement, options: Opti
 		options.onSort();
 	});
 
-	return { state, byKey, visible, draw, matches, sortsByName: () => state.sort?.key === 'name' || byKey.get(state.sort?.key ?? '')?.type === 'entity' };
+	const byName = new Set(['entity', 'entities', 'list']);
+	return { state, byKey, visible, draw, matches, sortsByName: () => state.sort?.key === 'name' || byName.has(byKey.get(state.sort?.key ?? '')?.type ?? '') };
 }
