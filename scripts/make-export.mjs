@@ -9,7 +9,9 @@
 // 2. Each translation site.config.mjs lists for the game is imported from its translated install, <translations>/
 //    <language>/, with `omp text import-scripts` and its options, into a language package. The package's manifest is
 //    written first from the config (its id, name and authors, which the site credits); the importer keeps it.
-// 3. `data-export` exports the game with those packages into the output folder.
+// 3. `data-export` exports the game with those packages into the output folder, with the game version site.config.mjs
+//    gives it (`gameVersion`): the exporter's own is the installer's, from the registry of the machine the game was
+//    installed on.
 //
 // Python is OME_PYTHON, else `py -3.11` on Windows and `python3` elsewhere, as for the bundle (src/lib/bundle.mjs).
 import { execFileSync } from 'node:child_process';
@@ -114,6 +116,8 @@ for (const { language, import: importOptions = [], package: pkg } of translation
 
 // 3. The export.
 fs.rmSync(output, { recursive: true, force: true });
-cli('data-export', '--game', game, '--game-root', install, ...packages.flatMap((dir) => ['--language', dir]), '--output', output);
+const version = settings.gameVersion ? ['--game-version', settings.gameVersion] : [];
+cli('data-export', '--game', game, '--game-root', install, ...packages.flatMap((dir) => ['--language', dir]), ...version,
+	'--output', output);
 const manifest = JSON.parse(fs.readFileSync(path.join(output, 'manifest.json'), 'utf8'));
 console.log(`make-export: ${game} revision ${manifest.revision}, by OME ${manifest.ome_version}, in ${output}`);

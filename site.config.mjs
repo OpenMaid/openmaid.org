@@ -26,6 +26,10 @@ export default {
 	// database. A deploy makes the exports itself from the installs in its bucket (site plan §15).
 	games: {
 		kamidori: {
+			// The game's version, as its installer gives it, which the game's pages show. The exporter reads it from the
+			// Windows registry of the machine the game was installed on, which a deploy's runner is not, so the deploy gives
+			// it (`data-export --game-version`). Change it when the install in the bucket changes.
+			gameVersion: '2.00.0019',
 			// The translations an export carries beside the game's own text (site design §8.6). The deploy imports each from
 			// the translated install in its bucket (translations/<game>/<language>/) with OME's `omp text import-scripts`
 			// and the options given, into a language package of the id, name and authors given, which the site credits.
@@ -90,6 +94,7 @@ export default {
 			},
 		},
 		arterial: {
+			gameVersion: '2.00.0022',
 			thumbnails: {
 				card: ['art'],
 				item: ['icon'],
@@ -115,6 +120,7 @@ export default {
 		},
 		// As large as OME's understood tables (the user, 2026-11-22), and growing with them.
 		himegari: {
+			gameVersion: '1.03.0008',
 			// An icon numbered from 501 is the append's sheet's (OME's declarations), so each kind lists both.
 			thumbnails: {
 				unit: ['icon', 'icon_append', 'face', 'sprite'],

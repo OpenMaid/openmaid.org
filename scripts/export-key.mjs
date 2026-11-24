@@ -4,7 +4,7 @@
 // - the OME commit whose exporter makes it;
 // - the game's install in the bucket (installs/<game>/) and each translated install (translations/<game>/<language>/),
 //   by their listings: every object's name, ETag and size, so a file uploaded again changes the key;
-// - how the export is made: scripts/make-export.mjs, and the game's translations in site.config.mjs.
+// - how the export is made: scripts/make-export.mjs, and the game's translations and game version in site.config.mjs.
 //
 //   node scripts/export-key.mjs <game> <ome-commit> <listings>
 //
@@ -46,6 +46,7 @@ const inputs = {
 	ome: omeCommit,
 	maker: crypto.createHash('sha256').update(fs.readFileSync(path.join(here, 'make-export.mjs'))).digest('hex'),
 	translations,
+	gameVersion: settings.gameVersion ?? null,
 	install: listing(path.join(listings, 'install.json'), `installs/${game}/`),
 	translated: Object.fromEntries(
 		translations.map(({ language }) => [

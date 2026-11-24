@@ -58,7 +58,10 @@ node scripts/make-export.mjs --ome ../age-reimpl --game kamidori --install <the 
 
 It runs OME's build tools, imports each translation `site.config.mjs` lists for the game into a language package
 (written beside the output, as `data/kamidori.en/`), and exports the game with them, so that `data/kamidori/` holds
-`<revision>.sqlite`, `pictures/` and `manifest.json`. The build reads the revision from the manifest. To build without
+`<revision>.sqlite`, `pictures/` and `manifest.json`. The build reads the revision from the manifest. The game version
+the game's pages show is the config's `gameVersion`, which the export records (`data-export --game-version`): OME's
+own is the installer's, from the registry of the machine the game was installed on, which a deploy's runner is not.
+Change it when the install in the bucket changes. To build without
 the database, set `OME_SITE_GAMES` empty; to build some games only, list them (`OME_SITE_GAMES=kamidori`).
 
 ## What this repository holds, and what it does not
