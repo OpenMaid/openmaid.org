@@ -9,17 +9,15 @@
 # 3. image: builds the image (Dockerfile) from the exports and that OME's reference bundle, checks it as it serves
 #    (scripts/smoke-test.mjs) and pushes it, where the server's own tooling takes it.
 #
-# It runs on a push to develop, when OME's notify-site workflow sends ome-release after a release, and by hand; never
-# for a pull request, so the bucket's keys never reach a fork's code. It needs the repository variables
+# It runs on a version tag (v*) and by hand, never on a branch's push, so a push waits on nothing; nor for a pull
+# request, so the bucket's keys never reach a fork's code (site plan §15.5). It needs the repository variables
 # EXPORTS_ENDPOINT, EXPORTS_BUCKET and (optionally) EXPORTS_REGION, and the secrets EXPORTS_ACCESS_KEY_ID and
 # EXPORTS_SECRET_ACCESS_KEY of a key that reads the bucket and writes its exports/ (README, "Deploying").
 name: Site image
 
 on:
   push:
-    branches: [develop]
-  repository_dispatch:
-    types: [ome-release]
+    tags: ['v*']
   workflow_dispatch:
 
 permissions:
@@ -297,15 +295,23 @@ jobs:
             exit 1
           fi
 
-      # The commit's tag always; latest, the tag the server's tooling follows, from develop only. An OME release's
-      # dispatch runs on the repository's default branch, which is develop for that reason (README, "Deploying").
+      # The commit's tag always. A version tag's run also pushes the version's, and it and a run by hand on develop push
+      # latest, the tag the server's tooling follows; a run by hand on another branch deploys nothing.
       - name: Push the image
         env:
           REGISTRY_TOKEN: ${{ github.token }}
         run: |
           echo "$REGISTRY_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
           docker push "$IMAGE:$GITHUB_SHA"
-          if [ "$GITHUB_REF" = refs/heads/develop ]; then
+          case "$GITHUB_REF" in
+            refs/tags/v*)
+              docker tag "$IMAGE:$GITHUB_SHA" "$IMAGE:$GITHUB_REF_NAME"
+              docker push "$IMAGE:$GITHUB_REF_NAME"
+              deploy=true ;;
+            refs/heads/develop) deploy=true ;;
+            *) deploy=false ;;
+          esac
+          if [ "$deploy" = true ]; then
             docker tag "$IMAGE:$GITHUB_SHA" "$IMAGE:latest"
             docker push "$IMAGE:latest"
           fi

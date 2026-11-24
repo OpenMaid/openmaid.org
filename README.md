@@ -97,9 +97,9 @@ serving the built site over plain HTTP on port 8080 (`Dockerfile`, `deploy/nginx
 HTTPS. Besides the pages, nginx redirects an entity's address without its slug, or with a wrong one, to its page, from
 a map the build writes (`scripts/entity-redirects.mjs`).
 
-The workflow `.github/workflows/site-image.yml` makes the image with no step by hand. It runs on every push to
-`develop`, when OME publishes a release (OME's workflow `notify-site.yml` sends this repository an `ome-release`
-event), and by hand. Its three jobs:
+The workflow `.github/workflows/site-image.yml` makes the image with no step by hand. It runs on a version tag
+(`v*`) and by hand (Actions, "Site image", "Run workflow", on `develop` or a tag), never on a branch's push, so a
+push never waits on another repository (site plan §15.5). Its three jobs:
 
 1. **Resolve.** It reads what the deploy works from (`scripts/deploy-sources.mjs`): the OME that `site.config.mjs`
    names in `ome.release` (`'latest'`, OME's latest release, by default; or a tag; or `'develop'`), and each game with
@@ -114,11 +114,15 @@ event), and by hand. Its three jobs:
    `develop`, one made from its commit) and each game's export into `data/<game>/`, and builds the image. Only the
    built site ends up in it: the build reads `data/` and `bundle/` through mounts, so no layer holds an export. It runs
    the image and checks it as it serves (`scripts/smoke-test.mjs`), then pushes it to GitHub's container registry as
-   `ghcr.io/<owner>/<repository>`, tagged with the commit and, from `develop`, `latest`.
+   `ghcr.io/<owner>/<repository>`, tagged with the commit; a version tag's run adds the version's tag, and it and a
+   run by hand on `develop` move `latest`. A run by hand on another branch builds and checks the image without
+   deploying it.
 
-So an OME release, an install or translation changed in the bucket, and a push here each end in a new image, and what
-did not change is not exported again. The server's own tooling takes the image from there. It needs a token that can
-read the package (`read:packages`), since the package is private.
+So a version tag, or a run by hand after an OME release or a change to an install or a translation in the bucket,
+ends in a new image, and what did not change is not exported again. The build exports with the OME `ome.release`
+names: with `'latest'`, a site that needs something OME has not released yet waits for that release, or names
+`'develop'`. The server's own tooling takes the image from there. It needs a token that can read the package
+(`read:packages`), since the package is private.
 
 ### The bucket
 
@@ -142,7 +146,7 @@ aws s3 sync "<the translated install>" s3://<bucket>/translations/kamidori/en/ -
 The next run exports the game again. Nothing reads an export once no key names it, so old ones under `exports/` can
 be deleted; a run that needs one again makes it.
 
-### The repositories' settings
+### The repository's settings
 
 This repository's settings hold where the bucket is and a key for it. The key reads the bucket and writes `exports/`:
 
@@ -153,19 +157,6 @@ This repository's settings hold where the bucket is and a key for it. The key re
 | Variable | `EXPORTS_REGION` | Its region, if it needs one (default `auto`) |
 | Secret | `EXPORTS_ACCESS_KEY_ID` | The bucket's key |
 | Secret | `EXPORTS_SECRET_ACCESS_KEY` | Its secret |
-
-The repository's default branch is `develop`: GitHub runs an event that another repository sends with the default
-branch's workflow, and `latest` comes from `develop` only.
-
-OME's repository holds what its `notify-site.yml` needs to send the event. It sends it as a GitHub App, owned by the
-organization, with the repository permission Contents: Read and write and installed on this repository alone; each
-run makes a token from the app's key that lasts an hour and may write only this repository's contents:
-
-| Kind | Name | What |
-|---|---|---|
-| Variable | `SITE_REPOSITORY` | This repository, as `<owner>/<name>`; without it no event is sent |
-| Variable | `SITE_DISPATCH_APP_CLIENT_ID` | The app's client ID (its settings page shows it, with its app ID) |
-| Secret | `SITE_DISPATCH_APP_KEY` | A private key of the app, the whole `.pem` file |
 
 ### Building the image by hand
 
