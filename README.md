@@ -39,6 +39,12 @@ npm run build    # the site in dist/, then scripts/check-site.mjs checks its lin
 npm run preview  # serves dist/
 ```
 
+`package-lock.json` is written by npm 11.19.1, the npm of the image's Node, and the image installs from it with
+`npm ci`. An older npm leaves out of the lock the `@emnapi` packages that the wasm32 builds of Astro's compiler,
+rolldown and satteri ask for, and the image's `npm ci` then refuses the lock as out of sync (the first deploy's
+image job, 2026-11-23). So change the dependencies with that npm, `npx npm@11.19.1 install ...`, or a newer one
+if the image's has moved on.
+
 Each build copies OME's guides from the bundle into `src/content/docs/docs/`, which git ignores, and fails on a guide
 link it cannot map. The favicon is OME's icon (`godot/assets/ome-icon.svg` in OME).
 
