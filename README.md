@@ -174,3 +174,5 @@ node scripts/smoke-test.mjs http://localhost:8080
 - `docs/research/2026-11-19-encyclopedia-tech-stack.md`: a survey of stacks and prior art for a Wowhead-style site,
   written on 2026-11-19. The design cites it; its versions and limits were current then.
 - `docs/plans/`: each design's plan, with what was built and found.
+- `docs/working-on-the-site.md`: how to work on the site: where a change goes, how to build, check and look at it,
+  and the gotchas met so far.
