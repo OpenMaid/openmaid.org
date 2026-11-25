@@ -177,5 +177,6 @@ README "Deploying" describes the workflow, and plan §15 its history. In short:
 - Work from `develop`, on branches. `main` holds the design, and the work is not merged into it (the user,
   2026-11-21).
 - Game data, the games' pictures and translated text never enter the repository. The covers are copies that
-  `scripts/fetch-covers.mjs` downloads into `data/covers/` (plan §15.4).
+  `scripts/fetch-covers.mjs` downloads into `data/covers/` (plan §15.4), and a deploy keeps them in the bucket's
+  `covers/` (§15.7).
 - One fact, one home: a decision lives in the design or the plan, a command in the README, a way of working here.

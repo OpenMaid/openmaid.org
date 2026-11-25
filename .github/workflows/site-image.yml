@@ -6,13 +6,14 @@
 #    how the export is made. An export the bucket holds under its key is not made again.
 # 2. export: for each game whose export is missing, one runner downloads its install and translations, makes the
 #    export with that OME (scripts/make-export.mjs) and uploads it.
-# 3. image: builds the image (Dockerfile) from the exports and that OME's reference bundle, checks it as it serves
-#    (scripts/smoke-test.mjs) and pushes it, where the server's own tooling takes it.
+# 3. image: gets the games' covers, the bucket's copies first, and keeps any it downloads there (site plan §15.7);
+#    builds the image (Dockerfile) from the exports, the covers and that OME's reference bundle; checks it as it
+#    serves (scripts/smoke-test.mjs) and pushes it, where the server's own tooling takes it.
 #
 # It runs on a version tag (v*) and by hand, never on a branch's push, so a push waits on nothing; nor for a pull
 # request, so the bucket's keys never reach a fork's code (site plan §15.5). It needs the repository variables
 # EXPORTS_ENDPOINT, EXPORTS_BUCKET and (optionally) EXPORTS_REGION, and the secrets EXPORTS_ACCESS_KEY_ID and
-# EXPORTS_SECRET_ACCESS_KEY of a key that reads the bucket and writes its exports/ (README, "Deploying").
+# EXPORTS_SECRET_ACCESS_KEY of a key that reads the bucket and writes its exports/ and covers/ (README, "Deploying").
 name: Site image
 
 on:
@@ -275,6 +276,22 @@ jobs:
             aws s3 sync "s3://$BUCKET/exports/$game/$key/" "data/$game/" --only-show-errors
             echo "$game $key: revision $(jq -r .revision "data/$game/manifest.json"), $(find "data/$game" -type f | wc -l) files"
           done < <(jq -r '.[] | "\(.game) \(.key)"' <<< "$EXPORTS")
+
+      # The covers (site plan §15.7): the bucket keeps a copy of each, so the publisher's site is asked only for one the
+      # bucket has none of with the bundle's hash, and its refusing a runner costs nothing then. scripts/fetch-covers.mjs
+      # runs in the image's deps stage, with data/ a volume, so what it downloads stays here to be uploaded; the sync
+      # sends only a file it changed, since the download gave the others their objects' times.
+      - name: Get the covers
+        run: |
+          [ -n "$AWS_ENDPOINT_URL" ] || unset AWS_ENDPOINT_URL
+          mkdir -p data/covers
+          aws s3 sync "s3://$BUCKET/covers/" data/covers/ --only-show-errors
+          docker build --target deps --tag site-deps .
+          docker run --rm --user "$(id -u):$(id -g)" \
+            --volume "$PWD/data:/site/data" --volume "$PWD/bundle:/site/bundle:ro" \
+            site-deps node scripts/fetch-covers.mjs
+          aws s3 sync data/covers/ "s3://$BUCKET/covers/" --only-show-errors
+          ls -l data/covers
 
       - name: Build the image
         run: |

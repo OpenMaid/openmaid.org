@@ -13,9 +13,11 @@
 #
 # The games' covers (src/lib/covers.mjs) are downloaded into data/covers/ before the site is built, unless a copy with
 # the bundle's hash is there already: data/ is mounted writable for that, and what is written to it is discarded with
-# the mount.
+# the mount. The deploy gets them first, from the bucket's copies, with the deps stage (site plan §15.7), so the
+# build finds them there.
 
-FROM node:24-bookworm-slim AS build
+# The site's dependencies and sources, which the deploy also runs scripts/fetch-covers.mjs in.
+FROM node:24-bookworm-slim AS deps
 WORKDIR /site
 # The heap a 16 GB machine gives Node by default, so a runner with less memory builds as a desk does.
 ENV NODE_OPTIONS=--max-old-space-size=4096
@@ -25,6 +27,8 @@ COPY astro.config.mjs site.config.mjs tsconfig.json ./
 COPY public ./public
 COPY scripts ./scripts
 COPY src ./src
+
+FROM deps AS build
 RUN --mount=type=bind,source=data,target=/site/data,rw \
 	--mount=type=bind,source=bundle,target=/site/bundle \
 	node scripts/fetch-covers.mjs \

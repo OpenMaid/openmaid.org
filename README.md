@@ -77,7 +77,9 @@ node scripts/fetch-covers.mjs
 ```
 
 which reads the bundle as the build does and downloads each into `data/covers/`, keeping it only with that hash. The
-image's build runs it too. A game with no copy is shown without a cover, and the build says so.
+image's build runs it too. A game with no copy is shown without a cover, and the build says so. A deploy keeps a copy
+of each in the bucket's `covers/`, so it asks the maker's site only for a cover the bucket has none of with the
+bundle's hash (site plan §15.7).
 
 ## What this repository holds, and what it does not
 
@@ -148,7 +150,8 @@ be deleted; a run that needs one again makes it.
 
 ### The repository's settings
 
-This repository's settings hold where the bucket is and a key for it. The key reads the bucket and writes `exports/`:
+This repository's settings hold where the bucket is and a key for it. The key reads the bucket and writes `exports/`
+and `covers/`:
 
 | Kind | Name | What |
 |---|---|---|

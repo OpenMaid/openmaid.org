@@ -1,7 +1,8 @@
 // Downloads the cover of each game the build makes a database for (src/lib/covers.mjs, site plan §15.4) into
 // data/covers/, from the address the reference bundle's games.json gives, and keeps it only if its SHA-256 is the
-// bundle's. A copy already there with that hash is kept as it is. The deploy runs it before the image's build, and a
-// build by hand runs it once:
+// bundle's. A copy already there with that hash is kept as it is. The deploy puts the bucket's copies there first,
+// runs it, and keeps what it downloaded in the bucket (site plan §15.7); the image's build runs it again, and a build
+// by hand runs it once:
 //
 //   node scripts/fetch-covers.mjs
 //
