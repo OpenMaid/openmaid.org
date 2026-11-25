@@ -158,6 +158,11 @@ This repository's settings hold where the bucket is and a key for it. The key re
 | Secret | `EXPORTS_ACCESS_KEY_ID` | The bucket's key |
 | Secret | `EXPORTS_SECRET_ACCESS_KEY` | Its secret |
 
+`EXPORTS_REGION` must be the region the server signs with: Garage's is its `s3_region`, `garage` unless set. A wrong
+region still lists, downloads and uploads, since the AWS CLI learns the right one from the error and asks again, but
+a HEAD's error has no body to learn it from: every check for an export the bucket holds then misses, and each deploy
+makes every export again.
+
 ### Building the image by hand
 
 With an export in each `data/<game>/` and one bundle zip in `bundle/` (a bundle the build made from a checkout, in
