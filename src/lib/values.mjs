@@ -540,6 +540,9 @@ function qualifierText(kind, entity, name) {
 	return v === 0 ? null : { [SOURCE_LANGUAGE]: `${field.label} ${formatNumber(field, v)}` };
 }
 
+/** A letter or a digit, in any script: a name without one says nothing (`qualify`). */
+const WORD = /[\p{L}\p{N}]/u;
+
 /** A name with the texts that tell it apart: "名前（武器）" in the game's own language, "Name (Weapon)" in another. */
 function withParts(name, parts, tag) {
 	if (!parts.length) return name;
@@ -563,8 +566,10 @@ export function nameWithout(entity, omit = []) {
  * Tells apart the entities of each kind that share a name (OME's export plan §5). Where entities share a name in a
  * language, it takes the kind's qualifiers whose text differs among them, in the kind's order, until each reads apart
  * ("Hammer (Weapon)" and "Hammer (Innate attack)"), and the id where none is left that does ("Bad craftsman A (#75)").
- * A name is told apart only in the languages it is shared in. Sets each entity's `title` and `names` so, keeping what
- * they were as `baseTitle` and `baseNames`, and its `qualifiers`, by language, for `nameWithout`.
+ * A name is told apart only in the languages it is shared in. A name with no letter or digit (Verita's unit `？？？`)
+ * takes its id too where nothing else gives it one: such a name says nothing, and full-text search indexes no page
+ * without a word (site plan §18). Sets each entity's `title` and `names` so, keeping what they were as `baseTitle` and
+ * `baseNames`, and its `qualifiers`, by language, for `nameWithout`.
  */
 export function qualify(kinds) {
 	for (const kind of kinds)
@@ -587,8 +592,9 @@ export function qualify(kinds) {
 				if (!shared.has(name)) shared.set(name, []);
 				shared.get(name).push(entity);
 			}
-			for (const group of shared.values()) {
-				if (group.length < 2) continue;
+			for (const [name, group] of shared) {
+				const wordless = !WORD.test(name);
+				if (group.length < 2 && !wordless) continue;
 				const chosen = [];
 				const key = (entity) => JSON.stringify(chosen.map((q) => text(entity, q)));
 				const apart = () => new Set(group.map(key)).size === group.length;
@@ -598,7 +604,8 @@ export function qualify(kinds) {
 				for (const entity of group) counts.set(key(entity), (counts.get(key(entity)) ?? 0) + 1);
 				for (const entity of group) {
 					const parts = chosen.filter((q) => text(entity, q)).map((q) => ({ field: kind.qualifiers[q], text: text(entity, q) }));
-					if (counts.get(key(entity)) > 1) parts.push({ field: null, text: `#${entity.id}` });
+					if (counts.get(key(entity)) > 1 || (wordless && !parts.some((part) => WORD.test(part.text))))
+						parts.push({ field: null, text: `#${entity.id}` });
 					entity.qualifiers[tag] = parts;
 				}
 			}
