@@ -36,7 +36,7 @@ export default {
 			translations: [
 				{
 					language: 'en',
-					import: ['--overlay-root', 'patch', '--allow-bmp-as-agf'],
+					import: ['--from-overlay-root', 'patch', '--from-allow-bmp-as-agf'],
 					package: { id: 'local.kamidori-en', name: 'English (Kamidori_Translated, imported)', authors: ['Aroduc'] },
 				},
 			],
