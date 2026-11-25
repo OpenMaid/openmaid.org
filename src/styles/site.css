@@ -68,15 +68,18 @@
 	max-width: 100%;
 }
 /* No taller than this, so a unit's details start on the first screen (site plan §13, C6); each links to its full size. */
+.ome-pictures {
+	--ome-picture-height: 15rem;
+}
 .ome-pictures img {
 	max-width: 100%;
-	max-height: 15rem;
+	max-height: var(--ome-picture-height);
 	width: auto;
 	height: auto;
 }
 @media (max-width: 40rem) {
-	.ome-pictures img {
-		max-height: 10rem;
+	.ome-pictures {
+		--ome-picture-height: 10rem;
 	}
 }
 .ome-pictures figcaption {
@@ -113,6 +116,15 @@
 }
 .ome-explicit.ome-revealed span {
 	display: none;
+}
+/* The stand-in's own size is its tiny copy's, so it takes the picture's, as the picture would be drawn (above: its own
+   size, no taller than the strip's limit, no wider than the column) and in the picture's shape. The picture a click
+   loads takes the same box. */
+.ome-pictures .ome-explicit img {
+	width: min(calc(var(--ome-w) * 1px), calc(var(--ome-picture-height) * var(--ome-w) / var(--ome-h)));
+	height: auto;
+	max-height: none;
+	aspect-ratio: var(--ome-w) / var(--ome-h);
 }
 
 /* The infobox and the text table span the column, so their labels line up from table to table. Their layout is fixed:
