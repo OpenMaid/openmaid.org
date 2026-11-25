@@ -159,5 +159,18 @@ export default {
 				character_profile: ['unit_id'],
 			},
 		},
+		verita: {
+			gameVersion: '2.00.0025',
+			thumbnails: {
+				// A party unit has no sprite of its own: it shows its joining title's chibi (OME's declarations).
+				unit: ['sprite', 'chibi', 'bestiary'],
+				title: ['face'],
+				character_profile: ['portrait'],
+				area: ['icon'],
+				glossary_entry: ['picture'],
+				troop: ['sprite'],
+				commander: ['sprite'],
+			},
+		},
 	},
 };
