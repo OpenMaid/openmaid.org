@@ -147,7 +147,11 @@ function cellTable(entity, fields, labels = null, rowWord = null) {
 	}
 	const at = (col, r) => r * col.k + col.offset;
 	const value = (col, r) => entity.values[col.field.name]?.[at(col, r)];
-	const none = (col, r) => value(col, r) == null || isNone(col.field, value(col, r));
+	// A 0 that is a value (OME's `zero`) is none still in a column with no name: a cell the game leaves unwritten.
+	const none = (col, r) =>
+		value(col, r) == null ||
+		isNone(col.field, value(col, r)) ||
+		(value(col, r) === 0 && named(col.field) && columnLabel(col.field, at(col, r)) === null);
 	const all = Array.from({ length: count }, (_, r) => r);
 	const rows = all.filter((r) => columns.some((col) => !none(col, r)));
 	const kept = columns.filter((col) => rows.some((r) => !none(col, r)));

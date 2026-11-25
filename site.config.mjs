@@ -170,7 +170,10 @@ export default {
 				glossary_entry: ['picture'],
 				troop: ['sprite'],
 				commander: ['sprite'],
+				element: ['icon'],
 			},
+			// An element's links show its icon, as the status screen draws it beside its name.
+			linkIcons: ['element'],
 		},
 	},
 };

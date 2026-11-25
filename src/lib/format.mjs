@@ -8,10 +8,11 @@ import { SOURCE_LANGUAGE } from './language.mjs';
 const meansNone = (field, v) => field.format?.none != null && v === field.format.none;
 
 /**
- * Whether a value is none: 0, the value the registry says means none, and for a reference a negative value too (the
- * games write -1 for none as well).
+ * Whether a value is none: 0, unless the registry says a 0 is a value (OME's `zero`: an element's affinity of 0, immune),
+ * the value the registry says means none, and for a reference a negative value too (the games write -1 for none as well).
  */
-export const isNone = (field, v) => v === 0 || meansNone(field, v) || (Boolean(field.refKind) && v < 0);
+export const isNone = (field, v) =>
+	(v === 0 && !field.format?.zero) || meansNone(field, v) || (Boolean(field.refKind) && v < 0);
 
 /**
  * Whether an entity's value of a field, at element `idx`, is none: as `isNone` says, unless the export linked it. A

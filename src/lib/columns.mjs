@@ -157,8 +157,11 @@ export function cellItems(column, entity) {
 	if (type === 'entities')
 		return entity.refs.filter((ref) => ref.field === field.name).map((ref) => (ref.target ? linkTo(ref.target) : missing(ref.id)));
 	if (type === 'list')
+		// A 0 that is a value (OME's `zero`) is none still in a column with no name, as an entry's page has it.
 		return (entity.values[field.name] ?? []).flatMap((v, i) =>
-			v === null || v === undefined || isNone(field, v) ? [] : [labelled(columnLabel(field, i) ?? `#${i}`, valueItems(field, v))],
+			v === null || v === undefined || isNone(field, v) || (v === 0 && columnLabel(field, i) === null)
+				? []
+				: [labelled(columnLabel(field, i) ?? `#${i}`, valueItems(field, v))],
 		);
 	const v = rawValue(column, entity);
 	if (type === 'entity') {

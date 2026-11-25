@@ -96,7 +96,15 @@ export function readExport({ game, revision, dir, thumbnails = {}, cards = {}, c
 			const format = formats.get(`${kindId}:${key}`);
 			field.label = fieldLabels.get(`${kindId}:${key}`)?.text ?? label(field.name);
 			field.format = format
-				? { scale: format.scale, offset: format.offset, unit: format.unit, bits: Boolean(format.bits), none: format.none ?? null }
+				? {
+						scale: format.scale,
+						offset: format.offset,
+						unit: format.unit,
+						bits: Boolean(format.bits),
+						none: format.none ?? null,
+						// A 0 that is a value (OME's `zero`: an element's affinity of 0, immune); an older export has no column.
+						zero: Boolean(format.zero),
+					}
 				: null;
 			field.names = valueNames.get(`${kindId}:${key}`) ?? null;
 			field.columnNames = columnNames.get(`${kindId}:${key}`) ?? null;
@@ -113,6 +121,8 @@ export function readExport({ game, revision, dir, thumbnails = {}, cards = {}, c
 			// The fields that may name an entity, in turn (OME's export plan §5): the title field, then the references
 			// it falls back on when it names no record (an Arterial recipe makes an item or a card).
 			titleFields: [row.title_field, ...JSON.parse(row.title_fallbacks ?? '[]')].filter(Boolean),
+			// OME's word for a record the game names none (OME's export plan §5, `titles`): Verita's element 0, Undefined.
+			titles: JSON.parse(row.titles ?? '{}'),
 			aliases: JSON.parse(row.aliases),
 			label: kindLabel(row.id),
 			// What its entities are, in one line (OME's declarations, `about`), which its card and its list show.
@@ -235,7 +245,7 @@ export function readExport({ game, revision, dir, thumbnails = {}, cards = {}, c
 					}
 					return { name: p.name, ...pictures.get(name) };
 				});
-				const title = text[kind.titleField]?.[0]?.trim() || `${kind.label.one} ${id}`;
+				const title = text[kind.titleField]?.[0]?.trim() || kind.titles[id] || `${kind.label.one} ${id}`;
 				// The name in each language that has one; none when the title is not the game's text.
 				const names = {};
 				if (text[kind.titleField]?.[0]?.trim()) {
