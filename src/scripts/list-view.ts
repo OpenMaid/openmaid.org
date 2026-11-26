@@ -54,12 +54,12 @@ export function nameHtml(title: string, names: Names = {}) {
 	return esc(title);
 }
 
-/** A picture in a list file: its file, width and height, and 1 where the game draws it with its additive glow. */
+/** A picture in a list file: its file, width and height, and 1 where it is drawn on a dark tile (`pictureTuple`). */
 export type PictureTuple = [string, number, number] | [string, number, number, 1];
 
-/** A picture's classes, as `Picture.astro` gives them: a small one's pixels kept sharp, an additive one on a dark tile. */
+/** A picture's classes, as `Picture.astro` gives them: a small one's pixels kept sharp, one light on nothing on a dark tile. */
 const pictureClass = (picture: PictureTuple) => {
-	const classes = [...(picture[1] <= 32 && picture[2] <= 32 ? ['ome-pixel'] : []), ...(picture[3] ? ['ome-additive'] : [])];
+	const classes = [...(picture[1] <= 32 && picture[2] <= 32 ? ['ome-pixel'] : []), ...(picture[3] ? ['ome-dark-tile'] : [])];
 	return classes.length > 0 ? ` class="${classes.join(' ')}"` : '';
 };
 

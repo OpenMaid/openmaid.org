@@ -4,13 +4,13 @@
 // scripts the stand-in links to the picture. The stand-in carries the picture's size (`--ome-w`, `--ome-h`), which the
 // style draws it at, since its own is the build's tiny copy's (site.css, "An explicit picture's stand-in"). Its text
 // may be in each language the entity's name is (`alt` by language tag): `lang` shows first, and the language switch
-// picks one (DatabaseSwitches.astro; site plan §10.3). One the game
-// draws with its additive glow (a healing feather) is light on nothing, so it shows on a dark tile (site plan §15.4).
+// picks one (DatabaseSwitches.astro; site plan §10.3). One light on nothing shows on a dark tile (`darkTile`): what the
+// game draws with its additive glow (a healing feather; site plan §15.4), or light and half clear over its ground (§21).
 import { pictureUrl, standInUrl } from '../lib/database.mjs';
 
 interface Props {
 	data: { game: string; revision: string };
-	picture: { file: string; explicit: boolean; additive?: boolean; width: number; height: number };
+	picture: { file: string; explicit: boolean; darkTile?: boolean; width: number; height: number };
 	alt: string | Record<string, string>;
 	lang?: string;
 	class?: string;
@@ -43,7 +43,7 @@ const small = picture.width <= 32 && picture.height <= 32;
 		</a>
 	) : (
 		<img
-			class:list={[className, { 'ome-pixel': small, 'ome-additive': picture.additive }]}
+			class:list={[className, { 'ome-pixel': small, 'ome-dark-tile': picture.darkTile }]}
 			src={src}
 			alt={text}
 			lang={tag}

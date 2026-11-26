@@ -14,8 +14,8 @@ interface Props {
 		missing?: string;
 		title?: string;
 		names?: Record<string, string>;
-		thumb?: { file: string; explicit: boolean; additive?: boolean; width: number; height: number } | null;
-		icon?: { file: string; explicit: boolean; additive?: boolean; width: number; height: number };
+		thumb?: { file: string; explicit: boolean; darkTile?: boolean; width: number; height: number } | null;
+		icon?: { file: string; explicit: boolean; darkTile?: boolean; width: number; height: number };
 	};
 	data?: { game: string; revision: string };
 }

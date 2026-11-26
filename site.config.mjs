@@ -200,5 +200,50 @@ export default {
 				treasure: ['items'],
 			},
 		},
+		koukaku: {
+			gameVersion: '1.03.0010',
+			// A character's unit picture, its face as the unit lists draw it, before the sheet of its small figure in four
+			// facings; a troop's picture is its soldiers' sheet. A formation's marker is too faint for a thumbnail.
+			thumbnails: {
+				character: ['unit', 'sprites'],
+				troop: ['picture'],
+				map_object: ['picture'],
+				character_profile: ['portrait'],
+				tip: ['picture'],
+			},
+			// The pictures a page draws on a dark tile, by kind and picture name, where the game draws them light and half
+			// clear over its own ground: a formation's marker, which DRAWUNIT draws under the unit on the battlefield.
+			darkPictures: { formation: ['picture'] },
+			// Tip 1's picture is the game's card for a page with none (この項目に参考画像はありません), and formation 0's
+			// (無陣) marks no squad.
+			cards: { tip: 2, formation: 21 },
+			columns: {
+				character: [
+					'kind',
+					'element',
+					'initial_title',
+					'base_level',
+					'base_stats.control',
+					'base_stats.hp',
+					'base_stats.physical_attack',
+					'base_stats.physical_defense',
+					'base_stats.magic_attack',
+					'base_stats.magic_defense',
+				],
+				title: ['unit_class', 'movement_kind', 'required_level', 'range_bonus', 'special', 'skills'],
+				troop: ['kind', 'attribute', 'movement_type', 'command_cost', 'price', 'upkeep_cost', 'passive_skill'],
+				skill: ['element', 'effect_kind', 'cost', 'power', 'duration'],
+				item: ['kind', 'rank', 'attack_element', 'skill', 'prices.0'],
+				part: ['kind', 'rank', 'allowed_characters', 'skill'],
+				formation: ['required_squads', 'moves_while_attacking'],
+				breed_combination: ['type', 'parents', 'experience_gain'],
+				nation: ['start_leader', 'start_capital', 'start_funds', 'start_provisions'],
+				route: ['ends'],
+				ruse: ['target_kind', 'fund_cost_ranges.0', 'fund_cost_ranges.1', 'friendship_changes.0'],
+				quest: ['region', 'first_week', 'prerequisite', 'reward_money.0'],
+				map_object: ['kind', 'width', 'depth', 'build_weeks.1', 'costs.1'],
+				character_profile: ['line_characters.0'],
+			},
+		},
 	},
 };

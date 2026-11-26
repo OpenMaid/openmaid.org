@@ -29,7 +29,7 @@ Where the code is:
 
 | Path | What |
 |---|---|
-| `site.config.mjs` | The site's title and address; the OME a deploy builds with (`ome.release`); for each game, its version, translations, thumbnails, link icons, cards, and each kind's default list columns |
+| `site.config.mjs` | The site's title and address; the OME a deploy builds with (`ome.release`); for each game, its version, translations, thumbnails, link icons, cards, the pictures drawn on a dark tile, and each kind's default list columns |
 | `src/lib/` | Code that runs at build time. `export.mjs` reads an export, `database.mjs` makes each game's kinds and entities, `columns.mjs` writes the list files, `format.mjs` and `values.mjs` decide how a value reads, `search-index.mjs` builds the search, `bundle.mjs` and `reference*.mjs` read the bundle |
 | `src/pages/` | The routes: `[game]/[kind]/` for a list, `[game]/[kind]/[id]/[slug]` for an entity, `docs/` for the guides and the reference, `databases/` for the overview |
 | `src/components/` | The components the pages draw with (`Value.astro`, `DataTable.astro`, `Picture.astro`, `Label.astro`, ...) |

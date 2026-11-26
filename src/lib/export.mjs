@@ -29,7 +29,7 @@ export function exportRevision(game, dir) {
 	return manifest.revision;
 }
 
-export function readExport({ game, revision, dir, thumbnails = {}, cards = {}, columns = {}, linkIcons = [] }) {
+export function readExport({ game, revision, dir, thumbnails = {}, cards = {}, columns = {}, linkIcons = [], darkPictures = {} }) {
 	const file = path.join(dir, `${revision}.sqlite`);
 	if (!fs.existsSync(file))
 		throw new Error(`no export of ${game} revision ${revision} at ${file}: copy OME's export folder there (README.md)`);
@@ -230,6 +230,9 @@ export function readExport({ game, revision, dir, thumbnails = {}, cards = {}, c
 				}
 				const entityPictures = (pics.get(id) ?? []).map((p) => {
 					const name = path.posix.basename(p.file);
+					// Light on nothing, so drawn on a dark tile: what the game draws with its additive glow, and what
+					// site.config.mjs `darkPictures` names, light and half clear over the game's own ground.
+					const darkTile = Boolean(p.additive) || (darkPictures[kind.id] ?? []).includes(p.name);
 					if (!pictures.has(name)) {
 						const source = path.join(dir, ...p.file.split('/'));
 						if (!fs.existsSync(source)) throw new Error(`${file}: ${kind.id} ${id}'s picture ${p.file} is not in the export`);
@@ -237,13 +240,12 @@ export function readExport({ game, revision, dir, thumbnails = {}, cards = {}, c
 							file: name,
 							source,
 							explicit: Boolean(p.explicit),
-							...(p.additive ? { additive: true } : {}),
 							width: p.width,
 							height: p.height,
 							hash: p.hash,
 						});
 					}
-					return { name: p.name, ...pictures.get(name) };
+					return { name: p.name, ...pictures.get(name), ...(darkTile ? { darkTile: true } : {}) };
 				});
 				const title = text[kind.titleField]?.[0]?.trim() || kind.titles[id] || `${kind.label.one} ${id}`;
 				// The name in each language that has one; none when the title is not the game's text.

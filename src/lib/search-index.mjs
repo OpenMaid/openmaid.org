@@ -10,7 +10,7 @@ import { SOURCE_LANGUAGE } from './language.mjs';
  * entity, `[kind, id, slug, title, names, picture]`: the kind's index in `kinds`; the entity's id and its URL's slug
  * (its address is `/<game>/<kind>/<id>/<slug>/`); its name in the game's language, told apart from others; its names
  * in the other languages (`{ en: … }`, 0 when it has none: a title that is not the game's text); and its thumbnail,
- * `[file, width, height]` with a 1 after them where it is additive (`pictureTuple`), or 0.
+ * `[file, width, height]` with a 1 after them where it is drawn on a dark tile (`pictureTuple`), or 0.
  */
 export function searchData(data) {
 	return {

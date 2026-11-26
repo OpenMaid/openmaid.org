@@ -104,6 +104,6 @@ export function valueText(field, v, signed = isChange(field)) {
 
 /**
  * A picture as a list file and the search index carry it (src/scripts/list-view.ts `PictureTuple`): `[file, width,
- * height]`, and a 1 after them where the game draws it with its additive glow (site plan §15.4).
+ * height]`, and a 1 after them where it is drawn on a dark tile (`darkTile`, lib/export.mjs; site plan §15.4, §21).
  */
-export const pictureTuple = (picture) => [picture.file, picture.width, picture.height, ...(picture.additive ? [1] : [])];
+export const pictureTuple = (picture) => [picture.file, picture.width, picture.height, ...(picture.darkTile ? [1] : [])];

@@ -26,6 +26,8 @@ declare module 'virtual:ome' {
 			dir: string;
 			thumbnails: Record<string, string[]>;
 			cards?: Record<string, number>;
+			linkIcons?: string[];
+			darkPictures?: Record<string, string[]>;
 			// The checked copy of its cover (src/lib/covers.mjs), or null.
 			cover: { source: string; name: string; type: string; width: number; height: number } | null;
 		}[];

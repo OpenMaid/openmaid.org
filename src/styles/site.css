@@ -297,9 +297,10 @@
 img.ome-pixel {
 	image-rendering: pixelated;
 }
-/* A picture the game draws with its additive glow (a healing feather; site plan §15.4) is light added to what is under
-   it: on a dark tile, as over the game's dungeon floor, in either theme. */
-img.ome-additive {
+/* A picture light on nothing, on a dark tile in either theme (`darkTile`): one the game draws with its additive glow
+   (a healing feather; site plan §15.4) is light added to its dungeon floor, and one site.config.mjs `darkPictures`
+   names is light and half clear over the game's own ground (魔導巧殻's formation markers; §21). */
+img.ome-dark-tile {
 	background: #16161c;
 	border-radius: 0.25rem;
 }
