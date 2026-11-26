@@ -6,7 +6,7 @@
 // with their search as its name (§9.2), which matches names as the search does (lib/match.mjs).
 import { SOURCE_LANGUAGE } from '../lib/language.mjs';
 import { namesMatch } from '../lib/match.mjs';
-import { esc, listTable, loadList, nameHtml, shownLanguage, type Column, type Filter, type ListFile, type Names } from './list-view.ts';
+import { esc, listTable, loadList, nameHtml, NO_VALUE, shownLanguage, type Column, type Filter, type ListFile, type Names } from './list-view.ts';
 
 const OWN = new Set(['q', 'cols', 'sort']);
 
@@ -63,8 +63,11 @@ function start(table: HTMLTableElement, form: HTMLFormElement, file: ListFile) {
 	const number = (n: number) => n.toLocaleString('en');
 	nameInput.value = params.get('q') ?? '';
 
+	// "no value" follows "all" where some entries have no value in the column (columns.mjs `noneCount`).
 	const optionsHtml = (column: Column) =>
-		`<option value="">all</option>${column
+		`<option value="">all</option>${
+			column.none ? `<option value="${NO_VALUE}" data-count="${number(column.none)}">no value (${number(column.none)})</option>` : ''
+		}${column
 			.options!.map(
 				(o) =>
 					`<option value="${o.v}" data-count="${number(o.c)}"${o.n ? ` data-names="${esc(JSON.stringify(o.n))}"` : ''}>${esc(o.t ?? o.x)} (${number(o.c)})</option>`,

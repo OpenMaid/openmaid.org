@@ -15,7 +15,7 @@ const columnsOf = new WeakMap();
 
 /**
  * The columns a table of a kind's entries can show, in the order of the kind's fields (a list offers them so, by
- * group). A column is `{ key, field, index, label, group, type, note, quick, default, filter, options }`:
+ * group). A column is `{ key, field, index, label, group, type, note, quick, default, filter, options, none }`:
  * - a field of one cell is a column (`index` null) of a `number`, a `name` (a value the game or OME names), a `mask`
  *   (the names of the bits it sets) or an `entity` (a reference);
  * - an array whose elements have names gives a column for each element (`index`), its `group` the field's label: a
@@ -81,6 +81,7 @@ export function listColumns(kind) {
 		column.default = chosen.includes(column.key);
 		column.filter = filterOf(column);
 		column.options = column.filter === 'select' ? options(kind, column) : null;
+		column.none = column.filter === 'select' ? noneCount(kind, column) : null;
 	}
 	columnsOf.set(kind, columns);
 	defaultsOf.set(kind, chosen);
@@ -140,6 +141,15 @@ function options(kind, column) {
 	return [...counts.values()].sort((a, b) => a.v - b.v);
 }
 
+/**
+ * How many of a kind's entries a column's `select` filter offers as "no value": those whose cell shows nothing
+ * (`cellItems`), where others have a value; else null. The browser keeps the same entries (list-view.ts `isEmpty`).
+ */
+function noneCount(kind, column) {
+	const count = kind.entities.filter((entity) => cellItems(column, entity).length === 0).length;
+	return count > 0 && column.options.length > 0 ? count : null;
+}
+
 /** The value of an entry a column of one value shows. */
 const rawValue = (column, entity) => {
 	const v = entity.values[column.field.name];
@@ -186,7 +196,8 @@ export function cellItems(column, entity) {
  * text (`x`) or an id no entry has (`m`). A link is the index of the entry it names in `links` (its id `i`, `u`, `t`,
  * `n`, and its icon `p` where its kind's links show one), which holds each entry the cells name once: a skill many units
  * have is written once. A column says how a list
- * filters on it (`filter`, `filterOf`) and the choices of its select (`options`).
+ * filters on it (`filter`, `filterOf`), the choices of its select (`options`) and how many entries it offers as having
+ * no value (`none`).
  */
 export function listData(data, kind) {
 	const columns = listColumns(kind);
@@ -228,6 +239,7 @@ export function listData(data, kind) {
 			quick: c.quick,
 			filter: c.filter,
 			options: c.options,
+			none: c.none,
 			field: {
 				name: c.field.name,
 				refKind: c.field.refKind ?? null,

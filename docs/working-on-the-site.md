@@ -102,7 +102,10 @@ the work.
 
 **Serving it.** `npx astro preview --outDir .astro/check-dist` serves the build at <http://localhost:4321/>.
 - Astro runs one preview per project. A second refuses to start ("Another astro preview server is already running")
-  and names the first's PID; `npx astro preview stop` stops the first.
+  and names the first's PID; `npx astro preview stop` stops the first. Stopping the shell that started a preview
+  can leave its `node` process serving, still holding the port.
+- A preview serves its folder from disk, so a rebuild into that folder empties it while the preview runs. Stop the
+  preview before rebuilding into its folder, or build elsewhere.
 - If the user is looking at a preview, leave it alone unless they say otherwise.
 - To serve a second build on another port, run `py -3.11 -m http.server 4399` in its folder.
 - Neither server does what nginx does in the image (`deploy/nginx.conf`). An entity's address without its slug, or
@@ -136,7 +139,8 @@ without scripts. Then the browser draws it again from its list file (`src/script
 sorting the visitor chose. The browser code mirrors the build's:
 - `list-view.ts`'s `nameHtml` draws a name as `Name.astro` does;
 - its `pictureClass` gives a picture the classes `Picture.astro` gives it;
-- its mask values follow `format.mjs`'s `valueItems`.
+- its mask values follow `format.mjs`'s `valueItems`;
+- its `isEmpty`, the rows a select's "no value" keeps, follows `columns.mjs`'s `noneCount`, which counts them.
 
 So a change to how a value reads is a change to both. The comments in `list-view.ts` name each function's twin.
 

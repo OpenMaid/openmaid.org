@@ -22,6 +22,8 @@ export type Column = {
 	quick: boolean;
 	filter: 'select' | 'range' | 'text';
 	options: Option[] | null;
+	/** How many entries a select offers as "no value" (columns.mjs `noneCount`), or null where it offers none. */
+	none: number | null;
 	field: Field;
 	position: number;
 };
@@ -31,8 +33,10 @@ type Link = { i: number; u: string; t: string; n: Names; p?: PictureTuple };
 export type Row = { id: number; u: string; t: string; n: Names; p: PictureTuple | null; v: unknown[] };
 export type ListFile = { pictures: string; defaults: string[]; columns: Column[]; rows: Row[]; links: Link[] };
 export type Sort = { key: string; desc: boolean };
-/** A filter of a list: a column and the value it wants, as the address writes it (`3`, `10..20`, `poison`). */
+/** A filter of a list: a column and the value it wants, as the address writes it (`3`, `10..20`, `poison`, `none`). */
 export type Filter = { column: Column; value: string };
+/** The value of a select filter that wants the entries with no value in its column. */
+export const NO_VALUE = 'none';
 
 const VALUE_TYPES = new Set(['number', 'name', 'mask']);
 /** What a cell sorts by: a number, a text, or for a cell of several items each item's in turn. */
@@ -252,9 +256,14 @@ export function listTable(file: ListFile, table: HTMLTableElement, options: Opti
 		return keyed.map(({ row }) => row);
 	};
 
+	/** Whether an entry's cell shows nothing, as columns.mjs `cellItems` gives it none (its `noneCount`). */
+	const isEmpty = (column: Column, row: Row) =>
+		VALUE_TYPES.has(column.type) ? emptyValue(column.field, column.type, valueOf(column, row)) : items(column, row).length === 0;
+
 	/** Whether an entry passes a filter, by its column's kind of filter (columns.mjs `filterOf`). */
 	const matches = (row: Row, { column, value }: Filter) => {
 		if (column.filter === 'text') return cellText(column, row).includes(value.toLowerCase());
+		if (column.filter === 'select' && value === NO_VALUE) return isEmpty(column, row);
 		if (column.filter === 'range') {
 			const v = valueOf(column, row);
 			if (v === null || v === undefined) return false;

@@ -175,5 +175,30 @@ export default {
 			// An element's links show its icon, as the status screen draws it beside its name.
 			linkIcons: ['element'],
 		},
+		bg0: {
+			gameVersion: '2.00.0011',
+			// A unit's battle sprite first, an enemy's or the first frame of a party unit's strip (OME's declarations),
+			// then the bestiary's portrait and the status screen's; OME's declarations publish no element icon.
+			thumbnails: {
+				unit: ['sprite', 'party_sprite', 'portrait', 'status'],
+				character_profile: ['portrait'],
+				glossary_entry: ['picture'],
+			},
+			columns: {
+				unit: [
+					'kind',
+					'defense_element',
+					'base_level',
+					'max_hp',
+					'attacks',
+					'defenses',
+					'magic_attacks',
+					'magic_defenses',
+					'physical_speeds',
+				],
+				item: ['category', 'class', 'rank', 'attack_element', 'buy_price'],
+				treasure: ['items'],
+			},
+		},
 	},
 };
