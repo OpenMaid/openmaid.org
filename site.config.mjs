@@ -247,11 +247,13 @@ export default {
 		},
 		ladea: {
 			gameVersion: '2.00.0011',
-			// An item's icon, a stone's card and a profile's portrait; OME's declarations publish no character picture.
+			// An item's icon, a stone's card and a profile's first form. A character shows the face the game's lists draw;
+			// one with no look (OME's declarations: COINIT) falls back to its profile's first form.
 			thumbnails: {
 				item: ['icon'],
 				stone: ['picture'],
-				character_profile: ['portrait'],
+				character: ['face', 'status', 'profile', 'battle'],
+				character_profile: ['form_1'],
 			},
 			// An item's prices are one column per shop, which OME's registry does not name, so its list has none.
 			columns: {
