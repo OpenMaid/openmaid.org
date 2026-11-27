@@ -245,5 +245,39 @@ export default {
 				character_profile: ['line_characters.0'],
 			},
 		},
+		ladea: {
+			gameVersion: '2.00.0011',
+			// An item's icon, a stone's card and a profile's portrait; OME's declarations publish no character picture.
+			thumbnails: {
+				item: ['icon'],
+				stone: ['picture'],
+				character_profile: ['portrait'],
+			},
+			// An item's prices are one column per shop, which OME's registry does not name, so its list has none.
+			columns: {
+				character: [
+					'race',
+					'affinity_type',
+					'base_level',
+					'base_stats.max_hp',
+					'base_stats.max_mp',
+					'base_stats.physical_attack',
+					'base_stats.physical_defense',
+					'base_stats.magic_attack',
+					'base_stats.magic_defense',
+				],
+				item: ['kind', 'class', 'rank', 'attack_element', 'stat_bonuses.physical_attack', 'skill'],
+				special_skill: ['kind', 'attack_only'],
+				stone: ['cost', 'skills'],
+				alchemy_recipe: ['ingredients', 'required_character', 'required_character_level'],
+				quest: ['required_item', 'clear_item', 'reward_kinds'],
+				unlock: ['kind', 'subject', 'cost', 'prerequisites'],
+				condition: ['polarity', 'boss_proof'],
+				floor: ['dungeon_first_floor', 'gauge_drain_steps'],
+				map_block: ['floor', 'enemy_level'],
+				inn_rite: ['gauge_target', 'required_gauge_maximum'],
+				character_profile: ['line_characters.0'],
+			},
+		},
 	},
 };
