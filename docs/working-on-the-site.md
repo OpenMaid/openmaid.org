@@ -173,6 +173,13 @@ README "Deploying" describes the workflow, and plan §15 its history. In short:
 - A version tag `v*`, or a run by hand on `develop`, deploys. A run by hand on any other branch builds and checks the
   image without deploying it.
 - Before tagging, make sure the OME that `ome.release` names can build the site (§3).
+- A new OME release changes every export's key, so the first deploy after one exports every game again, about half an
+  hour. Before tagging after a new game or a new release, run the workflow by hand on a branch other than `develop`,
+  which builds and checks without deploying; the tag's run then finds its exports in the bucket.
+- The publisher's site may refuse the runner a cover (HTTP 403; all four new games' on 2026-11-28, plan §15.8). The
+  build then goes on without it and says "no cover". Put the game's cover in the bucket's `covers/` as
+  `<game>.jpg`, the copy `fetch-covers.mjs` saved on your desk with the bundle's hash, and only on the user's word,
+  since it writes to the bucket.
 - The user's server takes the image. Whether it did is for the user to check.
 
 ## 9. Rules that hold here as in OME
